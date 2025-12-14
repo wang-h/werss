@@ -1,0 +1,23 @@
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import router from './router'
+import { RouterProvider } from 'react-router-dom'
+import { initSettings } from './utils/settings'
+import { Toaster } from '@/components/ui/toaster'
+import { ThemeProvider } from '@/components/theme-provider'
+
+// 导入自定义样式
+import './style.css'
+
+// 初始化设置（包括暗色模式）
+initSettings()
+
+ReactDOM.createRoot(document.getElementById('app')!).render(
+  <React.StrictMode>
+    <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <RouterProvider router={router} />
+      <Toaster />
+    </ThemeProvider>
+  </React.StrictMode>
+)
+

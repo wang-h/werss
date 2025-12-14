@@ -1,0 +1,463 @@
+import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useToast } from '@/hooks/use-toast'
+import { ExportTags, ImportTags } from '@/api/export'
+import { listTags, deleteTag, batchDeleteTags } from '@/api/tagManagement'
+import type { Tag as TagType } from '@/types/tagManagement'
+import { Download, Upload, Plus, Edit, Trash2, Loader2, Rss, Search } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { formatDateTime } from '@/utils/date'
+
+const TagList: React.FC = () => {
+  const navigate = useNavigate()
+  const [loading, setLoading] = useState(false)
+  const [tags, setTags] = useState<TagType[]>([])
+  const [allTags, setAllTags] = useState<TagType[]>([]) // 存储所有标签用于搜索
+  const [searchText, setSearchText] = useState('')
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([])
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  })
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false)
+  const { toast } = useToast()
+
+  const fetchTags = async () => {
+    try {
+      setLoading(true)
+      // 获取所有标签用于搜索
+      const allRes = await listTags({
+        offset: 0,
+        limit: 10000
+      }) as unknown as { list?: TagType[]; total?: number }
+      const allTagsData = allRes.list || []
+      setAllTags(allTagsData)
+      
+      // 应用搜索过滤
+      let filteredTags = allTagsData
+      if (searchText.trim()) {
+        filteredTags = allTagsData.filter(tag => 
+          tag.name?.toLowerCase().includes(searchText.toLowerCase().trim())
+        )
+      }
+      
+      // 分页处理
+      const total = filteredTags.length
+      const start = (pagination.current - 1) * pagination.pageSize
+      const end = start + pagination.pageSize
+      const paginatedTags = filteredTags.slice(start, end)
+      
+      setTags(paginatedTags)
+      setPagination(prev => ({ ...prev, total }))
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: "获取标签列表失败"
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 当搜索文本改变时，重置到第一页
+  useEffect(() => {
+    if (pagination.current !== 1) {
+      setPagination(prev => ({ ...prev, current: 1 }))
+    }
+  }, [searchText])
+
+  useEffect(() => {
+    fetchTags()
+  }, [pagination.current, pagination.pageSize, searchText])
+
+  const handleSearch = () => {
+    // 搜索按钮点击，确保重置到第一页（如果不在第一页）
+    if (pagination.current !== 1) {
+      setPagination(prev => ({ ...prev, current: 1 }))
+    } else {
+      // 如果已经在第一页，手动触发搜索
+      fetchTags()
+    }
+  }
+
+  const handleDelete = (id: string) => {
+    setDeleteTargetId(id)
+    setDeleteDialogOpen(true)
+  }
+
+  const confirmDelete = async () => {
+    if (!deleteTargetId) return
+    try {
+      await deleteTag(deleteTargetId)
+      setDeleteDialogOpen(false)
+      setDeleteTargetId(null)
+      toast({
+        title: "成功",
+        description: "删除成功"
+      })
+      fetchTags()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: "删除失败"
+      })
+    }
+  }
+
+  const handleBatchDelete = () => {
+    if (selectedRowKeys.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "警告",
+        description: "请先选择要删除的标签"
+      })
+      return
+    }
+    setBatchDeleteDialogOpen(true)
+  }
+
+  const confirmBatchDelete = async () => {
+    try {
+      await batchDeleteTags(selectedRowKeys)
+      toast({
+        title: "成功",
+        description: `成功删除 ${selectedRowKeys.length} 个标签`
+      })
+      setSelectedRowKeys([])
+      setBatchDeleteDialogOpen(false)
+      fetchTags()
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: "批量删除失败"
+      })
+    }
+  }
+
+  const exportTags = async () => {
+    toast({
+      title: "提示",
+      description: "正在生成导出文件，请稍候..."
+    })
+    try {
+      const res = await ExportTags()
+      const data = (res as any).data ?? res
+      const blob = data instanceof Blob
+        ? data
+        : new Blob([data], { type: 'text/csv;charset=utf-8' })
+
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = '标签列表.csv'
+      document.body.appendChild(a)
+      a.click()
+
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+      toast({
+        title: "成功",
+        description: "文件导出成功！"
+      })
+    } catch (error: any) {
+      console.error('导出标签失败:', error)
+      const errorMessage = error?.message || '导出标签失败，请检查网络或联系管理员'
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: errorMessage
+      })
+    }
+  }
+
+  const importTags = async () => {
+    try {
+      const input = document.createElement('input')
+      input.type = 'file'
+      input.accept = '.csv'
+
+      input.onchange = async (e) => {
+        const file = (e.target as HTMLInputElement).files?.[0]
+        if (!file) return
+
+        const formData = new FormData()
+        formData.append('file', file)
+
+        toast({
+          title: "提示",
+          description: "正在导入文件，请稍候..."
+        })
+        try {
+          const res = await ImportTags(formData)
+          const data = (res as any).data ?? res
+          toast({
+            title: "成功",
+            description: data?.message || '导入成功'
+          })
+          fetchTags()
+        } catch (importError: any) {
+          const detail = importError.response?.data?.detail
+          const errorMessage = (typeof detail === 'object' && detail.message) ? detail.message : (detail || '导入失败，请检查文件格式或联系管理员')
+          toast({
+            variant: "destructive",
+            title: "错误",
+            description: errorMessage
+          })
+          console.error('导入标签时发生错误:', importError)
+        }
+      }
+
+      input.click()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: error?.message || '无法打开文件选择器'
+      })
+    }
+  }
+
+  const toggleRowSelection = (id: string) => {
+    setSelectedRowKeys(prev => 
+      prev.includes(id) 
+        ? prev.filter(key => key !== id)
+        : [...prev, id]
+    )
+  }
+
+  const toggleAllSelection = () => {
+    if (selectedRowKeys.length === tags.length) {
+      setSelectedRowKeys([])
+    } else {
+      setSelectedRowKeys(tags.map(t => t.id))
+    }
+  }
+
+  const totalPages = Math.ceil(pagination.total / pagination.pageSize)
+
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold mb-2 text-foreground">
+          标签管理
+        </h1>
+        <p className="text-muted-foreground text-sm">管理文章标签</p>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div>
+            <CardTitle>标签列表</CardTitle>
+            <CardDescription>管理文章标签和分类</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            {selectedRowKeys.length > 0 && (
+              <>
+                <span className="text-sm text-muted-foreground">已选择 {selectedRowKeys.length} 项</span>
+                <Button variant="destructive" onClick={handleBatchDelete}>
+                  批量删除
+                </Button>
+              </>
+            )}
+            <Button variant="outline" onClick={exportTags}>
+              <Download className="h-4 w-4 mr-2" />
+              导出标签
+            </Button>
+            <Button variant="outline" onClick={importTags}>
+              <Upload className="h-4 w-4 mr-2" />
+              导入标签
+            </Button>
+            <Button 
+              onClick={() => navigate('/tags/add')}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              添加标签
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {/* 搜索区域 */}
+          <div className="mb-4 flex items-center gap-2">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="搜索标签名称..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSearch()
+                  }
+                }}
+              />
+            </div>
+            <Button onClick={handleSearch} variant="outline">
+              <Search className="h-4 w-4 mr-2" />
+              搜索
+            </Button>
+            {searchText && (
+              <Button 
+                onClick={() => {
+                  setSearchText('')
+                  setPagination(prev => ({ ...prev, current: 1 }))
+                }} 
+                variant="ghost"
+                size="sm"
+              >
+                清除
+              </Button>
+            )}
+          </div>
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedRowKeys.length === tags.length && tags.length > 0}
+                      onCheckedChange={toggleAllSelection}
+                    />
+                  </TableHead>
+                  <TableHead>标签名称</TableHead>
+                  <TableHead>状态</TableHead>
+                  <TableHead>文章数量</TableHead>
+                  <TableHead>创建时间</TableHead>
+                  <TableHead className="w-[200px]">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                    </TableCell>
+                  </TableRow>
+                ) : tags.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                      暂无数据
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  tags.map((tag) => (
+                    <TableRow key={tag.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedRowKeys.includes(tag.id)}
+                          onCheckedChange={() => toggleRowSelection(tag.id)}
+                        />
+                      </TableCell>
+                      <TableCell className="font-medium">{tag.name}</TableCell>
+                      <TableCell>
+                        {tag.status === 1 ? (
+                          <Badge className="bg-green-500">启用</Badge>
+                        ) : tag.status === 2 ? (
+                          <Badge variant="destructive">屏蔽</Badge>
+                        ) : (
+                          <Badge variant="outline">禁用</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary" className="font-mono">
+                          {tag.article_count ?? 0}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{formatDateTime(tag.created_at)}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <a 
+                            href={`/feed/tag/${tag.id}.rss`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline text-sm"
+                          >
+                            <Rss className="h-4 w-4" />
+                          </a>
+                          <Button variant="ghost" size="sm" onClick={() => navigate(`/tags/edit/${tag.id}`)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(tag.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-4">
+              <div className="text-sm text-muted-foreground">
+                共 {pagination.total} 条{searchText ? `（搜索: "${searchText}"）` : ''}，第 {pagination.current} / {totalPages} 页
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPagination(prev => ({ ...prev, current: Math.max(1, prev.current - 1) }))}
+                  disabled={pagination.current === 1}
+                >
+                  上一页
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPagination(prev => ({ ...prev, current: Math.min(totalPages, prev.current + 1) }))}
+                  disabled={pagination.current === totalPages}
+                >
+                  下一页
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 删除确认对话框 */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认删除</DialogTitle>
+            <DialogDescription>确认删除该标签？</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>取消</Button>
+            <Button variant="destructive" onClick={confirmDelete}>删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 批量删除确认对话框 */}
+      <Dialog open={batchDeleteDialogOpen} onOpenChange={setBatchDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>确认批量删除</DialogTitle>
+            <DialogDescription>确定要删除选中的 {selectedRowKeys.length} 个标签吗？</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBatchDeleteDialogOpen(false)}>取消</Button>
+            <Button variant="destructive" onClick={confirmBatchDelete}>删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+export default TagList

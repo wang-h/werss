@@ -1,0 +1,169 @@
+app_name: ${APP_NAME:-werss}
+server:
+   #服务名称
+   name: ${SERVER_NAME:-werss}
+   #前端显示名称
+   web_name: ${WEB_NAME:-WeRSS微信公众号订阅助手}
+   #过期是否发送授权二维通知 默认True
+   send_code: ${SEND_CODE:-True}
+   #二维通知标题
+   code_title: ${CODE_TITLE:-WeRSS}
+   #启动JOB定时任务，默认为True
+   enable_job: ${ENABLE_JOB:-True}
+   #代码修改自动重启服务，默认为False
+   auto_reload: ${AUTO_RELOAD:-False}
+   #最大线程数 默认2个线程，不建议超过4个线程
+   threads: ${THREADS:-2}
+   #通过web方式授权二维码 默认False 
+   auth_web: ${WERSS_AUTH_WEB:-False}
+
+
+#数据库连接 例如db:  mysql+pymysql://<username>:<password>@<host>/we-rss?charset=utf8mb4
+#PostgreSQL 连接示例: postgresql://<username>:<password>@<host>/<database>
+#需要注意数据库连接字符串的格式，如果是sqlite数据库，则使用sqlite:///路径的形式，如果是mysql数据库，
+#则使用mysql+pymysql://<username>:<password>@<host>/<database>?charset=<数据库编码>的形式
+db: ${DB:-sqlite:///data/db.db}
+#通知
+notice:
+  #通知方式，可选dingding、wechat、feishu、custom
+  dingding: "${DINGDING_WEBHOOK}"
+  wechat: "${WECHAT_WEBHOOK}"
+  feishu: "${FEISHU_WEBHOOK}"
+  custom: "${CUSTOM_WEBHOOK}"
+  
+secret: ${SECRET_KEY:-werss}
+user_agent: ${USER_AGENT:-Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36/WeRss}
+
+#定时任务执行每篇稿件间隔时间 单位秒 默认10s 允许值 1-60秒之间
+interval: ${SPAN_INTERVAL:- 10}
+
+webhook:
+  #文章内容的发送格式(默认使用html格式，可选text、markdown)
+  content_format: ${WEBHOOK.CONTENT_FORMAT:-html}
+  
+#API服务端口
+port: ${PORT:-8001}
+#调试模式
+debug: ${DEBUG:-False}
+
+
+#最大页数 第一次添加 采集的页数默认5页
+max_page: ${MAX_PAGE:-5}
+
+rss:
+  #RSS域名地址：如https://www.xxx.com/
+  base_url: ${RSS_BASE_URL:-}
+  #是否为本地RSS链接，默认True，当为False时直接出外部链接
+  local: ${RSS_LOCAL:-False}
+  #RSS标题
+  title: ${RSS_TITLE:-}
+  #RSS描述
+  description: ${RSS_DESCRIPTION:-}
+  #RSS封面
+  cover: ${RSS_COVER:-}
+  #是否显示全文 默认False
+  full_context: ${RSS_FULL_CONTEXT:-True}
+  #是否添加封面图片 默认False
+  add_cover: ${RSS_ADD_COVER:-True}
+  #RSS正文是否启用 CDATA
+  cdata: ${RSS_CDATA:-False}
+  #RSS分页大小 默认10
+  page_size: ${RSS_PAGE_SIZE:-30}
+
+#登录会话有效时长 单位分钟 默认4320分钟 3天
+token_expire_minutes: ${TOKEN_EXPIRE_MINUTES:-4320}
+
+cache:
+  #缓存目录，默认为./data/cache
+  dir: ${CACHE.DIR:-./data/cache}
+
+article:
+  #是否真实删除文章，默认True（物理删除，真正从数据库删除），如果为False，则只标记为已删除状态（逻辑删除）
+  true_delete: ${ARTICLE.TRUE_DELETE:-True}
+
+gather:
+  #是否采集内容  默认False
+  content: ${GATHER.CONTENT:-False}
+  #采集模式，web模式（可采集到发布链接)，api模式（可采集临时链接），app模式（采集最新消息）
+  model: ${GATHER.MODEL:-app}
+  #是否自动检查未采集文章内容，默认False
+  content_auto_check: ${GATHER.CONTENT_AUTO_CHECK:-False}
+  #自动检查未采集文章内容的时间间隔 单位秒默认59分钟 允许值 1-59分钟之间 默认59分钟
+  content_auto_interval: ${GATHER.CONTENT_AUTO_INTERVAL:-59}
+  #内容修正模式，默认web 允许值 web、api
+  content_mode: ${GATHER.CONTENT_MODE:-web}
+  #是否清理html标签 默认True 
+  clean_html: ${GATHER.CLEAN_HTML:-True}
+  #浏览器类型 默认firefox 允许值 firefox/edge/webkit
+  browser_type: ${BROWSER_TYPE:-firefox}
+#安全配置
+safe:
+    # 需要隐藏的配置信息，用逗号分隔 如：db,secret,token等 
+    hide_config: "${SAFE_HIDE_CONFIG:-db,secret,token,notice.wechat,notice.feishu,notice.dingding}"
+    # 授权加密KEY
+    lic_key: "${SAFE_LIC_KEY:-RACHELOS}"
+log:
+  #日志文件路径，默认为空字符串，表示不输出到文件。如果要输出到文件，可以指定一个路径如：/var/log/werss.log 如果为空就不纪录
+   file: ${LOG_FILE:-}
+  #日志级别，默认为INFO，可选DEBUG, INFO, WARNING, ERROR, CRITICAL
+   level: ${LOG_LEVEL:-INFO}
+export:
+   pdf: 
+    #是否启用PDF导出功能 默认False
+    enable: ${EXPORT_PDF:-False}
+    #PDF导出目录 默认./data/pdf
+    dir: ${EXPORT_PDF_DIR:-./data/pdf}
+   markdown:
+    #是否启用markdown导出功能 默认False
+    enable: ${EXPORT_MARKDOWN:-False}
+    #markdown导出目录 默认./data/markdown
+    dir: ${EXPORT_MARKDOWN_DIR:-./data/markdown}
+
+# 文章标签配置
+article_tag:
+  # 是否自动根据公众号关联的标签打标签
+  auto_assign_by_mp: ${ARTICLE_TAG_AUTO_ASSIGN_BY_MP:-True}
+  # 是否自动提取标签（基于文章内容）
+  auto_extract: ${ARTICLE_TAG_AUTO_EXTRACT:-False}
+  # 标签提取方式：textrank（本地）、keybert（KeyBERT模型）或 ai（DeepSeek API）
+  extract_method: ${ARTICLE_TAG_EXTRACT_METHOD:-ai}
+  # 提取标签的最大数量
+  max_tags: ${ARTICLE_TAG_MAX_TAGS:-5}
+  # TextRank 配置
+  textrank:
+    # 允许的词性：n（名词）、nz（其他专名）
+    allow_pos: ${ARTICLE_TAG_TEXTRANK_ALLOW_POS:-n,nz}
+  # KeyBERT 配置
+  keybert:
+    # 使用的模型名称
+    # 推荐模型（按优先级）：
+    # 1. minishlab/potion-multilingual-128M（推荐，CPU友好，多语言，中文支持好）
+    #    参数量：128M，下载文件：~512MB，运行时内存：~200MB，不需要PyTorch
+    # 2. paraphrase-multilingual-MiniLM-L12-v2（需要PyTorch，多语言）
+    #    参数量：~118M，下载文件：~500MB，运行时内存：~500MB（量化后可降至~250MB）
+    # 3. paraphrase-MiniLM-L6-v2（需要PyTorch，英文为主）
+    #    参数量：~22M，下载文件：~200MB，运行时内存：~200MB（量化后可降至~100MB）
+    # 4. 自定义 Model2Vec 模型：从中文 BGE 模型蒸馏（如 BAAI/bge-base-zh-v1.5）
+    # 注意：模型名称中的"128M"指的是参数量，实际下载文件大小会更大（包含权重、tokenizer、配置等）
+    model: ${ARTICLE_TAG_KEYBERT_MODEL:-minishlab/potion-multilingual-128M}
+    # 是否启用模型量化（仅对 sentence-transformers 模型有效，Model2Vec 已经是轻量级）
+    # 量化可以减少约50%的内存占用，但可能略微降低精度
+    # 对于 Model2Vec 模型，此选项影响较小（Model2Vec 本身已经是优化的轻量级模型）
+    quantization: ${ARTICLE_TAG_KEYBERT_QUANTIZATION:-False}
+    # 是否使用混合方案（结合 TextRank 实体提取）
+    # true: 先使用 TextRank 提取候选实体，再用 KeyBERT 进行语义排序（推荐，质量更好）
+    # false: 直接使用 KeyBERT 提取（速度快，但可能提取到不合适的词）
+    hybrid: ${ARTICLE_TAG_KEYBERT_HYBRID:-True}
+  # AI 提取配置（需要配置 DeepSeek API）
+  ai:
+    # 是否自动创建不存在的标签
+    auto_create: ${ARTICLE_TAG_AI_AUTO_CREATE:-False}
+
+# DeepSeek API 配置（用于标签提取）
+deepseek:
+  # DeepSeek API Key（可选，用于 AI 主题提取功能）
+  api_key: ${DEEPSEEK_API_KEY:-}
+  # DeepSeek API Base URL（默认：https://api.deepseek.com）
+  base_url: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
+  # DeepSeek 模型名称（默认：deepseek-chat）
+  model: ${DEEPSEEK_MODEL:-deepseek-chat}

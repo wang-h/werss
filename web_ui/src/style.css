@@ -1,0 +1,533 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 全局样式 */
+@layer base {
+  * {
+    @apply m-0 p-0 box-border;
+  }
+
+  html, body {
+    @apply w-full h-full;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+      Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  #app {
+    @apply w-full h-full;
+  }
+  :root {
+    /* Light mode: 使用正常背景色，文字黑色 */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 0%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 40% 96.1%;
+    --sidebar-accent-foreground: 0 0% 0%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+  .dark {
+    /* Dark mode: 使用与右侧内容区域一致的背景色 */
+    --sidebar-background: 222.2 84% 4.9%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217.2 32.6% 17.5%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 217.2 32.6% 17.5%;
+    --sidebar-ring: 212.7 26.8% 83.9%;
+  }
+  
+  /* 增加菜单项高度，使其更高 */
+  [data-sidebar="menu-button"] {
+    min-height: 2.75rem !important;
+    height: 2.75rem !important;
+    padding-top: 0.625rem !important;
+    padding-bottom: 0.625rem !important;
+    text-align: left !important;
+  }
+  
+  [data-sidebar="menu-button"][data-size="default"] {
+    min-height: 2.75rem !important;
+    height: 2.75rem !important;
+  }
+  
+  [data-sidebar="menu-button"][data-size="lg"] {
+    min-height: 3rem !important;
+    height: 3rem !important;
+  }
+  
+  /* Light mode: 文字黑色，背景与右侧一致 */
+  :root:not(.dark) [data-sidebar="menu-button"] {
+    color: hsl(0 0% 0%) !important;
+  }
+  
+  :root:not(.dark) [data-sidebar="menu-button"]:hover {
+    color: hsl(0 0% 0%) !important;
+  }
+  
+  :root:not(.dark) [data-sidebar="menu-button"][data-active="true"] {
+    color: hsl(0 0% 0%) !important;
+  }
+}
+
+/* 链接样式 */
+@layer components {
+  a {
+    @apply text-primary no-underline;
+  }
+
+  a:hover {
+    @apply underline;
+  }
+
+  /* Sidebar 内链接在深色模式下使用白色 */
+  .dark [data-sidebar="sidebar"] a,
+  .dark [data-sidebar="sidebar"] a * {
+    color: hsl(0 0% 100%) !important;
+  }
+
+  .dark [data-sidebar="sidebar"] a:hover,
+  .dark [data-sidebar="sidebar"] a:hover * {
+    color: hsl(0 0% 100%) !important;
+  }
+}
+
+/* 自定义主题变量 */
+:root {
+  --primary-color: #8B5CF6;
+  --success-color: #10B981;
+  --warning-color: #F59E0B;
+  --danger-color: #EF4444;
+}
+
+/* shadcn/ui CSS Variables - 紫色主题 */
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 262 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 262 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 262 47% 11%;
+    --primary: 262.1 83.3% 57.8%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 262 40% 96%;
+    --secondary-foreground: 262 47% 11%;
+    --muted: 262 30% 96%;
+    --muted-foreground: 262 20% 50%;
+    --accent: 262 50% 95%;
+    --accent-foreground: 262 47% 11%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 262 20% 90%;
+    --input: 262 20% 90%;
+    --ring: 262.1 83.3% 57.8%;
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+
+/* ========== 设计系统变量 ========== */
+:root {
+  /* 间距系统 */
+  --space-xxs: 0.25rem;
+  --space-xs: 0.5rem;
+  --space-sm: 0.75rem;
+  --space-md: 1rem;
+  --space-lg: 1.5rem;
+  --space-xl: 2rem;
+  --space-xxl: 3rem;
+
+  /* 响应式断点 */
+  --breakpoint-sm: 576px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 992px;
+  --breakpoint-xl: 1200px;
+
+  /* 颜色层次 */
+  --color-primary-light: #EDE9FE;
+  --color-primary-lighter: #F5F3FF;
+  --color-text-primary: #1F2937;
+  --color-text-secondary: #6B7280;
+  --color-text-tertiary: #9CA3AF;
+  --color-bg-light: #F9FAFB;
+  --color-bg-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --color-border-light: #E5E7EB;
+}
+
+/* ========== 使用 Tailwind 工具类替代 ========== */
+@layer components {
+  /* 响应式容器 - 使用 Tailwind 的 container 类 */
+  .container {
+    @apply w-full px-4 mx-auto;
+  }
+
+  @media (min-width: 576px) {
+    .container {
+      @apply max-w-[540px];
+    }
+  }
+
+  @media (min-width: 768px) {
+    .container {
+      @apply max-w-[720px];
+    }
+  }
+
+  @media (min-width: 992px) {
+    .container {
+      @apply max-w-[960px];
+    }
+  }
+
+  @media (min-width: 1200px) {
+    .container {
+      @apply max-w-[1140px];
+    }
+  }
+
+  /* 页面过渡动画 */
+  .page-enter-active,
+  .page-leave-active {
+    @apply transition-opacity duration-300 ease-in-out;
+  }
+  .page-enter-from,
+  .page-leave-to {
+    @apply opacity-0;
+  }
+
+  /* 按钮悬停效果 */
+  .button-hover {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  .button-hover:hover {
+    @apply -translate-y-0.5 shadow-md;
+  }
+
+  /* 卡片动画 */
+  .card {
+    @apply transition-all duration-300 ease-in-out shadow-sm;
+  }
+  .card:hover {
+    @apply -translate-y-1 shadow-lg;
+  }
+
+  /* 加载动画 */
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .loading-spinner {
+    @apply animate-spin;
+  }
+
+  /* 增强卡片样式 */
+  .enhanced-card {
+    @apply bg-white rounded-2xl p-6 shadow-lg transition-all duration-300 border border-gray-200;
+  }
+  .enhanced-card:hover {
+    @apply shadow-xl -translate-y-0.5;
+    box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.1), 0 4px 6px -2px rgba(139, 92, 246, 0.05);
+  }
+
+  /* 增强按钮样式 */
+  .enhanced-button {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 border-none cursor-pointer;
+  }
+  .enhanced-button--primary {
+    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+    color: white;
+  }
+  .enhanced-button--primary:hover {
+    background: linear-gradient(135deg, #7C3AED 0%, #6D28D9 100%);
+    box-shadow: 0 4px 6px -1px rgba(139, 92, 246, 0.3);
+    @apply -translate-y-0.5;
+  }
+
+  /* 增强表单元素 */
+  .enhanced-input {
+    @apply px-4 py-2 border border-gray-200 rounded-md transition-all duration-200;
+  }
+  .enhanced-input:focus {
+    @apply border-primary outline-none ring-2 ring-primary/20;
+  }
+
+  /* 文字渐变效果 */
+  .text-gradient {
+    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* 输入框焦点效果 */
+  .input-focus:focus {
+    @apply border-primary ring-2 ring-primary/20 transition-all duration-300;
+  }
+
+  /* 表格行悬停效果 */
+  .table-row:hover {
+    @apply bg-primary/5 transition-colors duration-200;
+  }
+
+  /* 下拉菜单选项样式优化 - 暗色主题下更明显 */
+  .dark [role="option"],
+  .dark [role="menuitem"],
+  .dark [data-radix-select-item],
+  .dark [data-radix-dropdown-menu-item] {
+    color: hsl(var(--popover-foreground));
+  }
+  
+  .dark [role="option"]:hover,
+  .dark [role="option"][data-highlighted],
+  .dark [role="option"]:focus,
+  .dark [role="menuitem"]:hover,
+  .dark [role="menuitem"][data-highlighted],
+  .dark [role="menuitem"]:focus,
+  .dark [data-radix-select-item]:hover,
+  .dark [data-radix-select-item][data-highlighted],
+  .dark [data-radix-select-item]:focus,
+  .dark [data-radix-dropdown-menu-item]:hover,
+  .dark [data-radix-dropdown-menu-item][data-highlighted],
+  .dark [data-radix-dropdown-menu-item]:focus {
+    background-color: hsl(217.2 32.6% 25%) !important;
+    color: hsl(var(--popover-foreground)) !important;
+  }
+
+  /* 淡入动画 */
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .fade-in {
+    animation: fadeIn 0.5s ease forwards;
+  }
+
+  /* 深色模式下的按钮文字颜色修复 - 订阅管理页面 */
+  /* 针对 shadcn/ui 按钮组件的深色模式支持 */
+  
+  /* outline 按钮：在深色模式下使用前景色，确保文字可见 */
+  .dark button[class~="border"]:not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-secondary"]) {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .dark button[class~="border"]:not([class*="bg-primary"]):not([class*="bg-destructive"]):not([class*="bg-secondary"]):hover {
+    color: hsl(var(--accent-foreground)) !important;
+  }
+
+  /* primary 按钮：在深色模式下确保文字颜色正确 */
+  .dark button[class*="bg-primary"]:not([class*="outline"]):not([class*="ghost"]):not([class*="link"]) {
+    color: hsl(var(--primary-foreground)) !important;
+  }
+
+  /* secondary 按钮 */
+  .dark button[class*="bg-secondary"]:not([class*="outline"]):not([class*="ghost"]):not([class*="link"]) {
+    color: hsl(var(--secondary-foreground)) !important;
+  }
+
+  /* destructive 按钮 */
+  .dark button[class*="bg-destructive"]:not([class*="outline"]):not([class*="ghost"]):not([class*="link"]) {
+    color: hsl(var(--destructive-foreground)) !important;
+  }
+
+  /* Badge 组件深色模式文字颜色修复 */
+  /* 确保 Badge 内的文字在深色模式下可见 */
+  .dark [class*="rounded-full"][class*="bg-secondary"],
+  .dark [class*="rounded-full"][class*="bg-secondary"] *,
+  .dark [class*="bg-secondary"][class*="text-secondary-foreground"],
+  .dark [class*="bg-secondary"][class*="text-secondary-foreground"] * {
+    color: hsl(210 40% 98%) !important;
+  }
+
+  .dark [class*="rounded-full"][class*="bg-destructive"],
+  .dark [class*="rounded-full"][class*="bg-destructive"] *,
+  .dark [class*="bg-destructive"][class*="text-destructive-foreground"],
+  .dark [class*="bg-destructive"][class*="text-destructive-foreground"] * {
+    color: hsl(210 40% 98%) !important;
+  }
+
+  .dark [class*="rounded-full"][class*="bg-primary"],
+  .dark [class*="rounded-full"][class*="bg-primary"] *,
+  .dark [class*="bg-primary"][class*="text-primary-foreground"],
+  .dark [class*="bg-primary"][class*="text-primary-foreground"] * {
+    color: hsl(222.2 47.4% 11.2%) !important;
+  }
+}
+
+
+/* 翻译工具样式 */
+#translate {
+  @apply hidden fixed top-[105px] right-10 z-[1000];
+  display: none !important;
+}
+
+@media screen and (max-width: 768px) {
+  #translate {
+    @apply fixed top-[135px] left-11;
+  }
+}
+
+/* 登录页面动画 */
+@keyframes gradientBG {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ========== 暗色模式样式 ========== */
+[data-theme="dark"],
+.dark-mode {
+  --color-text-primary: #F9FAFB;
+  --color-text-secondary: #E5E7EB;
+  --color-text-tertiary: #D1D5DB;
+  --color-bg-light: #0F172A;
+  --color-border-light: #1E293B;
+}
+
+[data-theme="dark"] body,
+.dark-mode body {
+  background: linear-gradient(135deg, #0A0F1C 0%, #0F172A 50%, #1E293B 100%) !important;
+  color: #F9FAFB;
+}
+
+.navbar-sider {
+  background: linear-gradient(180deg, #FFFFFF 0%, #F9FAFB 100%);
+  box-shadow: 2px 0 8px rgba(0,0,0,0.06);
+  border-right: 1px solid #E5E7EB;
+}
+
+[data-theme="dark"] .navbar-sider,
+.dark-mode .navbar-sider,
+.dark [data-sidebar="sidebar"] {
+  background: hsl(222.2 84% 4.9%) !important;
+  backdrop-filter: blur(10px);
+  border-right-color: hsl(217.2 32.6% 17.5%) !important;
+  box-shadow: 2px 0 8px rgba(0,0,0,0.3) !important;
+}
+
+/* ========== 暗色模式全局文字样式 ========== */
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6,
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode h4,
+.dark-mode h5,
+.dark-mode h6 {
+  color: #F9FAFB !important;
+}
+
+[data-theme="dark"] p,
+[data-theme="dark"] span,
+[data-theme="dark"] div,
+.dark-mode p,
+.dark-mode span,
+.dark-mode div {
+  color: inherit;
+}
+
+[data-theme="dark"] a,
+.dark-mode a {
+  color: #A78BFA !important;
+}
+
+[data-theme="dark"] a:hover,
+.dark-mode a:hover {
+  color: #C4B5FD !important;
+}
+
+/* ========== 暗色模式页面容器样式 ========== */
+[data-theme="dark"] #main,
+.dark-mode #main {
+  background: linear-gradient(135deg, #0A0F1C 0%, #0F172A 50%, #1E293B 100%) !important;
+}
+
+[data-theme="dark"] .min-h-screen,
+[data-theme="dark"] .min-h-\[calc\(100vh-64px\)\],
+.dark-mode .min-h-screen,
+.dark-mode .min-h-\[calc\(100vh-64px\)\] {
+  background: transparent !important;
+}
+
+/* ========== 默认亮色模式背景 ========== */
+body {
+  background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+}
+
+#main {
+  background: linear-gradient(135deg, #F9FAFB 0%, #F3F4F6 100%);
+}
+
+
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* 深色模式下的按钮文字颜色修复 - 订阅管理页面 */
+  /* 确保所有按钮在深色模式下都有正确的文字颜色 */
+  
+  /* outline 按钮：在深色模式下使用前景色，确保文字可见 */
+  .dark button[class*="bg-background"][class*="border"],
+  .dark button[class*="border-input"],
+  .dark button[class*="border-border"][class*="bg-background"] {
+    color: hsl(var(--foreground)) !important;
+  }
+
+  .dark button[class*="bg-background"][class*="border"]:hover,
+  .dark button[class*="border-input"]:hover,
+  .dark button[class*="border-border"][class*="bg-background"]:hover {
+    color: hsl(var(--accent-foreground)) !important;
+  }
+}
