@@ -81,6 +81,7 @@ dependencies = [
     "websocket-client==1.8.0",
     "wsproto==1.2.0",
     "yarl==1.22.0",
+    "openai>=2.11.0",
 ]
 
 [build-system]
@@ -88,6 +89,10 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project.optional-dependencies]
+# AI 提取功能（DeepSeek API，需要 openai 模块）
+ai = [
+    "openai>=1.0.0",
+]
 # KeyBERT 关键词提取（已作为必选依赖安装，以下为其他可选方案）
 # 方案1：使用 Model2Vec（已作为必选依赖，CPU友好，中文支持好，不需要PyTorch）
 keybert-model2vec = [

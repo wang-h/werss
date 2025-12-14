@@ -26,13 +26,12 @@ def _load_env_before_config():
             # Docker 环境中，环境变量由 docker-compose.yml 注入，不需要加载 .env
             return
         
-        # 开发环境：尝试加载 ../.env
+        # 开发环境：尝试加载 .env
         try:
             from dotenv import load_dotenv
-            # 获取当前文件所在目录，然后找到 ../.env
+            # 获取当前文件所在目录，然后找到 .env
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            parent_dir = os.path.dirname(current_dir)  # werss 目录
-            env_path = os.path.join(os.path.dirname(parent_dir), '.env')  # ../.env
+            env_path = '.env'  # .env
             
             if os.path.exists(env_path):
                 # 先检查环境变量是否已存在

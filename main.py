@@ -1,11 +1,63 @@
 import uvicorn
 from core.config import cfg
-from core.print import print_warning
+from core.print import print_warning, print_info
 import threading
+import os
+
+def print_database_source():
+    """输出数据库配置来源"""
+    # 获取数据库连接字符串（已处理环境变量替换）
+    db_config = cfg.get("db") or "sqlite:///data/db.db"
+    
+    # 检查来源
+    db_env = os.getenv("DB")
+    db_from_config_raw = cfg.config.get("db") if hasattr(cfg, 'config') and cfg.config else None
+    
+    # 判断来源优先级：环境变量 > 配置文件 > 默认值
+    if db_env:
+        # 环境变量存在，检查配置文件是否使用了模板语法
+        if db_from_config_raw and db_from_config_raw.startswith("${") and ":-" in db_from_config_raw:
+            source = "环境变量 DB（通过配置文件模板）"
+        else:
+            source = "环境变量 DB"
+    elif db_from_config_raw:
+        # 检查是否是模板语法
+        if db_from_config_raw.startswith("${") and ":-" in db_from_config_raw:
+            # 模板语法但环境变量不存在，使用默认值
+            source = f"配置文件 {cfg.config_path}（使用默认值）"
+        else:
+            # 配置文件直接指定
+            source = f"配置文件 {cfg.config_path}"
+    else:
+        source = "默认值"
+    
+    # 隐藏敏感信息（密码）
+    display_value = db_config
+    if "@" in display_value:
+        # 隐藏密码部分，例如: postgresql://user:password@host/db -> postgresql://user:***@host/db
+        parts = display_value.split("@")
+        if len(parts) == 2:
+            auth_part = parts[0]
+            if "://" in auth_part:
+                protocol_user = auth_part.split("://")
+                if len(protocol_user) == 2:
+                    protocol = protocol_user[0] + "://"
+                    user_pass = protocol_user[1]
+                    if ":" in user_pass:
+                        user = user_pass.split(":")[0]
+                        display_value = f"{protocol}{user}:***@{parts[1]}"
+    
+    print_info(f"数据库来源: {source}")
+    print_info(f"数据库连接: {display_value}")
+
 if __name__ == '__main__':
     if cfg.args.init=="True":
         import init_sys as init
         init.init()
+    
+    # 输出数据库来源信息
+    print_database_source()
+    
     if  cfg.args.job =="True" and cfg.get("server.enable_job",False):
         from jobs import start_all_task
         threading.Thread(target=start_all_task,daemon=False).start()

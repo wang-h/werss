@@ -136,8 +136,8 @@ start_backend() {
         if docker ps | grep -q "postgres-dev"; then
             echo -e "${YELLOW}🔍 检查数据库 werss_db 是否存在...${NC}"
             # 从环境变量读取配置
-            if [ -f "../.env" ]; then
-                source ../.env 2>/dev/null || true
+            if [ -f ".env" ]; then
+                source .env 2>/dev/null || true
             fi
             POSTGRES_USER=${POSTGRES_USER:-deepling_user}
             POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-your_password}
@@ -160,23 +160,23 @@ start_backend() {
     fi
     
     # 从主项目的 .env 文件加载所有环境变量
-    if [ -f "../.env" ]; then
+    if [ -f ".env" ]; then
         echo -e "${YELLOW}📝 加载外层 .env 文件...${NC}"
         # 使用 source 加载所有环境变量（包括 USERNAME, PASSWORD, DEEPSEEK_API_KEY 等）
         set -a  # 自动导出所有变量
-        source ../.env 2>/dev/null || true
+        source .env 2>/dev/null || true
         set +a  # 关闭自动导出
         
         # 显式导出 DeepSeek 相关环境变量（确保传递给 Python 进程）
-        if grep -q "^DEEPSEEK_API_KEY=" ../.env 2>/dev/null; then
-            export DEEPSEEK_API_KEY=$(grep "^DEEPSEEK_API_KEY=" ../.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if grep -q "^DEEPSEEK_API_KEY=" .env 2>/dev/null; then
+            export DEEPSEEK_API_KEY=$(grep "^DEEPSEEK_API_KEY=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
             echo -e "${GREEN}✅ 已加载 DEEPSEEK_API_KEY${NC}"
         fi
-        if grep -q "^DEEPSEEK_BASE_URL=" ../.env 2>/dev/null; then
-            export DEEPSEEK_BASE_URL=$(grep "^DEEPSEEK_BASE_URL=" ../.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if grep -q "^DEEPSEEK_BASE_URL=" .env 2>/dev/null; then
+            export DEEPSEEK_BASE_URL=$(grep "^DEEPSEEK_BASE_URL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         fi
-        if grep -q "^DEEPSEEK_MODEL=" ../.env 2>/dev/null; then
-            export DEEPSEEK_MODEL=$(grep "^DEEPSEEK_MODEL=" ../.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if grep -q "^DEEPSEEK_MODEL=" .env 2>/dev/null; then
+            export DEEPSEEK_MODEL=$(grep "^DEEPSEEK_MODEL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         fi
         
         echo -e "${GREEN}✅ 环境变量已加载${NC}"
@@ -192,16 +192,16 @@ start_backend() {
     # 统一数据库配置（从环境变量或使用默认值）
     if [ -z "$DB" ]; then
         # 从主项目的 .env 文件读取配置，或使用默认值
-        if [ -f "../.env" ]; then
+        if [ -f ".env" ]; then
             # 使用 grep 读取，避免 source 可能的问题（如果上面的 source 失败）
             if [ -z "$POSTGRES_USER" ]; then
-            export POSTGRES_USER=$(grep "^POSTGRES_USER=" ../.env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "deepling_user")
+            export POSTGRES_USER=$(grep "^POSTGRES_USER=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "deepling_user")
             fi
             if [ -z "$POSTGRES_PASSWORD" ]; then
-            export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" ../.env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
+            export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
             fi
             if [ -z "$POSTGRES_WERSS_DB" ]; then
-            export POSTGRES_WERSS_DB=$(grep "^POSTGRES_WERSS_DB=" ../.env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "werss_db")
+            export POSTGRES_WERSS_DB=$(grep "^POSTGRES_WERSS_DB=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "werss_db")
             fi
         fi
         

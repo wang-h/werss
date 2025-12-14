@@ -1,6 +1,6 @@
 """
 环境变量加载工具
-- 开发环境：从 ../.env 文件加载
+- 开发环境：从 .env 文件加载
 - 生产环境（Docker）：使用 Docker Compose 注入的环境变量
 """
 import os
@@ -8,7 +8,7 @@ import os
 
 def load_dev_env_if_needed():
     """
-    在开发环境中加载 ../.env 文件
+    在开发环境中加载 .env 文件
     只在非 Docker 环境中加载，避免覆盖生产环境配置
     """
     # 检测是否在 Docker 容器中
@@ -27,14 +27,14 @@ def load_dev_env_if_needed():
         # Docker 环境中，环境变量由 docker-compose.yml 注入，不需要加载 .env
         return
     
-    # 开发环境：尝试加载 ../.env
+    # 开发环境：尝试加载 .env
     try:
         from dotenv import load_dotenv
-        # 获取当前文件所在目录，然后找到 ../.env
-        # core/env_loader.py -> werss/core -> werss -> ../.env
+        # 获取当前文件所在目录，然后找到 .env
+        # core/env_loader.py -> werss/core -> werss -> .env
         current_dir = os.path.dirname(os.path.abspath(__file__))
         parent_dir = os.path.dirname(current_dir)  # werss 目录
-        env_path = os.path.join(os.path.dirname(parent_dir), '.env')  # ../.env
+        env_path = os.path.join(os.path.dirname(parent_dir), '.env')  # .env
         
         # 调试：记录路径信息
         try:

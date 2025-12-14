@@ -37,7 +37,7 @@ class TagExtractor:
         self.keybert_model = None
         self._custom_tags_cache = None  # 缓存用户自定义标签
         
-        # 在开发环境中加载 ../.env 文件（如果存在）
+        # 在开发环境中加载 .env 文件（如果存在）
         load_dev_env_if_needed()
         
         # 检查是否配置了 AI
@@ -61,13 +61,15 @@ class TagExtractor:
         
         # 检查是否可以使用 KeyBERT（懒加载，只在需要时初始化）
         self.keybert_available = KEYBERT_AVAILABLE
-        # 默认使用 Model2Vec 多语言模型（CPU友好，中文支持好）
+        # 默认使用 KeyBERT 官方推荐的多语言模型
+        # 根据 KeyBERT 官方文档：https://github.com/MaartenGr/KeyBERT
+        # 对于多语言文档，推荐使用 "paraphrase-multilingual-MiniLM-L12-v2"
         # 可选模型：
-        # - minishlab/potion-multilingual-128M（推荐，多语言，CPU友好，参数量128M，下载文件约512MB，运行时内存~200MB）
-        # - paraphrase-multilingual-MiniLM-L12-v2（需要PyTorch，参数量约118M，下载文件约500MB，运行时内存~500MB）
-        # 注意：模型名称中的"128M"指的是参数量，实际下载文件大小会更大（包含权重、tokenizer、配置等）
+        # - paraphrase-multilingual-MiniLM-L12-v2（推荐，官方推荐的多语言模型，支持中英文等多种语言）
+        # - all-MiniLM-L6-v2（英文文档，更轻量级）
+        # - minishlab/potion-multilingual-128M（第三方多语言模型，CPU友好）
         # 使用 get 方法，如果配置不存在会使用默认值（这是正常情况）
-        self.keybert_model_name = cfg.get("article_tag.keybert.model") or "minishlab/potion-multilingual-128M"
+        self.keybert_model_name = cfg.get("article_tag.keybert.model") or "paraphrase-multilingual-MiniLM-L12-v2"
     
     def _get_custom_tags(self) -> List[str]:
         """
@@ -498,41 +500,43 @@ class TagExtractor:
                 use_quantization = cfg.get("article_tag.keybert.quantization", False)
                 
                 try:
-                    # 尝试使用 Model2Vec（CPU友好，不需要PyTorch）
-                    from model2vec import Model2Vec
-                    model = Model2Vec(self.keybert_model_name)
-                    # Model2Vec 本身已经是轻量级模型，通常不需要额外量化
-                    # 但如果需要，可以尝试使用更小的模型变体
-                    self.keybert_model = KeyBERT(model=model)
-                    logger.info(f"已加载 KeyBERT 模型（Model2Vec）: {self.keybert_model_name}")
+                    # 优先使用 sentence-transformers（KeyBERT 官方推荐方式）
+                    # 根据 KeyBERT 官方文档，直接使用 SentenceTransformer 模型
+                    from sentence_transformers import SentenceTransformer
+                    model = SentenceTransformer(self.keybert_model_name)
+                    
+                    # 如果启用量化，尝试使用 float16（可以减少约50%内存）
                     if use_quantization:
-                        logger.info("💡 Model2Vec 已经是轻量级模型，量化选项对 Model2Vec 影响较小")
+                        try:
+                            # 尝试将模型转换为 float16（如果支持）
+                            # 注意：这需要模型支持，某些模型可能不支持
+                            if hasattr(model, 'half'):
+                                model = model.half()
+                                logger.info("✅ 已启用模型量化（float16），内存占用减少约50%")
+                            else:
+                                logger.debug("模型不支持 float16 量化")
+                        except Exception as e:
+                            logger.debug(f"量化失败（继续使用 float32）: {e}")
+                    
+                    # 使用 KeyBERT 官方推荐的方式初始化
+                    self.keybert_model = KeyBERT(model=model)
+                    logger.info(f"已加载 KeyBERT 模型（sentence-transformers）: {self.keybert_model_name}")
                 except ImportError:
-                    # 如果没有 Model2Vec，尝试使用 sentence-transformers
+                    # 如果 sentence-transformers 未安装，尝试使用 Model2Vec 作为备选
                     try:
-                        from sentence_transformers import SentenceTransformer
-                        model = SentenceTransformer(self.keybert_model_name)
-                        
-                        # 如果启用量化，尝试使用 float16（可以减少约50%内存）
-                        if use_quantization:
-                            try:
-                                # 尝试将模型转换为 float16（如果支持）
-                                # 注意：这需要模型支持，某些模型可能不支持
-                                if hasattr(model, 'half'):
-                                    model = model.half()
-                                    logger.info("✅ 已启用模型量化（float16），内存占用减少约50%")
-                                else:
-                                    logger.debug("模型不支持 float16 量化")
-                            except Exception as e:
-                                logger.debug(f"量化失败（继续使用 float32）: {e}")
-                        
+                        from model2vec import Model2Vec
+                        model = Model2Vec(self.keybert_model_name)
                         self.keybert_model = KeyBERT(model=model)
-                        logger.info(f"已加载 KeyBERT 模型（sentence-transformers）: {self.keybert_model_name}")
+                        logger.info(f"已加载 KeyBERT 模型（Model2Vec 备选方案）: {self.keybert_model_name}")
+                        logger.warning("💡 建议安装 sentence-transformers 以获得更好的多语言支持")
                     except ImportError:
-                        logger.error("KeyBERT 依赖未正确安装，请安装 keybert-model2vec 或 keybert-full")
+                        logger.error("KeyBERT 依赖未正确安装，请安装: pip install sentence-transformers")
+                        logger.error("或安装备选方案: pip install model2vec")
                         return []
                 except Exception as e:
                     logger.error(f"加载 KeyBERT 模型失败: {e}")
+                    import traceback
+                    traceback.print_exc()
                     return []
             
             # ========== 中文分词处理 ==========
@@ -556,15 +560,37 @@ class TagExtractor:
                 '得分', '测试', '参数', '系统', '进入', '达到', '超过', '提升'
             ]
             
-            # 自定义 tokenizer：使用 jieba 分词
+            # 自定义 tokenizer：使用 jieba 分词，同时保留英文单词
             def chinese_tokenizer(text):
-                return list(jieba.cut(text))
+                """
+                智能分词器：同时处理中文和英文
+                - 中文使用 jieba 分词
+                - 英文单词保持完整（不拆分）
+                """
+                import re
+                # 先使用 jieba 分词
+                tokens = list(jieba.cut(text))
+                result = []
+                for token in tokens:
+                    token = token.strip()
+                    if not token:
+                        continue
+                    # 如果 token 是纯英文单词（可能包含数字、连字符、下划线），直接保留
+                    if re.match(r'^[A-Za-z0-9\-_]+$', token):
+                        result.append(token.lower())  # 英文统一转为小写
+                    # 如果是中文或中英文混合，保留原样
+                    elif re.search(r'[\u4e00-\u9fa5]', token):
+                        result.append(token)
+                    # 过滤掉纯标点符号
+                    elif not re.match(r'^[^\w\u4e00-\u9fa5]+$', token):
+                        result.append(token)
+                return result
             
             # 创建自定义的 CountVectorizer
-            # ngram_range=(1, 2): 只提取 1-2 个词的组合（主要关注单个词）
-            # tokenizer: 使用 jieba 分词
+            # ngram_range=(1, 3): 提取 1-3 个词的组合，支持更长的短语
+            # tokenizer: 使用智能分词器（jieba + 英文单词保留）
             vectorizer = CountVectorizer(
-                ngram_range=(1, 2),  # 1-2个词的短语，优先单词
+                ngram_range=(1, 2),  # 1-3个词的短语，支持更长的关键词组合
                 tokenizer=chinese_tokenizer,
                 stop_words=chinese_stopwords,
                 max_features=1000  # 限制特征数量
@@ -708,27 +734,36 @@ class TagExtractor:
                 use_quantization = cfg.get("article_tag.keybert.quantization", False)
                 
                 try:
-                    from model2vec import Model2Vec
-                    model = Model2Vec(self.keybert_model_name)
-                    self.keybert_model = KeyBERT(model=model)
-                    logger.info(f"已加载 KeyBERT 模型（Model2Vec）: {self.keybert_model_name}")
-                except ImportError:
-                    try:
-                        from sentence_transformers import SentenceTransformer
-                        model = SentenceTransformer(self.keybert_model_name)
-                        if use_quantization and hasattr(model, 'half'):
-                            try:
+                    # 优先使用 sentence-transformers（KeyBERT 官方推荐方式）
+                    from sentence_transformers import SentenceTransformer
+                    model = SentenceTransformer(self.keybert_model_name)
+                    
+                    # 如果启用量化，尝试使用 float16
+                    if use_quantization:
+                        try:
+                            if hasattr(model, 'half'):
                                 model = model.half()
                                 logger.info("✅ 已启用模型量化（float16）")
-                            except:
-                                pass
+                        except Exception as e:
+                            logger.debug(f"量化失败: {e}")
+                    
+                    self.keybert_model = KeyBERT(model=model)
+                    logger.info(f"已加载 KeyBERT 模型（sentence-transformers）: {self.keybert_model_name}")
+                except ImportError:
+                    # 如果 sentence-transformers 未安装，尝试使用 Model2Vec 作为备选
+                    try:
+                        from model2vec import Model2Vec
+                        model = Model2Vec(self.keybert_model_name)
                         self.keybert_model = KeyBERT(model=model)
-                        logger.info(f"已加载 KeyBERT 模型（sentence-transformers）: {self.keybert_model_name}")
+                        logger.info(f"已加载 KeyBERT 模型（Model2Vec 备选方案）: {self.keybert_model_name}")
+                        logger.warning("💡 建议安装 sentence-transformers 以获得更好的多语言支持")
                     except ImportError:
-                        logger.error("KeyBERT 依赖未正确安装")
+                        logger.error("KeyBERT 依赖未正确安装，请安装: pip install sentence-transformers")
                         return []
                 except Exception as e:
                     logger.error(f"加载 KeyBERT 模型失败: {e}")
+                    import traceback
+                    traceback.print_exc()
                     return []
             
             # ========== 第一步：先用 TextRank 提取候选实体 ==========
@@ -770,13 +805,35 @@ class TagExtractor:
             
             logger.debug(f"混合-候选实体: {candidates[:20]}")
             
-            # 自定义 tokenizer：使用 jieba 分词
+            # 自定义 tokenizer：使用 jieba 分词，同时保留英文单词
             def chinese_tokenizer(text):
-                return list(jieba.cut(text))
+                """
+                智能分词器：同时处理中文和英文
+                - 中文使用 jieba 分词
+                - 英文单词保持完整（不拆分）
+                """
+                import re
+                # 先使用 jieba 分词
+                tokens = list(jieba.cut(text))
+                result = []
+                for token in tokens:
+                    token = token.strip()
+                    if not token:
+                        continue
+                    # 如果 token 是纯英文单词（可能包含数字、连字符、下划线），直接保留
+                    if re.match(r'^[A-Za-z0-9\-_]+$', token):
+                        result.append(token.lower())  # 英文统一转为小写
+                    # 如果是中文或中英文混合，保留原样
+                    elif re.search(r'[\u4e00-\u9fa5]', token):
+                        result.append(token)
+                    # 过滤掉纯标点符号
+                    elif not re.match(r'^[^\w\u4e00-\u9fa5]+$', token):
+                        result.append(token)
+                return result
             
             # 创建自定义的 CountVectorizer
             vectorizer = CountVectorizer(
-                ngram_range=(1, 3),
+                ngram_range=(1, 2),
                 tokenizer=chinese_tokenizer,
                 max_features=1000
             )

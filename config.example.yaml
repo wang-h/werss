@@ -136,14 +136,14 @@ article_tag:
   # KeyBERT 配置
   keybert:
     # 使用的模型名称
-    # 推荐模型（按优先级）：
-    # 1. minishlab/potion-multilingual-128M（推荐，CPU友好，多语言，中文支持好）
-    #    参数量：128M，下载文件：~512MB，运行时内存：~200MB，不需要PyTorch
-    # 2. paraphrase-multilingual-MiniLM-L12-v2（需要PyTorch，多语言）
-    #    参数量：~118M，下载文件：~500MB，运行时内存：~500MB（量化后可降至~250MB）
-    # 3. paraphrase-MiniLM-L6-v2（需要PyTorch，英文为主）
-    #    参数量：~22M，下载文件：~200MB，运行时内存：~200MB（量化后可降至~100MB）
-    # 4. 自定义 Model2Vec 模型：从中文 BGE 模型蒸馏（如 BAAI/bge-base-zh-v1.5）
+    # 根据 KeyBERT 官方文档推荐（https://github.com/MaartenGr/KeyBERT）：
+    # 1. paraphrase-multilingual-MiniLM-L12-v2（推荐，官方推荐的多语言模型）
+    #    支持中英文等多种语言，参数量：~118M，下载文件：~500MB，运行时内存：~500MB
+    #    量化后可降至~250MB，需要安装：pip install sentence-transformers
+    # 2. all-MiniLM-L6-v2（英文文档，更轻量级）
+    #    参数量：~22M，下载文件：~200MB，运行时内存：~200MB
+    # 3. minishlab/potion-multilingual-128M（备选，第三方多语言模型，CPU友好）
+    #    参数量：128M，下载文件：~512MB，运行时内存：~200MB，需要安装：pip install model2vec
     # 注意：模型名称中的"128M"指的是参数量，实际下载文件大小会更大（包含权重、tokenizer、配置等）
     model: ${ARTICLE_TAG_KEYBERT_MODEL:-minishlab/potion-multilingual-128M}
     # 是否启用模型量化（仅对 sentence-transformers 模型有效，Model2Vec 已经是轻量级）

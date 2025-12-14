@@ -98,7 +98,7 @@ async def serve_root(request: Request):
         "version": VERSION,
         "status": "running",
         "docs": f"{request.base_url}api/docs",
-        "message": "前后端分离架构：前端由独立服务器提供，后端只提供API服务"
+        "message": u"前后端分离架构：前端由独立服务器提供，后端只提供API服务"
     })
 
 # 404处理 - 对于未匹配的路由返回API信息
@@ -110,7 +110,7 @@ async def catch_all(request: Request, path: str):
         status_code=404,
         content={
             "error": "Not Found",
-            "message": "该路径不存在。前后端分离架构，前端由独立服务器提供",
+            "message": u"该路径不存在。前后端分离架构，前端由独立服务器提供",
             "api_docs": f"{request.base_url}api/docs"
         }
     )

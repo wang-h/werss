@@ -21,6 +21,7 @@ import json
 import sys
 import argparse
 from typing import Dict, List, Optional
+from core.tag_extractor import get_tag_extractor
 
 def print_section(title: str):
     """打印分隔线"""
@@ -220,6 +221,9 @@ def test_articles_from_api(
     if methods is None:
         methods = ["textrank", "keybert", "keybert-hybrid", "ai"]
     
+    # 获取标签提取器实例（用于 HTML 转文本）
+    extractor = get_tag_extractor()
+    
     # 获取文章列表
     print_section(f"从 API 读取文章列表（限制 {limit} 篇）")
     articles = get_articles(base_url, token, limit=limit, has_content=True)
@@ -248,11 +252,15 @@ def test_articles_from_api(
         # 显示文章基本信息
         print(f"\n📄 标题: {title}")
         if description:
-            print(f"📝 描述: {truncate_text(description, 150)}")
+            # 将 HTML 转换为纯文本用于显示
+            description_text = extractor._html_to_text(description, to_markdown=False)
+            print(f"📝 描述: {truncate_text(description_text, 150)}")
         else:
             print(f"📝 描述: (空)")
         if content:
-            content_preview = truncate_text(content, 200)
+            # 将 HTML 转换为纯文本用于显示预览
+            content_text = extractor._html_to_text(content, to_markdown=False)
+            content_preview = truncate_text(content_text, 200)
             print(f"📄 内容预览: {content_preview}")
             print(f"📏 内容长度: {len(content)} 字符")
         else:
