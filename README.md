@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/wang-h/werss/main/static/logo.svg" alt="WeRSS Logo" width="200" height="200">
+<img src="https://raw.githubusercontent.com/wang-h/werss/main/static/logo.svg" alt="WeRSS Logo" width="150" height="150">
 
 # WeRSS - 微信公众号RSS生成服务
 
