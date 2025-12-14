@@ -162,10 +162,23 @@ start_backend() {
     # 从主项目的 .env 文件加载所有环境变量
     if [ -f "../.env" ]; then
         echo -e "${YELLOW}📝 加载外层 .env 文件...${NC}"
-        # 使用 source 加载所有环境变量（包括 USERNAME, PASSWORD 等）
+        # 使用 source 加载所有环境变量（包括 USERNAME, PASSWORD, DEEPSEEK_API_KEY 等）
         set -a  # 自动导出所有变量
         source ../.env 2>/dev/null || true
         set +a  # 关闭自动导出
+        
+        # 显式导出 DeepSeek 相关环境变量（确保传递给 Python 进程）
+        if grep -q "^DEEPSEEK_API_KEY=" ../.env 2>/dev/null; then
+            export DEEPSEEK_API_KEY=$(grep "^DEEPSEEK_API_KEY=" ../.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            echo -e "${GREEN}✅ 已加载 DEEPSEEK_API_KEY${NC}"
+        fi
+        if grep -q "^DEEPSEEK_BASE_URL=" ../.env 2>/dev/null; then
+            export DEEPSEEK_BASE_URL=$(grep "^DEEPSEEK_BASE_URL=" ../.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        if grep -q "^DEEPSEEK_MODEL=" ../.env 2>/dev/null; then
+            export DEEPSEEK_MODEL=$(grep "^DEEPSEEK_MODEL=" ../.env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        
         echo -e "${GREEN}✅ 环境变量已加载${NC}"
     fi
     
@@ -268,6 +281,7 @@ start_backend() {
     # 启动后台服务
     echo -e "${GREEN}🎯 启动后台服务器...${NC}"
     # 使用虚拟环境中的 Python，确保依赖正确加载（特别是后台运行时）
+    # 环境变量已通过 export 导出，子进程会自动继承
     $VENV_DIR/bin/python main.py -job True -init False &
     BACKEND_PID=$!
     

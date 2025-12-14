@@ -52,8 +52,12 @@ class TagExtractor:
                     base_url=base_url,
                 )
                 self.ai_model = model
+                logger.info(f"DeepSeek API 已配置，模型: {model}, Base URL: {base_url}")
             else:
                 logger.warning("DeepSeek API Key 未配置，AI 提取功能不可用")
+                logger.debug(f"检查路径: cfg.get('deepseek.api_key')={cfg.get('deepseek.api_key')}, os.getenv('DEEPSEEK_API_KEY')={os.getenv('DEEPSEEK_API_KEY', '')}")
+        else:
+            logger.warning("openai 模块未安装，AI 提取功能不可用")
         
         # 检查是否可以使用 KeyBERT（懒加载，只在需要时初始化）
         self.keybert_available = KEYBERT_AVAILABLE
@@ -594,16 +598,46 @@ class TagExtractor:
                     logger.debug(f"标准-过滤（太短）: {kw}")
                     continue
                 
-                # 优先保留单个词（2-8个字符）
-                # 过滤太长的词（超过8个字符，可能是短语或句子片段）
-                if len(kw) > 8:
-                    logger.debug(f"标准-过滤（太长，只要单个词）: {kw}")
-                    continue
+                # 判断是否为英文词（主要包含英文字母）
+                is_english = bool(re.match(r'^[A-Za-z0-9\-_]+$', kw))
+                has_chinese = bool(re.search(r'[\u4e00-\u9fa5]', kw))
                 
-                # 过滤包含标点符号的关键词
-                if re.search(r'[，。、；：！？,\.;:!?]', kw):
-                    logger.debug(f"标准-过滤（标点）: {kw}")
-                    continue
+                # 对于长度过滤，区分中文和英文：
+                # - 中文词：2-8个字符（按字符数计算）
+                # - 英文词：2-20个字符（英文单词可能较长，如 "jetbrains" 是10个字符）
+                # - 中英文混合：2-12个字符
+                if has_chinese:
+                    # 包含中文，按中文字符数限制（2-8个字符）
+                    if len(kw) > 8:
+                        logger.debug(f"标准-过滤（太长，中文词）: {kw}")
+                        continue
+                elif is_english:
+                    # 纯英文词，允许更长的长度（2-20个字符）
+                    if len(kw) > 20:
+                        logger.debug(f"标准-过滤（太长，英文词）: {kw}")
+                        continue
+                    # 英文词至少2个字符
+                    if len(kw) < 2:
+                        logger.debug(f"标准-过滤（太短，英文词）: {kw}")
+                        continue
+                else:
+                    # 其他情况（如纯数字、特殊字符等），使用默认限制
+                    if len(kw) > 12:
+                        logger.debug(f"标准-过滤（太长，其他）: {kw}")
+                        continue
+                
+                # 过滤包含标点符号的关键词（包括中英文标点、括号等）
+                # 但允许英文词中的连字符和下划线（如 "DeepSeek-V3", "GPT_4"）
+                if is_english:
+                    # 英文词：只过滤常见标点，但保留连字符和下划线
+                    if re.search(r'[，。、；：！？,\.;:!?（）【】《》""''「」『』]', kw):
+                        logger.debug(f"标准-过滤（标点，英文词）: {kw}")
+                        continue
+                else:
+                    # 中文词或其他：过滤所有标点符号
+                    if re.search(r'[，。、；：！？,\.;:!?（）【】《》""''「」『』]', kw):
+                        logger.debug(f"标准-过滤（标点）: {kw}")
+                        continue
                 
                 # 过滤纯数字
                 if kw.isdigit():
@@ -792,15 +826,42 @@ class TagExtractor:
                     logger.debug(f"混合-过滤（去空格后太短）: {kw}")
                     continue
                 
-                # 过滤太长的关键词（放宽到15个字符，允许 DeepSeek-V3 这样的词）
-                if len(kw) > 15:
-                    logger.debug(f"混合-过滤（太长）: {kw}")
-                    continue
+                # 判断是否为英文词（主要包含英文字母）
+                is_english = bool(re.match(r'^[A-Za-z0-9\-_]+$', kw))
+                has_chinese = bool(re.search(r'[\u4e00-\u9fa5]', kw))
                 
-                # 过滤包含标点符号的关键词
-                if re.search(r'[，。、；：！？,\.;:!?]', kw):
-                    logger.debug(f"混合-过滤（标点）: {kw}")
-                    continue
+                # 对于长度过滤，区分中文和英文：
+                # - 中文词：2-12个字符（按字符数计算）
+                # - 英文词：2-25个字符（英文单词可能较长，如 "jetbrains"、"DeepSeek-V3"）
+                # - 中英文混合：2-15个字符
+                if has_chinese:
+                    # 包含中文，按中文字符数限制（2-12个字符）
+                    if len(kw) > 12:
+                        logger.debug(f"混合-过滤（太长，中文词）: {kw}")
+                        continue
+                elif is_english:
+                    # 纯英文词，允许更长的长度（2-25个字符，允许如 "DeepSeek-V3" 这样的词）
+                    if len(kw) > 25:
+                        logger.debug(f"混合-过滤（太长，英文词）: {kw}")
+                        continue
+                else:
+                    # 其他情况，使用默认限制（15个字符）
+                    if len(kw) > 15:
+                        logger.debug(f"混合-过滤（太长，其他）: {kw}")
+                        continue
+                
+                # 过滤包含标点符号的关键词（包括中英文标点、括号等）
+                # 但允许英文词中的连字符和下划线（如 "DeepSeek-V3", "GPT_4"）
+                if is_english:
+                    # 英文词：只过滤常见标点，但保留连字符和下划线
+                    if re.search(r'[，。、；：！？,\.;:!?（）【】《》""''「」『』]', kw):
+                        logger.debug(f"混合-过滤（标点，英文词）: {kw}")
+                        continue
+                else:
+                    # 中文词或其他：过滤所有标点符号
+                    if re.search(r'[，。、；：！？,\.;:!?（）【】《》""''「」『』]', kw):
+                        logger.debug(f"混合-过滤（标点）: {kw}")
+                        continue
                 
                 # 过滤纯数字
                 if kw.isdigit():
@@ -1072,5 +1133,19 @@ def get_tag_extractor() -> TagExtractor:
     if _global_extractor is None:
         _global_extractor = TagExtractor()
         logger.info("已创建全局 TagExtractor 实例，KeyBERT 模型将常驻内存")
+    else:
+        # 如果实例已存在，但 AI 客户端未初始化，尝试重新初始化
+        if AI_AVAILABLE and _global_extractor.ai_client is None:
+            load_dev_env_if_needed()
+            api_key = cfg.get("deepseek.api_key") or os.getenv("DEEPSEEK_API_KEY", "")
+            if api_key:
+                base_url = cfg.get("deepseek.base_url") or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+                model = cfg.get("deepseek.model") or os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+                _global_extractor.ai_client = AsyncOpenAI(
+                    api_key=api_key,
+                    base_url=base_url,
+                )
+                _global_extractor.ai_model = model
+                logger.info(f"已重新初始化 DeepSeek API 客户端，模型: {model}")
     return _global_extractor
 
