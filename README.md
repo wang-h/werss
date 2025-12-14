@@ -1,10 +1,14 @@
-# WeRSS - 微信公众号RSS生成服务
-
 <div align="center">
+
+<img src="https://raw.githubusercontent.com/wang-h/werss/main/static/logo.svg" alt="WeRSS Logo" width="200" height="200">
+
+# WeRSS - 微信公众号RSS生成服务
 
 ![Version](https://img.shields.io/badge/version-1.4.8-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
+![GitHub Stars](https://img.shields.io/github/stars/wang-h/werss?style=social)
+![GitHub Forks](https://img.shields.io/github/forks/wang-h/werss?style=social)
 
 **一个功能强大的微信公众号RSS订阅服务，支持自动采集、标签管理、多格式导出等功能**
 
@@ -16,7 +20,25 @@
 
 ## 📖 项目简介
 
-WeRSS 是一个基于 FastAPI 开发的微信公众号RSS生成服务，可以帮助用户将微信公众号文章转换为RSS订阅源，支持自动采集、内容管理、标签分类、多格式导出等功能。
+WeRSS 是一个前后端分离的微信公众号RSS生成服务，可以帮助用户将微信公众号文章转换为RSS订阅源，支持自动采集、内容管理、标签分类、多格式导出等功能。
+
+### 技术栈
+
+**后端：**
+- **FastAPI** - 现代化的 Python Web 框架
+- **SQLAlchemy** - Python ORM 框架
+- **Playwright** - 浏览器自动化
+- **APScheduler** - 定时任务调度
+
+**前端：**
+- **React 18** - UI 框架
+- **TypeScript** - 类型系统
+- **Vite** - 构建工具
+- **Tailwind CSS** - 实用优先的 CSS 框架
+- **Radix UI / shadcn/ui** - 组件库
+- **React Router v6** - 路由管理
+- **Zustand** - 状态管理
+- **Axios** - HTTP 客户端
 
 ### 核心能力
 
@@ -77,15 +99,20 @@ WeRSS 是一个基于 FastAPI 开发的微信公众号RSS生成服务，可以�
 
 ### 环境要求
 
+**后端：**
 - **Python**: 3.11 或更高版本
 - **数据库**: SQLite / MySQL / PostgreSQL
 - **浏览器**: Firefox / Chromium / WebKit（用于Playwright）
+
+**前端：**
+- **Node.js**: 18+ 或更高版本
+- **包管理器**: pnpm（推荐）或 npm
 
 ### 方式一：一键启动开发环境（推荐）
 
 ```bash
 # 克隆项目
-git clone <repository-url>
+git clone https://github.com/wang-h/werss.git
 cd werss
 
 # 运行一键启动脚本（自动配置环境、安装依赖、启动前后端）
@@ -178,7 +205,7 @@ export DB=sqlite:///data/db.db  # 或使用 PostgreSQL/MySQL
 python main.py -init True
 ```
 
-#### 7. 启动服务
+#### 7. 启动后端服务
 
 ```bash
 # 启动服务（包含定时任务）
@@ -188,11 +215,36 @@ python main.py -job True -init False
 python main.py -job False -init False
 ```
 
+#### 8. 前端开发（可选）
+
+如果需要单独开发前端：
+
+```bash
+# 进入前端目录
+cd web_ui
+
+# 安装依赖（推荐使用 pnpm）
+pnpm install
+# 或使用 npm
+npm install
+
+# 创建前端环境变量文件
+echo "VITE_API_BASE_URL=http://localhost:8001" > .env
+
+# 启动前端开发服务器
+pnpm dev
+# 或
+npm run dev
+```
+
+前端服务启动后访问：http://localhost:3000
+
 ### 方式三：Docker部署
 
 ```bash
 # 使用 docker-compose（推荐）
-cd /home/hao/deepling.tech
+# 进入项目根目录（包含 docker-compose.dev.yml 的目录）
+cd <project-root>
 docker-compose -f docker-compose.dev.yml up -d --build werss
 
 # 查看日志
@@ -358,7 +410,14 @@ werss/
 │   ├── mps.py         # 公众号更新任务
 │   └── ...
 ├── driver/            # 浏览器驱动（Playwright）
-├── web_ui/            # 前端Vue应用
+├── web_ui/            # 前端React应用
+│   ├── src/           # 前端源代码
+│   │   ├── api/       # API接口封装
+│   │   ├── components/# 组件
+│   │   ├── views/     # 页面组件
+│   │   └── ...
+│   ├── package.json   # 前端依赖配置
+│   └── vite.config.ts # Vite配置
 ├── main.py            # 应用入口
 ├── web.py             # FastAPI应用定义
 ├── config.example.yaml # 配置文件模板
@@ -493,11 +552,11 @@ chmod 755 data
 
 欢迎贡献代码！请遵循以下步骤：
 
-1. Fork 本项目
+1. [Fork 本项目](https://github.com/wang-h/werss/fork)
 2. 创建功能分支 (`git checkout -b feature/AmazingFeature`)
 3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 开启 Pull Request
+5. [开启 Pull Request](https://github.com/wang-h/werss/pulls)
 
 详细贡献指南请查看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
@@ -506,6 +565,18 @@ chmod 755 data
 ## 📄 许可证
 
 本项目采用 MIT 许可证。详情请查看 [LICENSE](LICENSE) 文件。
+
+---
+
+## 🙏 致谢
+
+本项目在开发过程中参考和借鉴了以下优秀的开源项目，特此表示感谢：
+
+- **[we-mp-rss](https://github.com/rachelos/we-mp-rss)** - 微信公众号RSS生成服务，提供了核心功能实现的参考
+- **[wewe-rss](https://github.com/cooderl/wewe-rss)** - 微信公众号RSS订阅工具，提供了架构设计的灵感
+- **[full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template)** - FastAPI 全栈项目模板，提供了前后端分离架构的最佳实践
+
+感谢这些项目的开发者和贡献者们！
 
 ---
 
@@ -522,9 +593,9 @@ chmod 755 data
 
 如有问题或建议，请通过以下方式联系：
 
-- 提交 Issue
-- 发送 Pull Request
-- 查看项目文档
+- [提交 Issue](https://github.com/wang-h/werss/issues)
+- [发送 Pull Request](https://github.com/wang-h/werss/pulls)
+- [查看项目文档](https://github.com/wang-h/werss)
 
 ---
 
@@ -532,6 +603,6 @@ chmod 755 data
 
 **⭐ 如果这个项目对你有帮助，请给个 Star ⭐**
 
-Made with ❤️ by WeRSS Team
+Made with ❤️ by Hao 
 
 </div>
