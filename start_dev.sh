@@ -348,7 +348,7 @@ main() {
     echo ""
     echo -e "${BLUE}访问地址:${NC}"
     echo -e "  前端界面: ${GREEN}http://localhost:3000${NC}"
-    echo -e "  后台 API: ${GREEN}http://localhost:8001${NC}"
+    echo -e "  后台 API: ${GREEN}http://localhost:8001/api${NC}"
     echo -e "  API 文档: ${GREEN}http://localhost:8001/api/docs${NC}"
     echo ""
     echo -e "${YELLOW}按 Ctrl+C 停止所有服务${NC}"

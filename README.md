@@ -10,7 +10,7 @@
 ![GitHub Stars](https://img.shields.io/github/stars/wang-h/werss?style=social)
 ![GitHub Forks](https://img.shields.io/github/forks/wang-h/werss?style=social)
 
-**一个功能强大的微信公众号RSS订阅服务，支持自动采集、标签管理、多格式导出等功能**
+**一个功能强大的微信公众号RSS订阅服务，支持自动采集、标签管理、多格式导出、主题词提取与热度追踪等功能**
 
 [功能特性](#-功能特性) • [快速开始](#-快速开始) • [配置说明](#-配置说明) • [API文档](#-api文档) • [开发指南](#-开发指南)
 
@@ -49,6 +49,27 @@ WeRSS 是一个前后端分离的微信公众号RSS生成服务，可以帮助�
 - 🔔 **消息通知**：支持钉钉、微信、飞书等通知方式
 - 🔐 **用户认证**：完整的用户认证和权限管理
 - ⏰ **定时任务**：自动执行文章采集和内容更新
+
+---
+
+## 🖼️ 界面预览
+
+### 数据概览
+<div align="center">
+  <img src="https://raw.githubusercontent.com/wang-h/werss/main/images/dashboard.png" alt="数据概览（浅色主题）" width="800"/>
+  <br/>
+  <img src="https://raw.githubusercontent.com/wang-h/werss/main/images/dashboard-dark.png" alt="数据概览（深色主题）" width="800"/>
+</div>
+
+### 文章列表
+<div align="center">
+  <img src="https://raw.githubusercontent.com/wang-h/werss/main/images/articlelist.png" alt="文章列表" width="800"/>
+</div>
+
+### RSS订阅
+<div align="center">
+  <img src="https://raw.githubusercontent.com/wang-h/werss/main/images/rss.png" alt="RSS订阅" width="800"/>
+</div>
 
 ---
 

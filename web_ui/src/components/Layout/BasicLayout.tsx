@@ -71,7 +71,8 @@ const BasicLayout: React.FC = () => {
     () => import.meta.env.VITE_APP_TITLE || 'WeRSS 公众号订阅平台',
     []
   )
-  const logo = '/static/logo.svg'
+  // 开发环境使用 public 目录下的文件，生产环境使用后端静态文件服务
+  const logo = import.meta.env.DEV ? '/logo.svg' : '/static/logo.svg'
 
   const fetchUserInfo = async () => {
     try {

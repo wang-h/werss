@@ -116,7 +116,7 @@ async function checkForNewArticles() {
       if (Notification.permission === 'granted') {
         new Notification('WeRSS - 新文章通知', {
           body: `检测到 ${newCount} 篇新文章`,
-          icon: '/static/logo.svg'
+          icon: import.meta.env.DEV ? '/logo.svg' : '/static/logo.svg'
         })
       }
     }
