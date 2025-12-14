@@ -2,7 +2,7 @@
 
 <img src="https://raw.githubusercontent.com/wang-h/werss/main/static/logo.svg" alt="WeRSS Logo" width="150" height="150">
 
-# WeRSS - 微信公众号RSS生成服务
+# WeRSS - 微信公众号热度分析系统
 
 ![Version](https://img.shields.io/badge/version-1.4.8-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
@@ -20,7 +20,7 @@
 
 ## 📖 项目简介
 
-WeRSS 是一个前后端分离的微信公众号RSS生成服务，可以帮助用户将微信公众号文章转换为RSS订阅源，支持自动采集、内容管理、标签分类、多格式导出等功能。
+WeRSS 是一个前后端分离的微信公众号热度分析系统，可以帮助用户将微信公众号文章转换为RSS订阅源，支持自动采集、内容管理、标签分类、多格式导出等功能。
 
 ### 技术栈
 
@@ -593,7 +593,7 @@ chmod 755 data
 
 本项目在开发过程中参考和借鉴了以下优秀的开源项目，特此表示感谢：
 
-- **[we-mp-rss](https://github.com/rachelos/we-mp-rss)** - 微信公众号RSS生成服务，提供了核心功能实现的参考
+- **[we-mp-rss](https://github.com/rachelos/we-mp-rss)** - 微信公众号热度分析系统，提供了核心功能实现的参考
 - **[wewe-rss](https://github.com/cooderl/wewe-rss)** - 微信公众号RSS订阅工具，提供了架构设计的灵感
 - **[full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template)** - FastAPI 全栈项目模板，提供了前后端分离架构的最佳实践
 

@@ -25,7 +25,7 @@ from core.config import cfg,VERSION,API_BASE
 
 app = FastAPI(
     title="WeRSS API",
-    description="微信公众号RSS生成服务API文档",
+    description="微信公众号热度分析系统API文档",
     version="1.0.0",
     docs_url="/api/docs",  # 指定文档路径
     redoc_url="/api/redoc",  # 指定Redoc路径
