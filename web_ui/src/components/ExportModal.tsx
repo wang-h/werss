@@ -2,6 +2,7 @@ import React, { useState, useImperativeHandle, forwardRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
+import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -73,19 +74,43 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
   }))
 
   const handleOk = async () => {
-    const values = form.getValues()
-    await submitExport(values)
-    onConfirm?.(values)
-    hide()
+    try {
+      const values = form.getValues()
+      // 验证至少选择一个导出格式
+      if (!values.format || values.format.length === 0) {
+        Message.error('请至少选择一个导出格式')
+        return
+      }
+      await submitExport(values)
+      onConfirm?.(values)
+      hide()
+    } catch (error: any) {
+      // 错误已在 submitExport 中处理
+      console.error('导出处理失败:', error)
+    }
   }
 
   const submitExport = async (params: any) => {
     try {
       const result = await exportArticles(params)
-      console.log('导出成功:', result)
-      Message.success(result.message || '导出成功！')
-    } catch (error) {
+      const responseData = (result as any)?.data || result
+      
+      if (responseData?.code === 0 || responseData?.code === 200) {
+        const message = responseData?.message || responseData?.data?.message || '导出任务已启动，请稍后下载文件'
+        Message.success(message)
+        
+        // 如果有导出路径，提示用户
+        if (responseData?.data?.export_path) {
+          console.log('导出文件路径:', responseData.data.export_path)
+        }
+      } else {
+        const errorMsg = responseData?.message || '导出失败'
+        Message.error(errorMsg)
+      }
+    } catch (error: any) {
       console.error('导出失败:', error)
+      const errorMsg = error?.response?.data?.message || error?.message || '导出失败，请稍后重试'
+      Message.error(errorMsg)
     }
   }
 
@@ -142,7 +167,7 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
                           }}
                         />
                         <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          {fmt === 'csv' ? 'Excel列表' : fmt === 'md' ? 'MarDown' : fmt === 'json' ? 'JSON附加信息' : fmt === 'pdf' ? 'PDF归档' : 'WORD文档'}
+                          {fmt === 'csv' ? 'Excel列表' : fmt === 'md' ? 'MarkDown' : fmt === 'json' ? 'JSON附加信息' : fmt === 'pdf' ? 'PDF归档' : 'WORD文档'}
                         </label>
                       </div>
                     ))}
@@ -186,7 +211,7 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
               )}
             />
             <div className="space-y-2">
-              <FormLabel>导出选项</FormLabel>
+              <div className="text-sm font-medium">导出选项</div>
               <FormField
                 control={form.control}
                 name="add_title"
@@ -199,7 +224,9 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>添加标题</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        添加标题
+                      </label>
                     </div>
                   </FormItem>
                 )}
@@ -216,7 +243,9 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>移除图片</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        移除图片
+                      </label>
                     </div>
                   </FormItem>
                 )}
@@ -233,7 +262,9 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
                       />
                     </FormControl>
                     <div className="space-y-1 leading-none">
-                      <FormLabel>移除链接</FormLabel>
+                      <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                        移除链接
+                      </label>
                     </div>
                   </FormItem>
                 )}

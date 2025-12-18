@@ -4,7 +4,7 @@ from core.db import DB
 from core.models.base import DATA_STATUS
 from core.models.article import Article, ArticleBase
 from core.models.feed import Feed
-from sqlalchemy import func, and_, case
+from sqlalchemy import func, and_, case, or_
 from datetime import datetime, timedelta
 from .base import success_response, error_response
 from typing import Dict, Any, List
@@ -25,6 +25,10 @@ async def get_dashboard_stats(
     """
     session = DB.get_session()
     try:
+        # 检测数据库类型
+        db_config = DB.connection_str if hasattr(DB, 'connection_str') else ""
+        is_postgresql = 'postgresql' in db_config.lower() or 'postgres' in db_config.lower()
+        
         now = datetime.now()
         today_start = datetime(now.year, now.month, now.day)
         week_start = now - timedelta(days=7)
@@ -88,9 +92,45 @@ async def get_dashboard_stats(
         
         # 获取最近30天的文章及其标签
         # 使用 ArticleTag.article_publish_date 来统计趋势（文章的发布日期）
+        # 如果 article_publish_date 为 NULL，则使用 Article.publish_time 转换
+        # 计算30天前的时间戳（秒级）
+        thirty_days_ago_timestamp = int(thirty_days_ago.timestamp())
+        
+        # 根据数据库类型构建时间戳转换表达式
+        # 优先使用 article_publish_date，如果为 NULL 则从 Article.publish_time 转换
+        if is_postgresql:
+            # PostgreSQL 使用 to_timestamp
+            timestamp_expr = func.to_timestamp(
+                case(
+                    (Article.publish_time < 10000000000, Article.publish_time),
+                    else_=Article.publish_time / 1000.0
+                )
+            )
+        elif 'mysql' in db_config.lower():
+            # MySQL 使用 FROM_UNIXTIME
+            timestamp_expr = func.from_unixtime(
+                case(
+                    (Article.publish_time < 10000000000, Article.publish_time),
+                    else_=Article.publish_time / 1000.0
+                )
+            )
+        else:
+            # SQLite 使用 datetime
+            timestamp_expr = func.datetime(
+                case(
+                    (Article.publish_time < 10000000000, Article.publish_time),
+                    else_=Article.publish_time / 1000.0
+                ),
+                'unixepoch'
+            )
+        
         recent_articles_with_tags = session.query(
             Article.id,
-            ArticleTag.article_publish_date.label('tag_date'),  # 使用文章的发布日期
+            # 优先使用 article_publish_date，如果为 NULL 则从 Article.publish_time 转换
+            case(
+                (ArticleTag.article_publish_date.isnot(None), ArticleTag.article_publish_date),
+                else_=timestamp_expr
+            ).label('tag_date'),  # 使用文章的发布日期
             TagsModel.name.label('tag_name')
         ).join(
             ArticleTag, Article.id == ArticleTag.article_id
@@ -99,7 +139,18 @@ async def get_dashboard_stats(
         ).filter(
             and_(
                 Article.status != DATA_STATUS.DELETED,
-                ArticleTag.article_publish_date >= thirty_days_ago,  # 使用文章的发布日期过滤
+                or_(
+                    ArticleTag.article_publish_date >= thirty_days_ago,  # 使用文章的发布日期过滤
+                    and_(
+                        ArticleTag.article_publish_date.is_(None),
+                        Article.publish_time.isnot(None),
+                        # 如果 article_publish_date 为 NULL，使用 publish_time 过滤
+                        case(
+                            (Article.publish_time < 10000000000, Article.publish_time),
+                            else_=Article.publish_time / 1000.0
+                        ) >= thirty_days_ago_timestamp
+                    )
+                ),
                 TagsModel.status == 1  # 只统计启用的标签
             )
         ).all()
@@ -131,16 +182,36 @@ async def get_dashboard_stats(
             ):
                 continue
             
-            created = row.tag_date  # 使用 ArticleTag.article_publish_date（文章的发布日期）
-            date_key = created.date().isoformat() if created else None
+            # 使用 ArticleTag.article_publish_date（文章的发布日期）
+            tag_date = row.tag_date
+            if tag_date:
+                # 如果是 datetime 对象，转换为日期字符串
+                if isinstance(tag_date, datetime):
+                    date_key = tag_date.date().isoformat()
+                    tag_datetime = tag_date
+                else:
+                    # 如果是字符串或其他格式，尝试转换
+                    try:
+                        if isinstance(tag_date, str):
+                            tag_datetime = datetime.fromisoformat(tag_date.replace('Z', '+00:00'))
+                        else:
+                            tag_datetime = tag_date
+                        date_key = tag_datetime.date().isoformat() if hasattr(tag_datetime, 'date') else str(tag_datetime)[:10]
+                    except Exception:
+                        date_key = None
+                        tag_datetime = None
+            else:
+                date_key = None
+                tag_datetime = None
 
-            # 统计关键词
-            keyword_map[keyword] = keyword_map.get(keyword, 0) + 1
+            # 只统计最近30天的关键词（使用文章的发布日期）
+            if tag_datetime and tag_datetime >= thirty_days_ago:
+                keyword_map[keyword] = keyword_map.get(keyword, 0) + 1
 
-            # 记录关键词趋势
+            # 记录关键词趋势（按日期统计，使用文章的发布日期）
             if keyword not in keyword_trend_map:
                 keyword_trend_map[keyword] = {}
-            if date_key:
+            if date_key and tag_datetime and tag_datetime >= thirty_days_ago:
                 keyword_trend_map[keyword][date_key] = keyword_trend_map[keyword].get(date_key, 0) + 1
 
         # 排序并取前20个
@@ -239,6 +310,11 @@ async def get_dashboard_stats(
 
     except Exception as e:
         session.rollback()
+        import traceback
+        error_detail = traceback.format_exc()
+        from core.print import print_error
+        print_error(f"获取 Dashboard 统计数据失败: {str(e)}")
+        print_error(f"错误详情:\n{error_detail}")
         raise HTTPException(
             status_code=fast_status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=error_response(

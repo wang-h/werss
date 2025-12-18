@@ -15,7 +15,7 @@ import { getSubscriptions, SubscriptionListResult } from '@/api/subscription'
 import { formatDateTime, formatTimestamp } from '@/utils/date'
 import dayjs from 'dayjs'
 import ExportModal from '@/components/ExportModal'
-import { Plus, Trash2, Download, Wifi, ChevronDown, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Download, Wifi, ChevronDown, Loader2, Edit } from 'lucide-react'
 
 const ArticleListPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
@@ -385,12 +385,12 @@ const ArticleListPage: React.FC = () => {
                                 onClick={() => {
                                   toast({
                                     title: "提示",
-                                    description: "插入功能待实现"
+                                    description: "编辑功能待实现"
                                   })
                                 }}
-                                title="插入"
+                                title="编辑"
                               >
-                                <Plus className="h-4 w-4" />
+                                <Edit className="h-4 w-4" />
                               </Button>
                               <Button
                                 variant="ghost"

@@ -41,25 +41,45 @@ const Dashboard: React.FC = () => {
       setLoading(true)
       setError('')
       
-      // 先尝试从专用接口获取数据
+      // 从专用接口获取数据（使用 article_tags 表的 article_publish_date）
+      // 后端 API 从 article_tags 表读取数据，使用 article_publish_date 来统计趋势
       try {
-      const res = await getDashboardStats()
-        if (res && (res as any).data && ((res as any).data.code === 0 || (res as any).data.code === 200)) {
-          setDashboardData((res as any).data.data)
-          return
+        const res = await getDashboardStats()
+        if (res && (res as any).data) {
+          const responseData = (res as any).data
+          // 检查响应格式
+          if (responseData.code === 0 || responseData.code === 200) {
+            setDashboardData(responseData.data)
+            return
+          } else {
+            // API 返回了错误码
+            const errorMsg = responseData.message || responseData.msg || '未知错误'
+            console.error('Dashboard API 返回错误:', responseData.code, errorMsg)
+            setError(`获取统计数据失败: ${errorMsg}`)
+            // 尝试回退
+            await calculateStatsFromAPIs()
+            return
+          }
         }
-      } catch (e) {
-        // 专用接口未实现或失败，静默回退到使用现有 API 计算统计数据
-        if (import.meta.env.DEV) {
-          console.log('专用接口未实现，使用现有 API 计算统计数据')
-        }
+      } catch (apiError: any) {
+        // API 调用失败（网络错误、500错误等）
+        console.error('Dashboard API 调用失败:', apiError)
+        const errorMsg = apiError?.response?.data?.message || apiError?.message || 'API 调用失败'
+        console.warn('Dashboard API 调用失败，使用回退计算（基于文章 publish_time）:', errorMsg)
+        // 尝试回退
+        await calculateStatsFromAPIs()
+        return
       }
-
-      // 如果专用接口不存在，从现有 API 获取数据并计算
+      
+      // 如果接口返回格式不正确，尝试回退（使用文章的 publish_time 而不是 created_at）
+      if (import.meta.env.DEV) {
+        console.warn('Dashboard API 返回格式异常，使用回退计算（基于文章 publish_time）')
+      }
       await calculateStatsFromAPIs()
     } catch (err: any) {
       console.error('获取统计数据失败:', err)
-      setError('获取统计数据失败，请稍后重试')
+      const errorMsg = err?.message || '未知错误'
+      setError(`获取统计数据失败: ${errorMsg}`)
     } finally {
       setLoading(false)
     }
@@ -121,8 +141,24 @@ const Dashboard: React.FC = () => {
       const invalidKeywordPattern = /^[a-z]{1,2}$|^[0-9]+$|^[^\u4e00-\u9fa5a-zA-Z0-9]+$|^\.+$/
       
       articles.forEach((article: any) => {
-        const created = new Date(article.created_at)
-        const dateKey = created.toISOString().split('T')[0]
+        // 使用文章的 publish_time（发布时间）而不是 created_at（抓取时间）
+        // 注意：这是回退逻辑，理想情况下应该使用后端 API 返回的数据（基于 article_tags.article_publish_date）
+        let articleDate: Date
+        let dateKey: string
+        
+        if (article.publish_time) {
+          // publish_time 是时间戳（秒级或毫秒级）
+          const publishTimestamp = typeof article.publish_time === 'number' 
+            ? article.publish_time 
+            : parseInt(article.publish_time)
+          // 如果是秒级时间戳（小于 10000000000），转换为毫秒级
+          const timestampMs = publishTimestamp < 10000000000 ? publishTimestamp * 1000 : publishTimestamp
+          articleDate = new Date(timestampMs)
+        } else {
+          // 如果没有 publish_time，使用 created_at 作为回退
+          articleDate = new Date(article.created_at)
+        }
+        dateKey = articleDate.toISOString().split('T')[0]
         
         // 从文章的 tags 中获取关键词（支持多种格式）
         const tags = article.tags || article.tag_names || []
@@ -152,11 +188,13 @@ const Dashboard: React.FC = () => {
         }
         
         keywords.forEach(keyword => {
-          // 统计总数
-          keywordMap.set(keyword, (keywordMap.get(keyword) || 0) + 1)
+          // 统计总数（只统计最近30天）
+          if (articleDate >= keywordTrendThirtyDaysAgo) {
+            keywordMap.set(keyword, (keywordMap.get(keyword) || 0) + 1)
+          }
           
-          // 统计趋势（只统计最近30天）
-          if (created >= keywordTrendThirtyDaysAgo) {
+          // 统计趋势（只统计最近30天，使用文章的发布时间）
+          if (articleDate >= keywordTrendThirtyDaysAgo) {
             if (!keywordTrendMap.has(dateKey)) {
               keywordTrendMap.set(dateKey, new Map())
             }
