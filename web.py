@@ -73,19 +73,29 @@ api_router.include_router(tools_router)
 api_router.include_router(github_router)
 api_router.include_router(dashboard_router)
 
+# 资源反向代理路由（处理 /static/res/logo/ 路径）
+# 注意：resource_router 只处理 /static/res/logo/ 路径，其他 /static/ 路径由静态文件服务处理
 resource_router = APIRouter(prefix="/static")
-resource_router.include_router(res_router)
+resource_router.include_router(res_router)  # res_router 的 prefix 是 /res，所以完整路径是 /static/res/logo/{path:path}
 feeds_router = APIRouter()
 feeds_router.include_router(rss_router)
 feeds_router.include_router(feed_router)
 # 注册API路由分组
 app.include_router(api_router)
-app.include_router(resource_router)
+app.include_router(resource_router)  # 处理 /static/res/logo/ 路径
 app.include_router(feeds_router)
 
-# 用户上传文件服务（保留，因为这是业务功能，不是前端静态文件）
+# 静态文件服务（支持 HEAD 方法，用于 wx_qrcode.png 等文件）
+# 注意：在 resource_router 之后挂载，这样 /static/res/logo/ 会被 resource_router 处理
+# 而其他 /static/ 路径（如 /static/wx_qrcode.png）会被静态文件服务处理
+# FastAPI 的路由匹配顺序：先匹配 include_router（精确匹配），再匹配 mount
 from starlette.staticfiles import StaticFiles
 from core.res.avatar import files_dir
+# 挂载 static 目录，支持 HEAD 方法检查文件是否存在
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+if os.path.exists(static_dir):
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
+# 用户上传文件服务（保留，因为这是业务功能，不是前端静态文件）
 app.mount("/files", StaticFiles(directory=files_dir), name="files")
 
 # 根路由 - 返回API信息
@@ -102,9 +112,16 @@ async def serve_root(request: Request):
     })
 
 # 404处理 - 对于未匹配的路由返回API信息
+# 注意：不匹配 /static/ 和 /files/ 路径，这些路径由静态文件服务处理
 @app.get("/{path:path}",tags=['默认'],include_in_schema=False)
+@app.head("/{path:path}",tags=['默认'],include_in_schema=False)
 async def catch_all(request: Request, path: str):
     """捕获所有未匹配的路由 - 前后端分离架构，后端只提供API"""
+    # 跳过静态文件路径，这些路径应该由静态文件服务处理
+    if path.startswith("static/") or path.startswith("files/"):
+        from fastapi.responses import Response
+        return Response(status_code=404)
+    
     from fastapi.responses import JSONResponse
     return JSONResponse(
         status_code=404,

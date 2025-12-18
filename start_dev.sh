@@ -179,6 +179,18 @@ start_backend() {
             export DEEPSEEK_MODEL=$(grep "^DEEPSEEK_MODEL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         fi
         
+        # 显式导出文章标签提取相关环境变量
+        if grep -q "^ARTICLE_TAG_EXTRACT_METHOD=" .env 2>/dev/null; then
+            export ARTICLE_TAG_EXTRACT_METHOD=$(grep "^ARTICLE_TAG_EXTRACT_METHOD=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            echo -e "${GREEN}✅ 已加载 ARTICLE_TAG_EXTRACT_METHOD=${ARTICLE_TAG_EXTRACT_METHOD}${NC}"
+        fi
+        if grep -q "^ARTICLE_TAG_MAX_TAGS=" .env 2>/dev/null; then
+            export ARTICLE_TAG_MAX_TAGS=$(grep "^ARTICLE_TAG_MAX_TAGS=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        if grep -q "^ARTICLE_TAG_AUTO_EXTRACT=" .env 2>/dev/null; then
+            export ARTICLE_TAG_AUTO_EXTRACT=$(grep "^ARTICLE_TAG_AUTO_EXTRACT=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        
         echo -e "${GREEN}✅ 环境变量已加载${NC}"
     fi
     

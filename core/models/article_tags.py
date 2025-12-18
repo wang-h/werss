@@ -10,7 +10,8 @@ class ArticleTag(Base):
     id = Column(String(255), primary_key=True)
     article_id = Column(String(255), ForeignKey('articles.id', ondelete='CASCADE'), nullable=False, index=True)
     tag_id = Column(String(255), ForeignKey('tags.id', ondelete='CASCADE'), nullable=False, index=True)
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=datetime.now)  # 关联创建时间（标签被关联到文章的时间）
+    article_publish_date = Column(DateTime, nullable=True, index=True)  # 文章的发布日期（用于趋势统计）
     
     # 唯一约束：同一篇文章不能重复添加同一标签
     __table_args__ = (
@@ -20,4 +21,3 @@ class ArticleTag(Base):
     
     def __repr__(self):
         return f"<ArticleTag(article_id={self.article_id}, tag_id={self.tag_id})>"
-

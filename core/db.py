@@ -564,7 +564,8 @@ class Db:
                             id=str(uuid.uuid4()),
                             article_id=article_id,
                             tag_id=tag.id,
-                            created_at=tag_created_at  # 使用文章的发布日期
+                            created_at=datetime.now(),  # 关联创建时间（当前时间）
+                            article_publish_date=tag_created_at  # 文章的发布日期（用于趋势统计）
                         )
                         session.add(article_tag)
                         assigned_count += 1
@@ -589,7 +590,8 @@ class Db:
                             id=str(uuid.uuid4()),
                             article_id=article_id,
                             tag_id=new_tag.id,
-                            created_at=tag_created_at  # 使用文章的发布日期
+                            created_at=datetime.now(),  # 关联创建时间（当前时间）
+                            article_publish_date=tag_created_at  # 文章的发布日期（用于趋势统计）
                         )
                         session.add(article_tag)
                         assigned_count += 1

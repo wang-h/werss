@@ -87,9 +87,10 @@ async def get_dashboard_stats(
         from core.models.tags import Tags as TagsModel
         
         # 获取最近30天的文章及其标签
+        # 使用 ArticleTag.article_publish_date 来统计趋势（文章的发布日期）
         recent_articles_with_tags = session.query(
             Article.id,
-            Article.created_at,
+            ArticleTag.article_publish_date.label('tag_date'),  # 使用文章的发布日期
             TagsModel.name.label('tag_name')
         ).join(
             ArticleTag, Article.id == ArticleTag.article_id
@@ -98,7 +99,7 @@ async def get_dashboard_stats(
         ).filter(
             and_(
                 Article.status != DATA_STATUS.DELETED,
-                Article.created_at >= thirty_days_ago,
+                ArticleTag.article_publish_date >= thirty_days_ago,  # 使用文章的发布日期过滤
                 TagsModel.status == 1  # 只统计启用的标签
             )
         ).all()
@@ -130,7 +131,7 @@ async def get_dashboard_stats(
             ):
                 continue
             
-            created = row.created_at
+            created = row.tag_date  # 使用 ArticleTag.article_publish_date（文章的发布日期）
             date_key = created.date().isoformat() if created else None
 
             # 统计关键词

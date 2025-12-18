@@ -1,38 +1,26 @@
-"""文章标签管理 API"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import List, Optional
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, Query, HTTPException, status
+from sqlalchemy.orm import Session
+from core.database import get_db
+from core.auth import get_current_user
+from core.models.article import Article
 from core.models.article_tags import ArticleTag
 from core.models.tags import Tags as TagsModel
-from core.models.article import Article
-from core.database import get_db
-from sqlalchemy.orm import Session
 from .base import success_response, error_response
-from core.auth import get_current_user
+
+router = APIRouter(prefix="/article-tag", tags=["文章标签关联"])
 
 
-router = APIRouter(prefix="/articles/{article_id}/tags", tags=["文章标签管理"])
-
-
-class TagResponse(BaseModel):
-    """标签响应模型"""
-    id: str
-    name: str
-    cover: Optional[str] = None
-    intro: Optional[str] = None
-
-
-@router.get("", 
-    summary="获取文章的标签列表",
-    description="获取指定文章关联的所有标签"
+@router.get("",
+    summary="获取文章的所有标签",
+    description="根据文章ID获取该文章关联的所有标签"
 )
 async def get_article_tags(
-    article_id: str,
+    article_id: str = Query(..., description="文章ID"),
     db: Session = Depends(get_db),
     cur_user: dict = Depends(get_current_user)
 ):
     """
-    获取文章的标签列表
+    获取文章的所有标签
     
     参数:
     - article_id: 文章ID
@@ -46,31 +34,28 @@ async def get_article_tags(
         if not article:
             return error_response(code=404, message="Article not found")
         
-        # 查询文章关联的标签
+        # 查询文章的所有标签
         article_tags = db.query(ArticleTag).filter(
             ArticleTag.article_id == article_id
         ).all()
         
         # 获取标签详情
-        tag_ids = [at.tag_id for at in article_tags]
-        tags = db.query(TagsModel).filter(TagsModel.id.in_(tag_ids)).all()
+        tags = []
+        for article_tag in article_tags:
+            tag = db.query(TagsModel).filter(TagsModel.id == article_tag.tag_id).first()
+            if tag:
+                tags.append({
+                    "id": tag.id,
+                    "name": tag.name,
+                    "cover": tag.cover,
+                    "intro": tag.intro,
+                    "status": tag.status,
+                    "is_custom": getattr(tag, 'is_custom', False),
+                    "created_at": article_tag.created_at.isoformat() if article_tag.created_at is not None else None,
+                    "article_publish_date": article_tag.article_publish_date.isoformat() if article_tag.article_publish_date is not None else None
+                })
         
-        # 构建响应
-        tag_list = [
-            {
-                "id": tag.id,
-                "name": tag.name,
-                "cover": tag.cover,
-                "intro": tag.intro
-            }
-            for tag in tags
-        ]
-        
-        return success_response(data={
-            "article_id": article_id,
-            "tags": tag_list,
-            "total": len(tag_list)
-        })
+        return success_response(data=tags)
     except Exception as e:
         from core.print import print_error
         print_error(f"获取文章标签失败: {e}")
@@ -120,12 +105,27 @@ async def add_article_tag(
         if existing:
             return error_response(code=400, message="Tag already assigned to this article")
         
+        # 获取文章的发布时间，用于设置 article_publish_date
+        article_publish_date = datetime.now()  # 默认值
+        if article:
+            # 获取 publish_time 值（可能是整数时间戳）
+            publish_time = getattr(article, 'publish_time', None)
+            if publish_time is not None:
+                try:
+                    publish_timestamp = int(publish_time)  # type: ignore
+                    if publish_timestamp < 10000000000:  # 秒级时间戳
+                        publish_timestamp *= 1000
+                    article_publish_date = datetime.fromtimestamp(publish_timestamp / 1000)
+                except (ValueError, TypeError, OSError):
+                    article_publish_date = datetime.now()
+        
         # 创建关联
         article_tag = ArticleTag(
             id=str(uuid.uuid4()),
             article_id=article_id,
             tag_id=tag_id,
-            created_at=datetime.now()
+            created_at=datetime.now(),  # 关联创建时间
+            article_publish_date=article_publish_date  # 文章的发布日期（用于趋势统计）
         )
         db.add(article_tag)
         db.commit()
@@ -164,7 +164,7 @@ async def delete_article_tag(
     - 成功响应
     """
     try:
-        # 查找关联记录
+        # 查找关联
         article_tag = db.query(ArticleTag).filter(
             ArticleTag.article_id == article_id,
             ArticleTag.tag_id == tag_id
@@ -173,6 +173,7 @@ async def delete_article_tag(
         if not article_tag:
             return error_response(code=404, message="Article tag association not found")
         
+        # 删除关联
         db.delete(article_tag)
         db.commit()
         
