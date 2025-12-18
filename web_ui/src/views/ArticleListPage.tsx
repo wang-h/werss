@@ -265,11 +265,47 @@ const ArticleListPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Button
               onClick={() => {
-                const currentMpId = mpId || ''
                 // 将数字 ID 转换为字符串，因为数据库中的 ID 是字符串类型
                 const selectedIds = (selectedRowKeys || []).map(id => String(id))
-                const currentMp = mpList.find(mp => mp.mp_id === currentMpId)
-                const mpName = currentMp?.mp_name || '全部'
+                
+                // 确定 mp_id：如果有选中的文章，从选中的文章中获取 mp_id
+                let currentMpId = mpId || ''
+                let mpName = '全部'
+                
+                if (selectedIds.length > 0) {
+                  // 从选中的文章中获取 mp_id
+                  const selectedArticles = articles.filter(art => selectedRowKeys.includes(art.id))
+                  if (selectedArticles.length > 0) {
+                    // 获取所有选中文章的 mp_id（从实际数据中获取）
+                    const mpIds = selectedArticles.map(art => (art as any).mp_id).filter(Boolean)
+                    if (mpIds.length > 0) {
+                      // 如果所有文章来自同一个公众号，使用该公众号的 mp_id
+                      const uniqueMpIds = [...new Set(mpIds)]
+                      if (uniqueMpIds.length === 1) {
+                        currentMpId = uniqueMpIds[0]
+                        const currentMp = mpList.find(mp => mp.mp_id === currentMpId)
+                        mpName = currentMp?.mp_name || selectedArticles[0].mp_name || '全部'
+                      } else {
+                        // 如果来自不同公众号，使用 "all"
+                        currentMpId = 'all'
+                        mpName = '全部'
+                      }
+                    } else {
+                      // 如果文章数据中没有 mp_id，使用当前筛选条件或 "all"
+                      currentMpId = currentMpId || 'all'
+                      const currentMp = mpList.find(mp => mp.mp_id === currentMpId)
+                      mpName = currentMp?.mp_name || '全部'
+                    }
+                  }
+                } else {
+                  // 没有选中文章，使用当前筛选条件
+                  if (!currentMpId) {
+                    currentMpId = 'all'
+                  }
+                  const currentMp = mpList.find(mp => mp.mp_id === currentMpId)
+                  mpName = currentMp?.mp_name || '全部'
+                }
+                
                 exportModalRef.current?.show(currentMpId, selectedIds, mpName)
               }}
             >

@@ -123,11 +123,16 @@ async def export_articles(
     """
     try:
         # 验证参数
-        # 如果 mp_id 是空字符串，使用 "all" 作为标识（导出所有公众号的文章）
-        if request.mp_id is None:
-            return error_response(400, "公众号ID不能为空")
-        # 如果 mp_id 是空字符串，使用 "all" 作为目录名
-        export_mp_id = request.mp_id.strip() if request.mp_id and request.mp_id.strip() else "all"
+        # 如果 mp_id 是 None 或空字符串，且没有指定 doc_id，则报错
+        # 如果有 doc_id（选中文章导出），允许 mp_id 为空（会在 export_md_to_doc 中处理）
+        if (request.mp_id is None or (isinstance(request.mp_id, str) and not request.mp_id.strip())):
+            if not request.doc_id or len(request.doc_id) == 0:
+                return error_response(400, "公众号ID不能为空")
+            # 如果有 doc_id，使用 "all" 作为目录名
+            export_mp_id = "all"
+        else:
+            # 如果 mp_id 是空字符串，使用 "all" 作为目录名
+            export_mp_id = request.mp_id.strip() if request.mp_id and request.mp_id.strip() else "all"
         
         # 验证至少选择一个导出格式
         if not any([request.export_md, request.export_docx, request.export_json, request.export_csv, request.export_pdf]):

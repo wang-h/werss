@@ -20,23 +20,27 @@ def process_single_article(art, add_title, remove_images, remove_links, export_m
     from core.content_format import format_content
     from core.common.file_tools import sanitize_filename
     
-    markdown_content = format_content(art.content, "markdown")
+    # 处理文章内容，如果内容为空则使用空字符串
+    content = art.content if art.content else ""
+    markdown_content = format_content(content, "markdown") if content else ""
     
     # 转换为文档对象（不保存文件）
     # 只有在需要导出docx时才进行转换
     document = None
     if export_docx or export_pdf:
-        md = MarkdownToWordConverter({
-            'remove_links': remove_links,
-            'remove_images': remove_images,
-            'default_font': 'SimSun'
-        })
-        if add_title:
-            markdown_content = f"# {art.title}\n\n{markdown_content}"
-        document = md.convert_to_document(markdown_content, None)
+        if markdown_content:  # 只有当有内容时才转换
+            md = MarkdownToWordConverter({
+                'remove_links': remove_links,
+                'remove_images': remove_images,
+                'default_font': 'SimSun'
+            })
+            if add_title:
+                markdown_content = f"# {art.title}\n\n{markdown_content}"
+            document = md.convert_to_document(markdown_content, None)
         
     # 检查是否需要导出任何格式的文件
-    if (export_docx and document) or export_md or export_json or export_csv or export_pdf:
+    # 即使没有内容，也可以导出 JSON、CSV 或 MD（空内容）
+    if (export_docx and document) or export_md or export_json or export_csv or (export_pdf and document):
         print(art.id, art.title, art.id)
         name = datetime.fromtimestamp(art.publish_time).strftime("%Y%m%d") + "_" + art.title
         filename = sanitize_filename(name) + ".docx"
@@ -118,7 +122,15 @@ def process_articles(session, mp_id=None,doc_id=None, page_size=10, page_count=1
         if page_count != 0 and i >= page_count:
             break
             
-        query = session.query(Article).filter(Article.content != None).where(Article.status == 1)
+        # 如果指定了 doc_id（导出选中文章），则不要求必须有内容
+        # 如果只按 mp_id 查询（导出所有），则要求必须有内容
+        if doc_id is not None and len(doc_id) > 0:
+            # 导出选中文章时，不要求必须有内容
+            query = session.query(Article).where(Article.status == 1)
+        else:
+            # 导出所有文章时，要求必须有内容
+            query = session.query(Article).filter(Article.content != None).where(Article.status == 1)
+        
         # 如果 mp_id 不是 "all"，则按公众号ID过滤
         if mp_id and isinstance(mp_id, str) and mp_id.strip() and mp_id != "all":
             query = query.where(Article.mp_id.in_(mp_id.split(",")))
