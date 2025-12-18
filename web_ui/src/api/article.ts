@@ -145,3 +145,23 @@ export const fetchArticleContent = (id: number | string) => {
   return http.post<{code: number, message: string, data?: {content_length: number}}>(`/wx/articles/${id}/fetch_content`)
 }
 
+/**
+ * 更新文章请求参数接口
+ */
+export interface UpdateArticleParams {
+  title?: string
+  description?: string
+  url?: string
+  pic_url?: string
+}
+
+/**
+ * 更新文章
+ * @param id 文章ID
+ * @param params 更新参数
+ * @returns 更新结果
+ */
+export const updateArticle = (id: number | string, params: UpdateArticleParams) => {
+  return http.put<{code: number, message: string}>(`/wx/articles/${id}`, params)
+}
+

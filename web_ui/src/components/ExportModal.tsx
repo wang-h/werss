@@ -1,11 +1,11 @@
-import React, { useState, useImperativeHandle, forwardRef } from 'react'
+import { useState, useImperativeHandle, forwardRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Message } from '@/utils/message'
 import { exportArticles } from '@/api/tools'
@@ -21,7 +21,7 @@ export interface ExportModalRef {
 
 interface FormValues {
   scope: string
-  format: string[]
+  format: string
   page_count: number
   mp_id: string
   ids: any[]
@@ -37,8 +37,8 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
   const form = useForm<FormValues>({
     defaultValues: {
       scope: 'all',
-      format: ['pdf', 'docx', 'json', 'csv', 'md'],
-      page_count: 10,
+      format: 'md', // 默认选择 markdown
+      page_count: 0, // 0 表示导出所有，不再显示在界面上
       mp_id: '',
       ids: [],
       add_title: true,
@@ -51,8 +51,8 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
   const show = (mp_id: string, ids: any[], mp_name?: string) => {
     const newFormData = {
       scope: ids && ids.length > 0 ? 'selected' : 'all',
-      format: ['pdf', 'docx', 'json', 'csv', 'md'],
-      page_count: 10,
+      format: 'md', // 默认选择 markdown
+      page_count: 0, // 0 表示导出所有
       mp_id,
       ids,
       add_title: true,
@@ -73,16 +73,31 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
     hide
   }))
 
-  const handleOk = async () => {
+  const handleExport = async (exportScope: 'all' | 'selected') => {
     try {
       const values = form.getValues()
-      // 验证至少选择一个导出格式
-      if (!values.format || values.format.length === 0) {
-        Message.error('请至少选择一个导出格式')
+      // 验证选择了导出格式
+      if (!values.format) {
+        Message.error('请选择一个导出格式')
         return
       }
-      await submitExport(values)
-      onConfirm?.(values)
+      
+      // 如果是导出选中，但没有选中文章，提示错误
+      if (exportScope === 'selected' && (!values.ids || values.ids.length === 0)) {
+        Message.error('请先选择要导出的文章')
+        return
+      }
+      
+      // 根据导出范围设置参数，将单个格式转换为数组格式（API 期望数组）
+      const exportParams = {
+        ...values,
+        scope: exportScope,
+        format: [values.format], // 转换为数组格式
+        // API 会根据 scope 和 ids 来设置 doc_id
+      }
+      
+      await submitExport(exportParams)
+      onConfirm?.(exportParams)
       hide()
     } catch (error: any) {
       // 错误已在 submitExport 中处理
@@ -92,30 +107,48 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
 
   const submitExport = async (params: any) => {
     try {
-      const result = await exportArticles(params)
-      const responseData = (result as any)?.data || result
+      const result: any = await exportArticles(params)
+      // http 拦截器在 code === 0 时返回 response.data.data 或 response.data
+      // 如果能执行到这里，说明请求成功了（拦截器已经处理了错误情况）
+      // 检查 result 的结构
+      let message = '导出任务已启动，请稍后下载文件'
+      let exportPath = null
       
-      if (responseData?.code === 0 || responseData?.code === 200) {
-        const message = responseData?.message || responseData?.data?.message || '导出任务已启动，请稍后下载文件'
-        Message.success(message)
-        
-        // 如果有导出路径，提示用户
-        if (responseData?.data?.export_path) {
-          console.log('导出文件路径:', responseData.data.export_path)
+      if (result && typeof result === 'object') {
+        // 如果 result 有 code 字段，说明拦截器返回了完整的 response.data
+        if ('code' in result) {
+          message = result.message || result.data?.message || message
+          exportPath = result.data?.export_path
+        } else {
+          // 如果 result 没有 code 字段，说明拦截器返回了 response.data.data
+          // 这种情况下，result 就是 data 字段的内容
+          message = result.message || message
+          exportPath = result.export_path
         }
-      } else {
-        const errorMsg = responseData?.message || '导出失败'
-        Message.error(errorMsg)
+      }
+      
+      Message.success(message)
+      
+      // 如果有导出路径，记录日志
+      if (exportPath) {
+        console.log('导出文件路径:', exportPath)
       }
     } catch (error: any) {
       console.error('导出失败:', error)
+      // 如果错误已经被拦截器处理过（显示过错误消息），就不再重复显示
+      // 检查是否是字符串错误（拦截器返回的）
+      if (typeof error === 'string') {
+        // 拦截器已经显示过错误消息了，这里不需要再显示
+        return
+      }
+      // 只有在拦截器没有显示错误消息的情况下才显示
       const errorMsg = error?.response?.data?.message || error?.message || '导出失败，请稍后重试'
       Message.error(errorMsg)
     }
   }
 
-  const formatValue = form.watch('format')
-  const scopeValue = form.watch('scope')
+  // 实时监听 ids 的变化
+  const idsValue = form.watch('ids')
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -128,73 +161,38 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
           <div className="space-y-4">
             <FormField
               control={form.control}
-              name="scope"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>导出范围</FormLabel>
-                  <Select value={field.value} onValueChange={field.onChange} disabled>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="all">指定页数</SelectItem>
-                      <SelectItem value="selected">已选文章</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
               name="format"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>导出格式</FormLabel>
-                  <div className="space-y-2">
-                    {['csv', 'md', 'json', 'pdf', 'docx'].map((fmt) => (
-                      <div key={fmt} className="flex items-center space-x-2">
-                        <Checkbox
-                          checked={field.value?.includes(fmt)}
-                          onCheckedChange={(checked) => {
-                            const current = field.value || []
-                            if (checked) {
-                              field.onChange([...current, fmt])
-                            } else {
-                              field.onChange(current.filter((f: string) => f !== fmt))
-                            }
-                          }}
-                        />
-                        <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          {fmt === 'csv' ? 'Excel列表' : fmt === 'md' ? 'MarkDown' : fmt === 'json' ? 'JSON附加信息' : fmt === 'pdf' ? 'PDF归档' : 'WORD文档'}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
+                  <FormControl>
+                    <RadioGroup
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      className="space-y-2"
+                    >
+                      {[
+                        { value: 'md', label: 'MarkDown' },
+                        { value: 'pdf', label: 'PDF归档' },
+                        { value: 'docx', label: 'WORD文档' },
+                        { value: 'json', label: 'JSON附加信息' },
+                        { value: 'csv', label: 'Excel列表' }
+                      ].map((fmt) => (
+                        <div key={fmt.value} className="flex items-center space-x-2">
+                          <RadioGroupItem value={fmt.value} id={fmt.value} />
+                          <Label
+                            htmlFor={fmt.value}
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            {fmt.label}
+                          </Label>
+                        </div>
+                      ))}
+                    </RadioGroup>
+                  </FormControl>
                 </FormItem>
               )}
             />
-            {(scopeValue === 'all' || scopeValue === 'current') && (
-              <FormField
-                control={form.control}
-                name="page_count"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>导出页数</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={10000}
-                        {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 10)}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-            )}
             <FormField
               control={form.control}
               name="zip_filename"
@@ -272,9 +270,20 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
             </div>
           </div>
         </Form>
-        <DialogFooter>
+        <DialogFooter className="gap-2">
           <Button variant="outline" onClick={hide}>取消</Button>
-          <Button onClick={handleOk}>确定</Button>
+          <Button 
+            variant="outline" 
+            onClick={() => handleExport('all')}
+          >
+            导出所有
+          </Button>
+          <Button 
+            onClick={() => handleExport('selected')}
+            disabled={!idsValue || idsValue.length === 0}
+          >
+            导出选中
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

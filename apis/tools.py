@@ -20,36 +20,55 @@ router = APIRouter(prefix="/tools", tags=["工具"])
 # Schema 模型定义
 class ExportArticlesRequest(BaseModel):
     """导出文章请求模型"""
-    mp_id: str = Field(..., description="公众号ID", example="MP_WXS_3892772220")
-    doc_id: Optional[List[str]] = Field(None, description="文档ID列表，为空则导出所有文章", example=[])
-    page_size: int = Field(10, description="每页数量", ge=1, le=10)
-    page_count: int = Field(1, description="页数，0表示全部", ge=0, le=10000)
-    add_title: bool = Field(True, description="是否添加标题")
-    remove_images: bool = Field(True, description="是否移除图片")
-    remove_links: bool = Field(False, description="是否移除链接")
-    export_md: bool = Field(False, description="是否导出Markdown格式")
-    export_docx: bool = Field(False, description="是否导出Word文档格式")
-    export_json: bool = Field(False, description="是否导出JSON格式")
-    export_csv: bool = Field(False, description="是否导出CSV格式")
-    export_pdf: bool = Field(True, description="是否导出PDF格式")
-    zip_filename: Optional[str] = Field(None, description="压缩包文件名，为空则自动生成", example="")
+    mp_id: str  # type: ignore
+    doc_id: Optional[List[str]] = None
+    page_size: int = 10
+    page_count: int = 1
+    add_title: bool = True
+    remove_images: bool = True
+    remove_links: bool = False
+    export_md: bool = False
+    export_docx: bool = False
+    export_json: bool = False
+    export_csv: bool = False
+    export_pdf: bool = True
+    zip_filename: Optional[str] = None
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "mp_id": "MP_WXS_3892772220",
+                "doc_id": [],
+                "page_size": 10,
+                "page_count": 1,
+                "add_title": True,
+                "remove_images": True,
+                "remove_links": False,
+                "export_md": False,
+                "export_docx": False,
+                "export_json": False,
+                "export_csv": False,
+                "export_pdf": True,
+                "zip_filename": ""
+            }
+        }
 
 class ExportArticlesResponse(BaseModel):
     """导出文章响应模型"""
-    record_count: int = Field(..., description="导出的文章数量")
-    export_path: str = Field(..., description="导出文件路径")
-    message: str = Field(..., description="导出结果消息")
+    record_count: int
+    export_path: str
+    message: str
 
 class ExportFileInfo(BaseModel):
     """导出文件信息模型"""
-    filename: str = Field(..., description="文件名")
-    size: int = Field(..., description="文件大小（字节）")
-    created_time: str = Field(..., description="创建时间（ISO格式）")
-    modified_time: str = Field(..., description="修改时间（ISO格式）")
+    filename: str
+    size: int
+    created_time: str
+    modified_time: str
 
 def _export_articles_worker(
     mp_id: str,
-    doc_id: Optional[List[int]],
+    doc_id: Optional[List[str]],  # 改为 List[str]，因为文章ID是字符串类型
     page_size: int,
     page_count: int,
     add_title: bool,
@@ -65,21 +84,34 @@ def _export_articles_worker(
     """
     导出文章的工作线程函数
     """
-    return export_md_to_doc(
-        mp_id=mp_id,
-        doc_id=doc_id,
-        page_size=page_size,
-        page_count=page_count,
-        add_title=add_title,
-        remove_images=remove_images,
-        remove_links=remove_links,
-        export_md=export_md,
-        export_docx=export_docx,
-        export_json=export_json,
-        export_csv=export_csv,
-        export_pdf=export_pdf,
-        zip_filename=zip_filename
-    )
+    try:
+        # 构建调用参数，如果 doc_id 是 None 则不传递该参数（使用默认值）
+        export_kwargs = {
+            "mp_id": mp_id,
+            "page_size": page_size,
+            "page_count": page_count,
+            "add_title": add_title,
+            "remove_images": remove_images,
+            "remove_links": remove_links,
+            "export_md": export_md,
+            "export_docx": export_docx,
+            "export_json": export_json,
+            "export_csv": export_csv,
+            "export_pdf": export_pdf,
+            "zip_filename": zip_filename
+        }
+        # 只有当 doc_id 不是 None 时才传递
+        if doc_id is not None:
+            export_kwargs["doc_id"] = doc_id
+        
+        result = export_md_to_doc(**export_kwargs)
+        return result
+    except Exception as e:
+        from core.print import print_error
+        import traceback
+        print_error(f"导出任务执行失败: {str(e)}")
+        print_error(f"错误详情:\n{traceback.format_exc()}")
+        raise
 
 @router.post("/export/articles", summary="导出文章")
 async def export_articles(
@@ -90,23 +122,39 @@ async def export_articles(
     导出文章为多种格式（使用线程池异步处理）
     """
     try:
+        # 验证参数
+        # 如果 mp_id 是空字符串，使用 "all" 作为标识（导出所有公众号的文章）
+        if request.mp_id is None:
+            return error_response(400, "公众号ID不能为空")
+        # 如果 mp_id 是空字符串，使用 "all" 作为目录名
+        export_mp_id = request.mp_id.strip() if request.mp_id and request.mp_id.strip() else "all"
+        
+        # 验证至少选择一个导出格式
+        if not any([request.export_md, request.export_docx, request.export_json, request.export_csv, request.export_pdf]):
+            return error_response(400, "请至少选择一个导出格式")
+        
         # 检查是否已有相同 mp_id 的导出任务正在运行
         for thread in threading.enumerate():
-            if thread.name == f"export_articles_{request.mp_id}":
+            if thread.name == f"export_articles_{export_mp_id}":
                 return error_response(400, "该公众号的导出任务已在处理中，请勿重复点击")
                 
         # 直接生成 zip_filename 并返回
-        docx_path = f"./data/docs/{request.mp_id}/"
+        docx_path = f"./data/docs/{export_mp_id}/"
         if request.zip_filename:
             zip_file_path = f"{docx_path}{request.zip_filename}"
+            if not zip_file_path.endswith('.zip'):
+                zip_file_path += '.zip'
         else:
             zip_file_path = f"{docx_path}exported_articles_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+        
+        # 调试：打印接收到的参数
+        print(f"导出请求参数 - mp_id: {request.mp_id}, export_mp_id: {export_mp_id}, doc_id: {request.doc_id}, doc_id类型: {type(request.doc_id)}")
         
         # 启动后台线程执行导出操作
         export_thread = threading.Thread(
             target=_export_articles_worker,
             args=(
-                request.mp_id,
+                export_mp_id,
                 request.doc_id,
                 request.page_size,
                 request.page_count,
@@ -120,7 +168,8 @@ async def export_articles(
                 request.export_pdf,
                 request.zip_filename
             ),
-            name=f"export_articles_{request.mp_id}"
+            name=f"export_articles_{export_mp_id}",
+            daemon=True  # 设置为守护线程，主程序退出时自动结束
         )
         export_thread.start()
         
@@ -130,8 +179,14 @@ async def export_articles(
         })
             
     except ValueError as e:
+        from core.print import print_error
+        print_error(f"导出参数验证失败: {str(e)}")
         return error_response(400, str(e))
     except Exception as e:
+        from core.print import print_error
+        import traceback
+        print_error(f"导出任务启动失败: {str(e)}")
+        print_error(f"错误详情:\n{traceback.format_exc()}")
         return error_response(500, f"导出失败: {str(e)}")
 
 @router.get("/export/download", summary="下载导出文件")
@@ -180,7 +235,7 @@ async def list_export_files(
         safe_root = os.path.abspath(os.path.normpath("./data/docs"))
         # Ensure mp_id is not None or empty
        
-        export_path = os.path.abspath(os.path.join(safe_root, mp_id))
+        export_path = os.path.abspath(os.path.join(safe_root, mp_id or ""))
         # Validate that export_path is within safe_root
         if not export_path.startswith(safe_root):
             return success_response([])
@@ -224,8 +279,16 @@ async def list_export_files(
 # 删除文件请求模型
 class DeleteFileRequest(BaseModel):
     """删除文件请求模型"""
-    filename: str = Field(..., description="文件名", example="exported_articles_20241021_143000.zip")
-    mp_id: str = Field(..., description="公众号ID", example="MP_WXS_3892772220")
+    filename: str
+    mp_id: str
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "filename": "exported_articles_20241021_143000.zip",
+                "mp_id": "MP_WXS_3892772220"
+            }
+        }
 
 @router.delete("/export/delete", summary="删除导出文件", response_model=BaseResponse)
 async def delete_export_file(

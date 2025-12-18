@@ -5,17 +5,18 @@ import { Input } from '@/components/ui/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Textarea } from '@/components/ui/textarea'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Checkbox } from '@/components/ui/checkbox'
 import { useToast } from '@/hooks/use-toast'
-import { getArticles, deleteArticle as deleteArticleApi, ArticleListResult, Article, fetchArticleContent, getArticleDetail } from '@/api/article'
+import { getArticles, deleteArticle as deleteArticleApi, ArticleListResult, Article, fetchArticleContent, getArticleDetail, updateArticle, UpdateArticleParams } from '@/api/article'
 import { getSubscriptions, SubscriptionListResult } from '@/api/subscription'
 import { formatDateTime, formatTimestamp } from '@/utils/date'
 import dayjs from 'dayjs'
 import ExportModal from '@/components/ExportModal'
-import { Plus, Trash2, Download, Wifi, ChevronDown, Loader2, Edit } from 'lucide-react'
+import { Trash2, Download, Wifi, ChevronDown, Loader2, Edit } from 'lucide-react'
 
 const ArticleListPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
@@ -35,6 +36,14 @@ const ArticleListPage: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
   const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false)
+  const [editDialogOpen, setEditDialogOpen] = useState(false)
+  const [editingArticle, setEditingArticle] = useState<Article | null>(null)
+  const [editFormData, setEditFormData] = useState<UpdateArticleParams>({
+    title: '',
+    description: '',
+    url: '',
+    pic_url: ''
+  })
   const exportModalRef = React.useRef<any>(null)
   const { toast } = useToast()
 
@@ -117,6 +126,40 @@ const ArticleListPage: React.FC = () => {
       }
     } catch (error) {
       console.error('获取文章详情失败:', error)
+    }
+  }
+
+  // 编辑文章
+  const handleEdit = (article: Article) => {
+    setEditingArticle(article)
+    setEditFormData({
+      title: article.title || '',
+      description: (article as any).description || '',
+      url: article.link || (article as any).url || '',
+      pic_url: (article as any).pic_url || ''
+    })
+    setEditDialogOpen(true)
+  }
+
+  // 保存编辑
+  const handleSaveEdit = async () => {
+    if (!editingArticle) return
+    
+    try {
+      await updateArticle(editingArticle.id, editFormData)
+      toast({
+        title: "成功",
+        description: "文章更新成功"
+      })
+      setEditDialogOpen(false)
+      setEditingArticle(null)
+      loadArticles()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: error.message || '更新失败'
+      })
     }
   }
 
@@ -221,7 +264,14 @@ const ArticleListPage: React.FC = () => {
           <CardTitle>文章管理</CardTitle>
           <div className="flex items-center gap-2">
             <Button
-              onClick={() => exportModalRef.current?.show()}
+              onClick={() => {
+                const currentMpId = mpId || ''
+                // 将数字 ID 转换为字符串，因为数据库中的 ID 是字符串类型
+                const selectedIds = (selectedRowKeys || []).map(id => String(id))
+                const currentMp = mpList.find(mp => mp.mp_id === currentMpId)
+                const mpName = currentMp?.mp_name || '全部'
+                exportModalRef.current?.show(currentMpId, selectedIds, mpName)
+              }}
             >
               <Download className="h-4 w-4 mr-2" />
               导出
@@ -382,12 +432,7 @@ const ArticleListPage: React.FC = () => {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => {
-                                  toast({
-                                    title: "提示",
-                                    description: "编辑功能待实现"
-                                  })
-                                }}
+                                onClick={() => handleEdit(article)}
                                 title="编辑"
                               >
                                 <Edit className="h-4 w-4" />
@@ -551,6 +596,55 @@ const ArticleListPage: React.FC = () => {
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* 编辑文章对话框 */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>编辑文章</DialogTitle>
+            <DialogDescription>修改文章的基本信息</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">标题</label>
+              <Input
+                value={editFormData.title}
+                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                placeholder="请输入文章标题"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">描述</label>
+              <Textarea
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                placeholder="请输入文章描述"
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">链接</label>
+              <Input
+                value={editFormData.url}
+                onChange={(e) => setEditFormData({ ...editFormData, url: e.target.value })}
+                placeholder="请输入文章链接"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">封面图链接</label>
+              <Input
+                value={editFormData.pic_url}
+                onChange={(e) => setEditFormData({ ...editFormData, pic_url: e.target.value })}
+                placeholder="请输入封面图链接"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>取消</Button>
+            <Button onClick={handleSaveEdit}>保存</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ExportModal ref={exportModalRef} />
     </div>

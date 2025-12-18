@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status as fast_status, Query
+from fastapi import APIRouter, Depends, HTTPException, status as fast_status, Query, Body
+from pydantic import BaseModel, Field
 from core.auth import get_current_user
 from core.db import DB
 from core.models.base import DATA_STATUS
@@ -8,6 +9,7 @@ from .base import success_response, error_response
 from core.config import cfg
 from apis.base import format_search_kw
 from core.print import print_warning, print_info, print_error, print_success
+from typing import Optional
 router = APIRouter(prefix=f"/articles", tags=["文章管理"])
 
 
@@ -212,6 +214,78 @@ async def get_article_detail(
                 message=f"获取文章详情失败: {str(e)}"
             )
         )   
+
+# 更新文章请求模型
+class ArticleUpdateRequest(BaseModel):
+    """更新文章请求模型"""
+    title: Optional[str] = Field(None, description="文章标题")
+    description: Optional[str] = Field(None, description="文章描述")
+    url: Optional[str] = Field(None, description="文章链接")
+    pic_url: Optional[str] = Field(None, description="文章封面图链接")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "title": "文章标题",
+                "description": "文章描述",
+                "url": "https://mp.weixin.qq.com/s/xxx",
+                "pic_url": "https://example.com/image.jpg"
+            }
+        }
+
+@router.put("/{article_id}", summary="更新文章")
+async def update_article(
+    article_id: str,
+    article_data: ArticleUpdateRequest = Body(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    更新文章信息
+    可以更新标题、描述、链接、封面图等字段
+    """
+    session = DB.get_session()
+    try:
+        from core.models.article import Article
+        from datetime import datetime
+        
+        # 检查文章是否存在
+        article = session.query(Article).filter(Article.id == article_id).first()
+        if not article:
+            raise HTTPException(
+                status_code=fast_status.HTTP_404_NOT_FOUND,
+                detail=error_response(
+                    code=40401,
+                    message="文章不存在"
+                )
+            )
+        
+        # 更新允许修改的字段
+        update_data = article_data.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            if value is not None and hasattr(article, field):
+                setattr(article, field, value)
+        
+        # 更新 updated_at 时间戳
+        article.updated_at = datetime.now()
+        
+        session.commit()
+        print_success(f"成功更新文章 {article.title}")
+        
+        return success_response(None, message="文章更新成功")
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        session.rollback()
+        print_error(f"更新文章失败: {str(e)}")
+        raise HTTPException(
+            status_code=fast_status.HTTP_406_NOT_ACCEPTABLE,
+            detail=error_response(
+                code=50001,
+                message=f"更新文章失败: {str(e)}"
+            )
+        )
+    finally:
+        session.close()
 
 @router.delete("/{article_id}", summary="删除文章")
 async def delete_article(

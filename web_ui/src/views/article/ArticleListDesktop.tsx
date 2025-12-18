@@ -355,7 +355,8 @@ const ArticleListDesktop: React.FC = () => {
 
   const handleExportShow = () => {
     const mp_id = activeFeed?.id || ''
-    const ids = selectedRowKeys
+    // 将数字 ID 转换为字符串，因为数据库中的 ID 是字符串类型
+    const ids = (selectedRowKeys || []).map(id => String(id))
     const mp_name = activeFeed?.name || activeFeed?.mp_name || '全部'
     exportModalRef.current?.show(mp_id, ids, mp_name)
   }

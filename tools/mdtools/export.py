@@ -2,6 +2,7 @@ from .md2doc import MarkdownToWordConverter
 from core.models import Article
 from core.db import DB
 from datetime import datetime
+from typing import Optional, List
 import json
 import csv
 import zipfile
@@ -35,7 +36,7 @@ def process_single_article(art, add_title, remove_images, remove_links, export_m
         document = md.convert_to_document(markdown_content, None)
         
     # 检查是否需要导出任何格式的文件
-    if export_docx and document or export_md or export_json or export_csv or export_pdf:
+    if (export_docx and document) or export_md or export_json or export_csv or export_pdf:
         print(art.id, art.title, art.id)
         name = datetime.fromtimestamp(art.publish_time).strftime("%Y%m%d") + "_" + art.title
         filename = sanitize_filename(name) + ".docx"
@@ -118,10 +119,14 @@ def process_articles(session, mp_id=None,doc_id=None, page_size=10, page_count=1
             break
             
         query = session.query(Article).filter(Article.content != None).where(Article.status == 1)
-        if mp_id:
+        # 如果 mp_id 不是 "all"，则按公众号ID过滤
+        if mp_id and isinstance(mp_id, str) and mp_id.strip() and mp_id != "all":
             query = query.where(Article.mp_id.in_(mp_id.split(",")))
-        if doc_id:
-            query = query.where(Article.id.in_(doc_id))
+        if doc_id is not None and len(doc_id) > 0:
+            # 确保 doc_id 是字符串列表
+            doc_id_list = [str(d) for d in doc_id] if doc_id else []
+            print(f"导出选中的文章ID: {doc_id_list}")
+            query = query.where(Article.id.in_(doc_id_list))
             is_break=True   
 
         query = query.order_by(Article.publish_time.desc(), Article.id.desc())
@@ -129,6 +134,11 @@ def process_articles(session, mp_id=None,doc_id=None, page_size=10, page_count=1
             query=query.offset(i * page_size).limit(page_size)
         i = i + 1
         arts = query.all()
+        
+        if doc_id is not None and len(doc_id) > 0:
+            print(f"查询到的文章数量: {len(arts) if arts else 0}")
+            if arts:
+                print(f"查询到的文章ID: {[art.id for art in arts]}")
         
         if arts is None or len(arts) == 0:
             break
@@ -141,50 +151,57 @@ def process_articles(session, mp_id=None,doc_id=None, page_size=10, page_count=1
     
     return record_count
 
-def export_md_to_doc(mp_id:str=None,doc_id:list=None,page_size:int=10,page_count:int=1,add_title=True,remove_images:bool=True,remove_links:bool=False
+def export_md_to_doc(mp_id:Optional[str]=None,doc_id:Optional[List]=None,page_size:int=10,page_count:int=1,add_title=True,remove_images:bool=True,remove_links:bool=False
                      ,export_md:bool=False,export_docx:bool=False,export_json:bool=False,export_csv:bool=False,export_pdf:bool=True,domain="",zip_filename=None,zip_file=True):
-    session = DB.get_session()
-    if mp_id==None:
-        raise ValueError("公众号ID不能为空")
-    docx_path = f"./data/docs/{mp_id}/"
-    if not os.path.exists(docx_path):
-        os.makedirs(docx_path)
-    csv_filename = f"{docx_path}articles.csv"
-    
-    # 初始化CSV文件和writer（仅在需要导出CSV时）
+    session = None
     csv_file = None
-    writer = None
-    if export_csv:
-        csv_file = open(csv_filename, "w", newline="", encoding="utf-8")
-        writer = csv.writer(csv_file)
-        writer.writerow(["标题", "链接", "发布时间"])
-    
-    # 调用独立的文章处理函数
-    record_count = process_articles(
-        session=session,
-        mp_id=mp_id,
-        doc_id=doc_id,
-        page_size=page_size,
-        page_count=page_count,
-        add_title=add_title,
-        remove_images=remove_images,
-        remove_links=remove_links,
-        export_md=export_md,
-        export_docx=export_docx,
-        export_json=export_json,
-        export_csv=export_csv,
-        export_pdf=export_pdf,
-        docx_path=docx_path,
-        writer=writer
-    )
-    
-    # 关闭CSV文件（如果打开了）
-    if csv_file:
-        csv_file.close()
-        print_success(f"CSV 文件已保存为 {csv_filename}")
-    
-    # 打包所有导出的文件为zip并删除源文件
-    if record_count > 0:
+    try:
+        session = DB.get_session()
+        # 如果 mp_id 是 "all" 或空字符串，使用 "all" 作为目录名
+        if mp_id is None:
+            raise ValueError("公众号ID不能为空")
+        if isinstance(mp_id, str) and not mp_id.strip():
+            mp_id = "all"
+        # 如果 mp_id 是 "all"，允许导出所有公众号的文章
+        docx_path = f"./data/docs/{mp_id}/"
+        if not os.path.exists(docx_path):
+            os.makedirs(docx_path, exist_ok=True)
+        csv_filename = f"{docx_path}articles.csv"
+        
+        # 初始化CSV文件和writer（仅在需要导出CSV时）
+        writer = None
+        if export_csv:
+            csv_file = open(csv_filename, "w", newline="", encoding="utf-8")
+            writer = csv.writer(csv_file)
+            writer.writerow(["标题", "链接", "发布时间"])
+        
+        # 调用独立的文章处理函数
+        record_count = process_articles(
+            session=session,
+            mp_id=mp_id,
+            doc_id=doc_id,
+            page_size=page_size,
+            page_count=page_count,
+            add_title=add_title,
+            remove_images=remove_images,
+            remove_links=remove_links,
+            export_md=export_md,
+            export_docx=export_docx,
+            export_json=export_json,
+            export_csv=export_csv,
+            export_pdf=export_pdf,
+            docx_path=docx_path,
+            writer=writer
+        )
+        
+        # 关闭CSV文件（如果打开了）
+        if csv_file:
+            csv_file.close()
+            csv_file = None
+            print_success(f"CSV 文件已保存为 {csv_filename}")
+        
+        # 打包所有导出的文件为zip并删除源文件
+        # 即使导出了 0 篇，也创建 zip 文件，这样记录列表里才能看到
         if not zip_filename:
             zip_filename = f"{docx_path}exported_articles_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
         else:
@@ -224,8 +241,30 @@ def export_md_to_doc(mp_id:str=None,doc_id:list=None,page_size:int=10,page_count
             # 发送系统通知，包含下载链接
             download_link = domain + docx_path + zip_filename.split('/')[-1]
             print_success(f"转换完成{download_link}")
-            sys_notice(f"文章导出完成！共处理 {record_count} 篇文章。下载链接: [点击下载]({download_link})")
+            if record_count > 0:
+                sys_notice(f"文章导出完成！共处理 {record_count} 篇文章。下载链接: [点击下载]({download_link})")
+            else:
+                sys_notice(f"导出完成，但未找到符合条件的文章。下载链接: [点击下载]({download_link})")
         except Exception as e:
             print_error(f"打包文件失败: {e}")
-    
-    print_success(f"导出完成，共处理 {record_count} 篇文章")
+            raise
+        
+        print_success(f"导出完成，共处理 {record_count} 篇文章")
+        return record_count
+    except Exception as e:
+        print_error(f"导出任务执行失败: {str(e)}")
+        import traceback
+        print_error(f"错误详情:\n{traceback.format_exc()}")
+        raise
+    finally:
+        # 确保关闭资源
+        if csv_file:
+            try:
+                csv_file.close()
+            except Exception:
+                pass
+        if session:
+            try:
+                session.close()
+            except Exception:
+                pass
