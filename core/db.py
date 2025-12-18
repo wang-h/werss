@@ -531,6 +531,20 @@ class Db:
             assigned_count = 0
             auto_create = True  # 始终启用自动创建标签
             
+            # 获取文章的发布日期，用于设置标签的创建时间
+            article = session.query(Article).filter(Article.id == article_id).first()
+            tag_created_at = datetime.now()  # 默认使用当前时间
+            if article and article.publish_time:
+                try:
+                    # 将 publish_time（时间戳）转换为 datetime
+                    publish_timestamp = int(article.publish_time)
+                    if publish_timestamp < 10000000000:  # 秒级时间戳
+                        publish_timestamp *= 1000
+                    tag_created_at = datetime.fromtimestamp(publish_timestamp / 1000)
+                except Exception as e:
+                    print_warning(f"转换文章发布时间失败，使用当前时间: {e}")
+                    tag_created_at = datetime.now()
+            
             for topic_name in topics:
                 # 查找匹配的标签
                 tag = session.query(Tags).filter(
@@ -550,7 +564,7 @@ class Db:
                             id=str(uuid.uuid4()),
                             article_id=article_id,
                             tag_id=tag.id,
-                            created_at=datetime.now()
+                            created_at=tag_created_at  # 使用文章的发布日期
                         )
                         session.add(article_tag)
                         assigned_count += 1
@@ -565,8 +579,8 @@ class Db:
                             intro=f"自动创建的标签：{topic_name}",
                             mps_id="[]",  # 空数组
                             status=1,
-                            created_at=datetime.now(),
-                            updated_at=datetime.now()
+                            created_at=tag_created_at,  # 使用文章的发布日期
+                            updated_at=tag_created_at   # 使用文章的发布日期
                         )
                         session.add(new_tag)
                         session.flush()  # 获取新标签的 ID
@@ -575,7 +589,7 @@ class Db:
                             id=str(uuid.uuid4()),
                             article_id=article_id,
                             tag_id=new_tag.id,
-                            created_at=datetime.now()
+                            created_at=tag_created_at  # 使用文章的发布日期
                         )
                         session.add(article_tag)
                         assigned_count += 1
