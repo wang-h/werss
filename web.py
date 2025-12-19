@@ -73,6 +73,27 @@ api_router.include_router(tools_router)
 api_router.include_router(github_router)
 api_router.include_router(dashboard_router)
 
+# 添加独立的健康检查端点（用于 Docker healthcheck）
+# 注意：这个端点不通过 API_BASE，直接使用 /api/v1/sys/version
+@app.get("/api/v1/sys/version", tags=["健康检查"], include_in_schema=False)
+async def health_check_version():
+    """健康检查端点，返回版本信息"""
+    try:
+        from apis.ver import API_VERSION
+        from core.config import VERSION as CORE_VERSION
+        from fastapi.responses import JSONResponse
+        return JSONResponse({
+            'api_version': API_VERSION,
+            'core_version': CORE_VERSION,
+            'status': 'running'
+        })
+    except Exception as e:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=500,
+            content={'error': str(e), 'status': 'error'}
+        )
+
 # 资源反向代理路由（处理 /static/res/logo/ 路径）
 # 注意：resource_router 只处理 /static/res/logo/ 路径，其他 /static/ 路径由静态文件服务处理
 resource_router = APIRouter(prefix="/static")

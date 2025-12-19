@@ -14,6 +14,24 @@ router = APIRouter(prefix="/sys", tags=["系统信息"])
 
 # 记录服务器启动时间
 _START_TIME = time.time()
+
+@router.get("/version", summary="版本信息（健康检查）")
+async def get_version() -> Dict[str, Any]:
+    """获取版本信息，用于健康检查"""
+    try:
+        from .ver import API_VERSION
+        from core.config import VERSION as CORE_VERSION
+        return success_response(data={
+            'api_version': API_VERSION,
+            'core_version': CORE_VERSION,
+            'status': 'running'
+        })
+    except Exception as e:
+        return error_response(
+            code=50001,
+            message=f"获取版本信息失败: {str(e)}"
+        )
+
 @router.get("/base_info", summary="常规信息")
 async def get_base_info() -> Dict[str, Any]:
     try:

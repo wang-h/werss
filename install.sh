@@ -4,9 +4,25 @@ PLANT_PATH=${PLANT_PATH:-/app/data}
 # 确保路径末尾没有斜杠
 PLANT_PATH=${PLANT_PATH%/}
 plant=$PLANT_PATH_$plantform
-python3 -m venv $plant
-source $plant/bin/activate
-echo "使用虚拟环境: $plant"
+
+# 检测是否在 Docker 环境中，且系统已安装依赖
+USE_SYSTEM_PYTHON=false
+if [ -f /.dockerenv ] || [ -n "$DOCKER_CONTAINER" ]; then
+    # 检查系统 Python 是否已安装 uvicorn（说明依赖已在构建时安装）
+    if python3 -c "import uvicorn" 2>/dev/null; then
+        echo "检测到 Docker 环境且系统已安装依赖，使用系统 Python"
+        USE_SYSTEM_PYTHON=true
+    fi
+fi
+
+# 如果不需要使用系统 Python，则创建虚拟环境
+if [ "$USE_SYSTEM_PYTHON" = false ]; then
+    python3 -m venv $plant
+    source $plant/bin/activate
+    echo "使用虚拟环境: $plant"
+else
+    echo "使用系统 Python（Docker 环境）"
+fi
 
 
 # 检查函数：检查包是否已安装
@@ -67,8 +83,12 @@ echo "环境变量已设置"
 chmod +x /app/environment.sh
 cat /app/environment.sh
 source /app/environment.sh
-echo "source /app/environment.sh
+if [ "$USE_SYSTEM_PYTHON" = false ]; then
+    echo "source /app/environment.sh
 source $plant/bin/activate">/etc/profile
+else
+    echo "source /app/environment.sh">/etc/profile
+fi
 # 安装 uv（如果未安装）
 if ! command -v uv >/dev/null 2>&1; then
     echo "安装 uv 包管理器..."
@@ -77,17 +97,22 @@ fi
 
 # 检查requirements.txt更新
 if [ -f "requirements.txt" ]; then
-    CURRENT_MD5=$(md5sum requirements.txt | cut -d' ' -f1)
-    OLD_MD5_FILE="$PLANT_PATH/requirements.txt.md5"
-    
-    if [ -f "$OLD_MD5_FILE" ] && [ "$CURRENT_MD5" = "$(cat $OLD_MD5_FILE)" ]; then
-        echo "requirements.txt未更新，跳过安装"
+    # 如果使用系统 Python 且依赖已安装，跳过安装步骤
+    if [ "$USE_SYSTEM_PYTHON" = true ]; then
+        echo "使用系统 Python，依赖已在构建时安装，跳过安装步骤"
     else
-        echo "使用 uv 安装requirements.txt依赖..."
-        # 优先使用 uv，如果失败则回退到 pip
-        uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple || \
-        pip3 install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-        echo $CURRENT_MD5 > $OLD_MD5_FILE
+        CURRENT_MD5=$(md5sum requirements.txt | cut -d' ' -f1)
+        OLD_MD5_FILE="$PLANT_PATH/requirements.txt.md5"
+        
+        if [ -f "$OLD_MD5_FILE" ] && [ "$CURRENT_MD5" = "$(cat $OLD_MD5_FILE)" ]; then
+            echo "requirements.txt未更新，跳过安装"
+        else
+            echo "使用 uv 安装requirements.txt依赖..."
+            # 优先使用 uv，如果失败则回退到 pip
+            uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple || \
+            pip3 install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+            echo $CURRENT_MD5 > $OLD_MD5_FILE
+        fi
     fi
 fi 
 
