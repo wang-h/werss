@@ -49,17 +49,34 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
   })
 
   const show = (mp_id: string, ids: any[], mp_name?: string) => {
+    // 调试日志：检查接收到的参数
+    console.log('ExportModal.show 接收参数:', {
+      mp_id,
+      ids,
+      idsType: typeof ids,
+      idsIsArray: Array.isArray(ids),
+      idsLength: ids?.length,
+      mp_name
+    })
+    
     const newFormData = {
       scope: ids && ids.length > 0 ? 'selected' : 'all',
       format: 'md', // 默认选择 markdown
       page_count: 0, // 0 表示导出所有
       mp_id,
-      ids,
+      ids: ids || [], // 确保 ids 是数组
       add_title: true,
       remove_images: false,
       remove_links: false,
       zip_filename: mp_name && mp_name !== '全部' ? `${mp_name}_文章.zip` : '全部文章.zip'
     }
+    
+    console.log('ExportModal.show 设置表单数据:', {
+      ...newFormData,
+      ids: newFormData.ids,
+      idsLength: newFormData.ids.length
+    })
+    
     form.reset(newFormData)
     setOpen(true)
   }
@@ -95,6 +112,15 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
         format: [values.format], // 转换为数组格式
         // API 会根据 scope 和 ids 来设置 doc_id
       }
+      
+      // 调试日志：检查传递的参数
+      console.log('导出参数:', {
+        scope: exportScope,
+        ids: values.ids,
+        idsLength: values.ids?.length,
+        mp_id: values.mp_id,
+        format: exportParams.format
+      })
       
       await submitExport(exportParams)
       onConfirm?.(exportParams)
@@ -186,8 +212,8 @@ const ExportModal = forwardRef<ExportModalRef, ExportModalProps>(({ onConfirm },
                           >
                             {fmt.label}
                           </Label>
-                        </div>
-                      ))}
+                      </div>
+                    ))}
                     </RadioGroup>
                   </FormControl>
                 </FormItem>

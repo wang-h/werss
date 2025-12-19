@@ -25,20 +25,62 @@ class MpsAppMsg(WxGather):
                 js_content_div.attrs.pop('style', None)
                 # 找到所有的img标签
                 img_tags = js_content_div.find_all('img')
-                # 遍历每个img标签并修改属性，设置宽度为1080p
+                
+                # 从URL中提取文章ID
+                article_id = self._extract_article_id_from_url(url) or "unknown"
+                
+                # 初始化MinIO客户端
+                minio_client = None
+                try:
+                    from core.storage.minio_client import MinIOClient
+                    minio_client = MinIOClient()
+                except Exception as e:
+                    logger.warning(f"MinIO客户端初始化失败: {e}")
+                
+                # 遍历每个img标签并处理图片
                 for img_tag in img_tags:
-                    if 'data-src' in img_tag.attrs:
-                        img_tag['src'] = img_tag['data-src']
-                        del img_tag['data-src']
-                    if 'style' in img_tag.attrs:
-                        style = img_tag['style']
+                    # 获取图片URL
+                    img_url = str(img_tag.get('data-src') or img_tag.get('src') or '')
+                    if not img_url:
+                        continue
+                    
+                    # 如果MinIO可用，尝试上传图片
+                    minio_url = None
+                    if minio_client and minio_client.is_available():
+                        minio_url = minio_client.upload_image(img_url, article_id)
+                    
+                    if minio_url:
+                        # 替换为MinIO URL
+                        img_tag['src'] = minio_url  # type: ignore
+                        if hasattr(img_tag, 'attrs') and 'data-src' in img_tag.attrs:
+                            del img_tag['data-src']  # type: ignore
+                        logger.info(f"图片已上传到MinIO: {img_url} -> {minio_url}")
+                    else:
+                        # 如果上传失败，至少确保src可用
+                        if hasattr(img_tag, 'attrs') and 'data-src' in img_tag.attrs:
+                            img_tag['src'] = img_tag['data-src']  # type: ignore
+                            del img_tag['data-src']  # type: ignore
+                    
+                    # 处理样式
+                    if hasattr(img_tag, 'attrs') and 'style' in img_tag.attrs:
+                        style = str(img_tag['style'])  # type: ignore
                         # 使用正则表达式替换width属性
                         style = re.sub(r'width\s*:\s*\d+\s*px', 'width: 1080px', style)
-                        img_tag['style'] = style
+                        img_tag['style'] = style  # type: ignore
                 return  js_content_div.prettify()
         except Exception as e:
                 logger.error(e)
         return ""
+    
+    def _extract_article_id_from_url(self, url: str) -> str:
+        """从URL中提取文章ID"""
+        # 例如：https://mp.weixin.qq.com/s/xxxxx -> xxxxx
+        if not url:
+            return "unknown"
+        match = re.search(r'/s/([^/?]+)', str(url))
+        if match:
+            return match.group(1)
+        return "unknown"
     # 重写 get_Articles 方法
     def get_Articles(self, faker_id:str=None,Mps_id:str=None,Mps_title="",CallBack=None,start_page:int=0,MaxPage:int=1,interval=10,Gather_Content=False,Item_Over_CallBack=None,Over_CallBack=None):
         super().Start(mp_id=Mps_id)

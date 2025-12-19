@@ -134,6 +134,7 @@ const Login: React.FC = () => {
                           <Input
                             placeholder="请输入帐号"
                             className="pl-9"
+                            autoComplete="username"
                             {...field}
                           />
                         </div>
@@ -156,6 +157,7 @@ const Login: React.FC = () => {
                             type="password"
                             placeholder="请输入密码"
                             className="pl-9"
+                            autoComplete="current-password"
                             {...field}
                           />
                         </div>

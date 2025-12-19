@@ -21,7 +21,7 @@ import { Trash2, Download, Wifi, ChevronDown, Loader2, Edit } from 'lucide-react
 const ArticleListPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [articles, setArticles] = useState<Article[]>([])
-  const [selectedRowKeys, setSelectedRowKeys] = useState<number[]>([])
+  const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([])
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 20,
@@ -34,7 +34,7 @@ const ArticleListPage: React.FC = () => {
   const [currentArticle, setCurrentArticle] = useState<Article | null>(null)
   const [fetchingContent, setFetchingContent] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deleteTargetId, setDeleteTargetId] = useState<number | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | number | null>(null)
   const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false)
   const [editDialogOpen, setEditDialogOpen] = useState(false)
   const [editingArticle, setEditingArticle] = useState<Article | null>(null)
@@ -164,7 +164,7 @@ const ArticleListPage: React.FC = () => {
   }
 
   // 删除文章
-  const handleDelete = async (id: number) => {
+  const handleDelete = async (id: string | number) => {
     setDeleteTargetId(id)
     setDeleteDialogOpen(true)
   }
@@ -172,7 +172,7 @@ const ArticleListPage: React.FC = () => {
   const confirmDelete = async () => {
     if (!deleteTargetId) return
     try {
-      await deleteArticleApi(deleteTargetId)
+      await deleteArticleApi(deleteTargetId as any)
       toast({
         title: "成功",
         description: "删除成功"
@@ -204,7 +204,7 @@ const ArticleListPage: React.FC = () => {
 
   const confirmBatchDelete = async () => {
     try {
-      await Promise.all(selectedRowKeys.map(id => deleteArticleApi(id)))
+      await Promise.all(selectedRowKeys.map(id => deleteArticleApi(id as any)))
       toast({
         title: "成功",
         description: "删除成功"
@@ -230,11 +230,12 @@ const ArticleListPage: React.FC = () => {
     window.open(feedUrl, '_blank')
   }
 
-  const toggleRowSelection = (id: number) => {
+  const toggleRowSelection = (id: string | number) => {
+    const idStr = String(id) // 转换为字符串，确保格式一致
     setSelectedRowKeys(prev => 
-      prev.includes(id) 
-        ? prev.filter(key => key !== id)
-        : [...prev, id]
+      prev.includes(idStr) 
+        ? prev.filter(key => key !== idStr)
+        : [...prev, idStr]
     )
   }
 
@@ -242,7 +243,7 @@ const ArticleListPage: React.FC = () => {
     if (selectedRowKeys.length === articles.length) {
       setSelectedRowKeys([])
     } else {
-      setSelectedRowKeys(articles.map(a => a.id))
+      setSelectedRowKeys(articles.map(a => String(a.id))) // 确保转换为字符串
     }
   }
 
@@ -265,16 +266,36 @@ const ArticleListPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Button
               onClick={() => {
-                // 将数字 ID 转换为字符串，因为数据库中的 ID 是字符串类型
-                const selectedIds = (selectedRowKeys || []).map(id => String(id))
+                // selectedRowKeys 已经是字符串数组，直接使用
+                const selectedIds = (selectedRowKeys || []).slice() // 创建副本
+                
+                // 调试日志：检查选中的文章
+                console.log('导出按钮点击:', {
+                  selectedRowKeys: selectedRowKeys,
+                  selectedIds: selectedIds,
+                  selectedIdsLength: selectedIds.length,
+                  selectedIdsValues: selectedIds, // 显示实际值
+                  articlesCount: articles.length
+                })
                 
                 // 确定 mp_id：如果有选中的文章，从选中的文章中获取 mp_id
                 let currentMpId = mpId || ''
                 let mpName = '全部'
                 
                 if (selectedIds.length > 0) {
-                  // 从选中的文章中获取 mp_id
-                  const selectedArticles = articles.filter(art => selectedRowKeys.includes(art.id))
+                  // 从选中的文章中获取 mp_id（使用字符串 ID 匹配）
+                  const selectedArticles = articles.filter(art => selectedRowKeys.includes(String(art.id)))
+                  console.log('选中的文章:', {
+                    selectedArticlesCount: selectedArticles.length,
+                    selectedArticles: selectedArticles.map(art => ({
+                      id: art.id,
+                      idType: typeof art.id,
+                      idString: String(art.id), // 转换为字符串后的值
+                      title: art.title,
+                      mp_id: (art as any).mp_id
+                    }))
+                  })
+                  
                   if (selectedArticles.length > 0) {
                     // 获取所有选中文章的 mp_id（从实际数据中获取）
                     const mpIds = selectedArticles.map(art => (art as any).mp_id).filter(Boolean)
@@ -305,6 +326,13 @@ const ArticleListPage: React.FC = () => {
                   const currentMp = mpList.find(mp => mp.mp_id === currentMpId)
                   mpName = currentMp?.mp_name || '全部'
                 }
+                
+                console.log('调用 exportModal.show:', {
+                  currentMpId,
+                  selectedIds,
+                  selectedIdsLength: selectedIds.length,
+                  mpName
+                })
                 
                 exportModalRef.current?.show(currentMpId, selectedIds, mpName)
               }}
@@ -371,7 +399,7 @@ const ArticleListPage: React.FC = () => {
                   <TableRow>
                     <TableHead className="w-12">
                       <Checkbox
-                        checked={selectedRowKeys.length === articles.length && articles.length > 0}
+                        checked={selectedRowKeys.length === articles.length && articles.length > 0 && articles.length > 0}
                         onCheckedChange={toggleAllSelection}
                       />
                     </TableHead>
@@ -419,7 +447,7 @@ const ArticleListPage: React.FC = () => {
                         <TableRow key={article.id}>
                           <TableCell>
                             <Checkbox
-                              checked={selectedRowKeys.includes(article.id)}
+                              checked={selectedRowKeys.includes(String(article.id))}
                               onCheckedChange={() => toggleRowSelection(article.id)}
                             />
                           </TableCell>
@@ -430,7 +458,7 @@ const ArticleListPage: React.FC = () => {
                                 e.preventDefault()
                                 viewArticle(article)
                               }}
-                              className="text-purple-600 hover:underline break-words"
+                              className="text-purple-600 hover:underline break-words cursor-pointer"
                               title={article.title}
                             >
                               {article.title}

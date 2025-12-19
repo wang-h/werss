@@ -65,24 +65,92 @@ export default defineConfig(({ command, mode }) => {
       port: 3000,
       proxy: {
         "/static": {
-          target: env.VITE_API_BASE_URL,
+          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
           changeOrigin: true,
+          secure: false,
+          ws: true,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, req, res) => {
+              // 静默处理代理错误，避免中断开发服务器
+              // 只在非连接错误时显示（连接错误通常是后端服务器未启动）
+              if (err.code !== 'ECONNREFUSED') {
+                console.log(`[vite] proxy error: ${err.message}`);
+              }
+              // 对于连接错误，返回 404 而不是抛出异常
+              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Backend server not available');
+              }
+            });
+          },
         },
         "/files": {
-          target: env.VITE_API_BASE_URL,
+          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
           changeOrigin: true,
+          secure: false,
+          ws: true,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, req, res) => {
+              if (err.code !== 'ECONNREFUSED') {
+                console.log(`[vite] proxy error: ${err.message}`);
+              }
+              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Backend server not available');
+              }
+            });
+          },
         },
         "/rss": {
-          target: env.VITE_API_BASE_URL,
+          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
           changeOrigin: true,
+          secure: false,
+          ws: true,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, req, res) => {
+              if (err.code !== 'ECONNREFUSED') {
+                console.log(`[vite] proxy error: ${err.message}`);
+              }
+              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Backend server not available');
+              }
+            });
+          },
         },
         "/feed": {
-          target: env.VITE_API_BASE_URL,
+          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
           changeOrigin: true,
+          secure: false,
+          ws: true,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, req, res) => {
+              if (err.code !== 'ECONNREFUSED') {
+                console.log(`[vite] proxy error: ${err.message}`);
+              }
+              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Backend server not available');
+              }
+            });
+          },
         },
         "/api": {
-          target: env.VITE_API_BASE_URL,
+          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
           changeOrigin: true,
+          secure: false,
+          ws: true,
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, req, res) => {
+              if (err.code !== 'ECONNREFUSED') {
+                console.log(`[vite] proxy error: ${err.message}`);
+              }
+              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
+                res.writeHead(404, { 'Content-Type': 'text/plain' });
+                res.end('Backend server not available');
+              }
+            });
+          },
         },
         "/test-results": {
           target: "http://localhost:3000",

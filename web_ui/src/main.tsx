@@ -6,6 +6,9 @@ import { initSettings } from './utils/settings'
 import { Toaster } from '@/components/ui/toaster'
 import { ThemeProvider } from '@/components/theme-provider'
 
+// 导入 i18n 配置（必须在其他导入之前初始化）
+import './i18n/config'
+
 // 导入自定义样式
 import './style.css'
 

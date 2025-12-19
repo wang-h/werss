@@ -48,31 +48,29 @@ class Db:
                     except Exception as e:
                         pass
                     open(db_path, 'w').close()
-            # 根据配置文件的 debug 设置决定是否启用 SQL 日志
-            # 开发环境（debug=True）：显示 SQL 日志（INFO 级别）
-            # 部署环境（debug=False）：不显示 SQL 日志（WARNING 级别）
-            debug_mode = cfg.get("debug", False)
+            # 禁用 SQLAlchemy 数据库查询日志（不显示 SQL 语句）
+            # 如果需要查看 SQL 日志，可以通过环境变量 DB_ECHO=true 启用
             db_echo_env = os.getenv("DB_ECHO", "").lower() == "true"
-            # 如果环境变量 DB_ECHO 明确设置为 true，则启用；否则根据 debug 配置决定
-            echo_sql = db_echo_env or debug_mode
             
             # 配置 SQLAlchemy 日志级别
-            if echo_sql:
-                # 开发环境：启用 INFO 级别的 SQL 日志
+            if db_echo_env:
+                # 只有在明确设置 DB_ECHO=true 时才启用 SQL 日志
                 logging.getLogger('sqlalchemy.engine').setLevel(logging.INFO)
                 logging.getLogger('sqlalchemy.pool').setLevel(logging.INFO)
                 logging.getLogger('sqlalchemy.dialects').setLevel(logging.INFO)
             else:
-                # 部署环境：禁用 SQL 日志（只显示 WARNING 及以上级别）
+                # 默认禁用 SQL 日志（只显示 WARNING 及以上级别）
                 logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
                 logging.getLogger('sqlalchemy.pool').setLevel(logging.WARNING)
                 logging.getLogger('sqlalchemy.dialects').setLevel(logging.WARNING)
+                # 同时禁用 sqlalchemy.orm 的日志
+                logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
             
             self.engine = create_engine(con_str,
                                      pool_size=2,          # 最小空闲连接数
                                      max_overflow=20,      # 允许的最大溢出连接数
                                      pool_timeout=30,      # 获取连接时的超时时间（秒）
-                                     echo=echo_sql,        # 根据配置文件的 debug 设置控制 SQL 日志
+                                     echo=db_echo_env,     # 只有在 DB_ECHO=true 时才启用 SQL 日志
                                      pool_recycle=60,  # 连接池回收时间（秒）
                                      isolation_level="AUTOCOMMIT",  # 设置隔离级别
                                     #  isolation_level="READ COMMITTED",  # 设置隔离级别

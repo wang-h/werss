@@ -29,10 +29,40 @@ async def get_dashboard_stats(
         db_config = DB.connection_str if hasattr(DB, 'connection_str') else ""
         is_postgresql = 'postgresql' in db_config.lower() or 'postgres' in db_config.lower()
         
+        # 使用本地时间（不带时区），在比较时统一处理时区问题
         now = datetime.now()
         today_start = datetime(now.year, now.month, now.day)
         week_start = now - timedelta(days=7)
         thirty_days_ago = now - timedelta(days=30)
+        
+        # 辅助函数：将带时区的 datetime 转换为不带时区的本地时间
+        def normalize_datetime(dt):
+            """将 datetime 对象标准化为不带时区的本地时间"""
+            if dt is None:
+                return None
+            try:
+                # 如果不是 datetime 对象，直接返回
+                if not isinstance(dt, datetime):
+                    return dt
+                
+                # 如果是带时区的，先转换为本地时间（UTC），再移除时区信息
+                if dt.tzinfo is not None:
+                    # 转换为 UTC 时间（不带时区）
+                    dt_utc = dt.astimezone(datetime.now().astimezone().tzinfo).replace(tzinfo=None)
+                    # 或者直接移除时区信息（使用本地时间）
+                    return dt.replace(tzinfo=None)
+                
+                # 如果已经是不带时区的，直接返回
+                return dt
+            except (AttributeError, TypeError, ValueError) as e:
+                # 如果转换失败，尝试直接移除时区信息
+                try:
+                    if hasattr(dt, 'replace'):
+                        return dt.replace(tzinfo=None)
+                except:
+                    pass
+                # 如果都失败了，返回原值（可能是其他类型）
+                return dt
 
         # 1. 基础统计
         # 总文章数（排除已删除）
@@ -44,20 +74,23 @@ async def get_dashboard_stats(
         total_sources = session.query(Feed).count()
 
         # 今日新增文章
-        today_articles = session.query(ArticleBase).filter(
-            and_(
-                ArticleBase.status != DATA_STATUS.DELETED,
-                ArticleBase.created_at >= today_start
-            )
-        ).count()
-
-        # 本周新增文章
-        week_articles = session.query(ArticleBase).filter(
-            and_(
-                ArticleBase.status != DATA_STATUS.DELETED,
-                ArticleBase.created_at >= week_start
-            )
-        ).count()
+        # 使用 func.date() 或直接比较，但需要处理时区问题
+        # 先查询所有符合条件的记录，然后在 Python 层面过滤
+        all_recent_articles = session.query(ArticleBase).filter(
+            ArticleBase.status != DATA_STATUS.DELETED
+        ).all()
+        
+        today_articles = 0
+        week_articles = 0
+        for article in all_recent_articles:
+            if article.created_at:
+                created_at = normalize_datetime(article.created_at)
+                today_start_normalized = normalize_datetime(today_start)
+                week_start_normalized = normalize_datetime(week_start)
+                if created_at and today_start_normalized and created_at >= today_start_normalized:
+                    today_articles += 1
+                if created_at and week_start_normalized and created_at >= week_start_normalized:
+                    week_articles += 1
 
         # 2. 来源分布统计
         source_stats_query = session.query(
@@ -139,21 +172,33 @@ async def get_dashboard_stats(
         ).filter(
             and_(
                 Article.status != DATA_STATUS.DELETED,
-                or_(
-                    ArticleTag.article_publish_date >= thirty_days_ago,  # 使用文章的发布日期过滤
-                    and_(
-                        ArticleTag.article_publish_date.is_(None),
-                        Article.publish_time.isnot(None),
-                        # 如果 article_publish_date 为 NULL，使用 publish_time 过滤
-                        case(
-                            (Article.publish_time < 10000000000, Article.publish_time),
-                            else_=Article.publish_time / 1000.0
-                        ) >= thirty_days_ago_timestamp
-                    )
-                ),
                 TagsModel.status == 1  # 只统计启用的标签
             )
         ).all()
+        
+        # 在 Python 层面过滤最近30天的文章，避免时区比较问题
+        filtered_articles = []
+        thirty_days_ago_normalized = normalize_datetime(thirty_days_ago)
+        for row in recent_articles_with_tags:
+            tag_date = row.tag_date
+            if tag_date:
+                tag_date = normalize_datetime(tag_date)
+                if tag_date and thirty_days_ago_normalized and tag_date >= thirty_days_ago_normalized:
+                    filtered_articles.append(row)
+            else:
+                # 如果没有 tag_date，尝试从 publish_time 转换
+                article = session.query(Article).filter(Article.id == row.id).first()
+                if article and article.publish_time:
+                    publish_timestamp = article.publish_time
+                    if publish_timestamp < 10000000000:
+                        publish_dt = datetime.fromtimestamp(publish_timestamp)
+                    else:
+                        publish_dt = datetime.fromtimestamp(publish_timestamp / 1000.0)
+                    publish_dt = normalize_datetime(publish_dt)
+                    if publish_dt and thirty_days_ago_normalized and publish_dt >= thirty_days_ago_normalized:
+                        filtered_articles.append(row)
+        
+        recent_articles_with_tags = filtered_articles
 
         keyword_map = {}
         keyword_trend_map = {}  # keyword -> date -> count
@@ -185,34 +230,71 @@ async def get_dashboard_stats(
             # 使用 ArticleTag.article_publish_date（文章的发布日期）
             tag_date = row.tag_date
             if tag_date:
-                # 如果是 datetime 对象，转换为日期字符串
-                if isinstance(tag_date, datetime):
-                    date_key = tag_date.date().isoformat()
-                    tag_datetime = tag_date
+                # 标准化 datetime 对象（处理时区问题）
+                tag_datetime = normalize_datetime(tag_date)
+                if tag_datetime:
+                    # 如果是 datetime 对象，转换为日期字符串
+                    if isinstance(tag_datetime, datetime):
+                        date_key = tag_datetime.date().isoformat()
+                    else:
+                        # 如果是字符串或其他格式，尝试转换
+                        try:
+                            if isinstance(tag_datetime, str):
+                                # 处理 ISO 格式字符串，移除时区信息
+                                tag_str = tag_datetime.replace('Z', '+00:00')
+                                tag_datetime = datetime.fromisoformat(tag_str)
+                                # 确保转换为不带时区的 datetime
+                                tag_datetime = normalize_datetime(tag_datetime)
+                            # 再次确保 tag_datetime 是 datetime 对象且不带时区
+                            if isinstance(tag_datetime, datetime):
+                                tag_datetime = normalize_datetime(tag_datetime)
+                                date_key = tag_datetime.date().isoformat()
+                            else:
+                                date_key = str(tag_datetime)[:10] if tag_datetime else None
+                        except Exception:
+                            date_key = None
+                            tag_datetime = None
                 else:
-                    # 如果是字符串或其他格式，尝试转换
-                    try:
-                        if isinstance(tag_date, str):
-                            tag_datetime = datetime.fromisoformat(tag_date.replace('Z', '+00:00'))
-                        else:
-                            tag_datetime = tag_date
-                        date_key = tag_datetime.date().isoformat() if hasattr(tag_datetime, 'date') else str(tag_datetime)[:10]
-                    except Exception:
-                        date_key = None
-                        tag_datetime = None
+                    date_key = None
+                    tag_datetime = None
             else:
                 date_key = None
                 tag_datetime = None
 
             # 只统计最近30天的关键词（使用文章的发布日期）
-            if tag_datetime and tag_datetime >= thirty_days_ago:
-                keyword_map[keyword] = keyword_map.get(keyword, 0) + 1
+            # 确保比较时两个 datetime 都不带时区
+            if tag_datetime:
+                try:
+                    tag_datetime = normalize_datetime(tag_datetime)
+                    compare_date = normalize_datetime(thirty_days_ago)
+                    # 确保两个都是 datetime 对象且都不带时区
+                    if (isinstance(tag_datetime, datetime) and 
+                        isinstance(compare_date, datetime) and
+                        tag_datetime.tzinfo is None and 
+                        compare_date.tzinfo is None and
+                        tag_datetime >= compare_date):
+                        keyword_map[keyword] = keyword_map.get(keyword, 0) + 1
+                except (TypeError, AttributeError) as e:
+                    # 如果比较失败，跳过这条记录
+                    pass
 
             # 记录关键词趋势（按日期统计，使用文章的发布日期）
             if keyword not in keyword_trend_map:
                 keyword_trend_map[keyword] = {}
-            if date_key and tag_datetime and tag_datetime >= thirty_days_ago:
-                keyword_trend_map[keyword][date_key] = keyword_trend_map[keyword].get(date_key, 0) + 1
+            if date_key and tag_datetime:
+                try:
+                    tag_datetime = normalize_datetime(tag_datetime)
+                    compare_date = normalize_datetime(thirty_days_ago)
+                    # 确保两个都是 datetime 对象且都不带时区
+                    if (isinstance(tag_datetime, datetime) and 
+                        isinstance(compare_date, datetime) and
+                        tag_datetime.tzinfo is None and 
+                        compare_date.tzinfo is None and
+                        tag_datetime >= compare_date):
+                        keyword_trend_map[keyword][date_key] = keyword_trend_map[keyword].get(date_key, 0) + 1
+                except (TypeError, AttributeError) as e:
+                    # 如果比较失败，跳过这条记录
+                    pass
 
         # 排序并取前20个
         keyword_stats = sorted(

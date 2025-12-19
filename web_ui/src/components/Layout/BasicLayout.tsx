@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, createContext, useContext } from 'react'
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -20,7 +21,7 @@ import WechatAuthQrcode, { WechatAuthQrcodeRef } from '../WechatAuthQrcode'
 import { getCurrentUser, logout } from '@/api/auth'
 import { getSysInfo } from '@/api/sysInfo'
 import { initBrowserNotification } from '@/utils/browserNotification'
-import { translatePage, setCurrentLanguage } from '@/utils/translate'
+import { setCurrentLanguage } from '@/utils/translate'
 import { getSettings, type AppSettings } from '@/utils/settings'
 import { ModeToggle } from '@/components/mode-toggle'
 import { User, Lock, QrCode, Settings, LogOut } from 'lucide-react'
@@ -41,6 +42,7 @@ export const useAppContext = () => {
 }
 
 const BasicLayout: React.FC = () => {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
   const [userInfo, setUserInfo] = useState({ username: '', avatar: '' })
@@ -79,7 +81,7 @@ const BasicLayout: React.FC = () => {
       const res = await getCurrentUser() as unknown as { username: string; avatar: string }
       setUserInfo(res)
     } catch (error) {
-      console.error('获取用户信息失败', error)
+      console.error(t('layout.getUserInfoFailed'), error)
     }
   }
 
@@ -111,8 +113,8 @@ const BasicLayout: React.FC = () => {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "错误",
-        description: "退出登录失败"
+        title: t('common.error'),
+        description: t('layout.logoutFailed')
       })
     }
   }
@@ -134,7 +136,11 @@ const BasicLayout: React.FC = () => {
       fetchUserInfo()
     }
     initBrowserNotification()
-    translatePage()
+    // 初始化语言设置（不再需要 translatePage，i18n 会自动处理）
+    const savedLanguage = localStorage.getItem('language')
+    if (savedLanguage) {
+      setCurrentLanguage(savedLanguage)
+    }
     fetchSysInfo()
     
     // 监听设置变更
@@ -157,23 +163,23 @@ const BasicLayout: React.FC = () => {
   }, [location.pathname])
 
   const languageOptions = [
-    { value: '__disabled__', label: '禁用' },
-    { value: 'chinese_simplified', label: '简体中文' },
-    { value: 'chinese_traditional', label: '繁體中文' },
-    { value: 'english', label: 'English' },
+    { value: '__disabled__', label: t('language.disabled') },
+    { value: 'chinese_simplified', label: t('language.chineseSimplified') },
+    { value: 'chinese_traditional', label: t('language.chineseTraditional') },
+    { value: 'english', label: t('language.english') },
   ]
 
   // 路由名称映射
   const routeNameMap: Record<string, string> = {
-    '/': '首页',
-    '/dashboard': '数据概览',
-    '/articles': '文章列表',
-    '/subscriptions': '订阅管理',
-    '/export/records': '导出记录',
-    '/tags': '标签管理',
-    '/message-tasks': '消息任务',
-    '/configs': '配置信息',
-    '/sys-info': '系统信息',
+    '/': t('layout.home'),
+    '/dashboard': t('layout.dashboard'),
+    '/articles': t('layout.articles'),
+    '/subscriptions': t('layout.subscriptions'),
+    '/export/records': t('layout.exportRecords'),
+    '/tags': t('layout.tags'),
+    '/message-tasks': t('layout.messageTasks'),
+    '/configs': t('layout.configs'),
+    '/sys-info': t('layout.sysInfo'),
   }
 
   const getBreadcrumbItems = (): Array<{ label: string; path: string }> => {
@@ -181,7 +187,7 @@ const BasicLayout: React.FC = () => {
     const items: Array<{ label: string; path: string }> = []
     
     if (pathSegments.length === 0) {
-      return [{ label: '首页', path: '/' }]
+      return [{ label: t('layout.home'), path: '/' }]
     }
 
     let currentPath = ''
@@ -248,7 +254,7 @@ const BasicLayout: React.FC = () => {
                     </button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    {!haswxLogined ? '未授权，请扫码登录' : '点我扫码授权'}
+                    {!haswxLogined ? t('layout.notAuthorized') : t('layout.clickToScan')}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -293,25 +299,25 @@ const BasicLayout: React.FC = () => {
                 <DropdownMenuContent align="end" className="w-48">
                   <DropdownMenuItem onClick={goToEditUser}>
                     <User className="h-4 w-4 mr-2" />
-                    个人中心
+                    {t('layout.personalCenter')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={goToChangePassword}>
                     <Lock className="h-4 w-4 mr-2" />
-                    修改密码
+                    {t('layout.changePassword')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={goToSettings}>
                     <Settings className="h-4 w-4 mr-2" />
-                    设置
+                    {t('layout.settings')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={showAuthQrcode}>
                     <QrCode className="h-4 w-4 mr-2" />
-                    扫码授权
+                    {t('layout.scanAuth')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="text-destructive">
                     <LogOut className="h-4 w-4 mr-2" />
-                    退出登录
+                    {t('layout.logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

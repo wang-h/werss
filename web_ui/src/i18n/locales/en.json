@@ -1,0 +1,70 @@
+{
+  "common": {
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "save": "Save",
+    "submit": "Submit",
+    "search": "Search",
+    "reset": "Reset",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info"
+  },
+  "layout": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "articles": "Articles",
+    "subscriptions": "Subscriptions",
+    "exportRecords": "Export Records",
+    "tags": "Tags",
+    "messageTasks": "Message Tasks",
+    "configs": "Configs",
+    "sysInfo": "System Info",
+    "personalCenter": "Personal Center",
+    "changePassword": "Change Password",
+    "settings": "Settings",
+    "scanAuth": "Scan QR Code",
+    "logout": "Logout",
+    "notAuthorized": "Not authorized, please scan QR code to login",
+    "clickToScan": "Click to scan QR code",
+    "logoutFailed": "Logout failed",
+    "getUserInfoFailed": "Failed to get user info"
+  },
+  "language": {
+    "disabled": "Disabled",
+    "chineseSimplified": "Simplified Chinese",
+    "chineseTraditional": "Traditional Chinese",
+    "english": "English"
+  },
+  "login": {
+    "title": "Login",
+    "username": "Username",
+    "password": "Password",
+    "loginButton": "Login",
+    "loginSuccess": "Login successful",
+    "loginFailed": "Login failed",
+    "invalidCredentials": "Invalid username or password"
+  },
+  "export": {
+    "title": "Export Articles",
+    "scope": "Export Scope",
+    "all": "All",
+    "selected": "Selected",
+    "format": "Export Format",
+    "addTitle": "Add Title",
+    "removeImages": "Remove Images",
+    "removeLinks": "Remove Links",
+    "zipFilename": "ZIP Filename",
+    "exportButton": "Export",
+    "cancelButton": "Cancel",
+    "exporting": "Exporting...",
+    "exportSuccess": "Export successful",
+    "exportFailed": "Export failed",
+    "selectFormat": "Please select at least one export format"
+  }
+}
+

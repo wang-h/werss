@@ -1,0 +1,70 @@
+{
+  "common": {
+    "confirm": "確認",
+    "cancel": "取消",
+    "delete": "刪除",
+    "edit": "編輯",
+    "save": "保存",
+    "submit": "提交",
+    "search": "搜索",
+    "reset": "重置",
+    "loading": "載入中...",
+    "error": "錯誤",
+    "success": "成功",
+    "warning": "警告",
+    "info": "信息"
+  },
+  "layout": {
+    "home": "首頁",
+    "dashboard": "數據概覽",
+    "articles": "文章列表",
+    "subscriptions": "訂閱管理",
+    "exportRecords": "導出記錄",
+    "tags": "標籤管理",
+    "messageTasks": "消息任務",
+    "configs": "配置信息",
+    "sysInfo": "系統信息",
+    "personalCenter": "個人中心",
+    "changePassword": "修改密碼",
+    "settings": "設置",
+    "scanAuth": "掃碼授權",
+    "logout": "退出登錄",
+    "notAuthorized": "未授權，請掃碼登錄",
+    "clickToScan": "點我掃碼授權",
+    "logoutFailed": "退出登錄失敗",
+    "getUserInfoFailed": "獲取用戶信息失敗"
+  },
+  "language": {
+    "disabled": "禁用",
+    "chineseSimplified": "簡體中文",
+    "chineseTraditional": "繁體中文",
+    "english": "English"
+  },
+  "login": {
+    "title": "登錄",
+    "username": "用戶名",
+    "password": "密碼",
+    "loginButton": "登錄",
+    "loginSuccess": "登錄成功",
+    "loginFailed": "登錄失敗",
+    "invalidCredentials": "用戶名或密碼錯誤"
+  },
+  "export": {
+    "title": "導出文章",
+    "scope": "導出範圍",
+    "all": "全部",
+    "selected": "選中",
+    "format": "導出格式",
+    "addTitle": "添加標題",
+    "removeImages": "移除圖片",
+    "removeLinks": "移除鏈接",
+    "zipFilename": "ZIP文件名",
+    "exportButton": "導出",
+    "cancelButton": "取消",
+    "exporting": "導出中...",
+    "exportSuccess": "導出成功",
+    "exportFailed": "導出失敗",
+    "selectFormat": "請至少選擇一個導出格式"
+  }
+}
+

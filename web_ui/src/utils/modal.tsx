@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useState } from "react"
 import { createRoot } from "react-dom/client"
 import {
   Dialog,
@@ -20,6 +20,62 @@ const createModalContainer = () => {
   return modalContainer
 }
 
+// 内部组件，用于管理对话框状态
+const ConfirmDialog: React.FC<{
+  title?: string
+  content?: React.ReactNode
+  onOk?: () => void | Promise<void>
+  onCancel?: () => void
+  okText?: string
+  cancelText?: string
+  onClose: () => void
+}> = ({ title, content, onOk, onCancel, okText, cancelText, onClose }) => {
+  const [isOpen, setIsOpen] = useState(true)
+
+  const handleClose = () => {
+    setIsOpen(false)
+    // 延迟移除容器，让关闭动画完成
+    setTimeout(() => {
+      onClose()
+    }, 200)
+  }
+
+  const handleOk = async () => {
+    if (onOk) {
+      await onOk()
+    }
+    handleClose()
+  }
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel()
+    }
+    handleClose()
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{title || "确认"}</DialogTitle>
+          {content && (
+            <DialogDescription>{content}</DialogDescription>
+          )}
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleCancel}>
+            {cancelText || "取消"}
+          </Button>
+          <Button onClick={handleOk}>
+            {okText || "确认"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export const Modal = {
   confirm: (options: {
     title?: string
@@ -30,49 +86,25 @@ export const Modal = {
     cancelText?: string
   }) => {
     const container = createModalContainer()
-    let isOpen = true
 
     const handleClose = () => {
-      isOpen = false
       if (container && container.parentNode) {
         container.parentNode.removeChild(container)
       }
-    }
-
-    const handleOk = async () => {
-      if (options.onOk) {
-        await options.onOk()
-      }
-      handleClose()
-    }
-
-    const handleCancel = () => {
-      if (options.onCancel) {
-        options.onCancel()
-      }
-      handleClose()
+      modalContainer = null
     }
 
     const root = createRoot(container)
     root.render(
-      <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{options.title || "确认"}</DialogTitle>
-            {options.content && (
-              <DialogDescription>{options.content}</DialogDescription>
-            )}
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCancel}>
-              {options.cancelText || "取消"}
-            </Button>
-            <Button onClick={handleOk}>
-              {options.okText || "确认"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ConfirmDialog
+        title={options.title}
+        content={options.content}
+        onOk={options.onOk}
+        onCancel={options.onCancel}
+        okText={options.okText}
+        cancelText={options.cancelText}
+        onClose={handleClose}
+      />
     )
   },
 }

@@ -1,4 +1,5 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import {
   Sidebar,
@@ -13,48 +14,49 @@ import { FileText, Rss, Tag, Bell, Settings, Info, LayoutDashboard, GalleryVerti
 import { NavMain } from '@/components/nav-main'
 
 const Navbar: React.FC = () => {
+  const { t } = useTranslation()
   // 开发环境使用 public 目录下的文件，生产环境使用后端静态文件服务
   const logo = import.meta.env.DEV ? '/logo.svg' : '/static/logo.svg'
   const appTitle = import.meta.env.VITE_APP_TITLE || '微信公众号订阅助手'
 
   const menuItems = [
     {
-      title: '数据概览',
+      title: t('layout.dashboard'),
       url: '/dashboard',
       icon: LayoutDashboard,
     },
     {
-      title: '文章列表',
+      title: t('layout.articles'),
       url: '/articles',
       icon: FileText,
     },
     {
-      title: '订阅管理',
+      title: t('layout.subscriptions'),
       url: '/subscriptions',
       icon: Rss,
     },
     {
-      title: '导出记录',
+      title: t('layout.exportRecords'),
       url: '/export/records',
       icon: FileText,
     },
     {
-      title: '标签管理',
+      title: t('layout.tags'),
       url: '/tags',
       icon: Tag,
     },
     {
-      title: '消息任务',
+      title: t('layout.messageTasks'),
       url: '/message-tasks',
       icon: Bell,
     },
     {
-      title: '配置信息',
+      title: t('layout.configs'),
       url: '/configs',
       icon: Settings,
     },
     {
-      title: '系统信息',
+      title: t('layout.sysInfo'),
       url: '/sys-info',
       icon: Info,
     }
