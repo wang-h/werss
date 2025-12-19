@@ -25,27 +25,27 @@ const ACodeEditor: React.FC<ACodeEditorProps> = ({
           <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
         </div>
       }>
-        <Editor
-          height={height}
-          language={language === 'custom' ? 'plaintext' : language}
-          value={value}
-          onChange={(val: string | undefined) => onChange?.(val || '')}
-          theme={language === 'custom' ? 'vs' : 'vs'}
-          options={{
-            minimap: { enabled: false },
-            automaticLayout: true,
-            scrollBeyondLastLine: false,
-            fontSize: 14,
-            lineNumbers: 'on' as const,
-            roundedSelection: true,
-            scrollbar: {
-              vertical: 'auto' as const,
-              horizontal: 'hidden' as const
-            },
-            wordWrap: 'on' as const,
-            placeholder: placeholder
-          }}
-        />
+      <Editor
+        height={height}
+        language={language === 'custom' ? 'plaintext' : language}
+        value={value}
+        onChange={(val: string | undefined) => onChange?.(val || '')}
+        theme={language === 'custom' ? 'vs' : 'vs'}
+        options={{
+          minimap: { enabled: false },
+          automaticLayout: true,
+          scrollBeyondLastLine: false,
+          fontSize: 14,
+          lineNumbers: 'on' as const,
+          roundedSelection: true,
+          scrollbar: {
+            vertical: 'auto' as const,
+            horizontal: 'hidden' as const
+          },
+          wordWrap: 'on' as const,
+          placeholder: placeholder
+        }}
+      />
       </Suspense>
     </div>
   )
