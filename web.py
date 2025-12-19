@@ -95,6 +95,10 @@ from core.res.avatar import files_dir
 static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
+    # 挂载 assets 目录，因为前端构建后的文件路径是 /assets/...
+    assets_dir = os.path.join(static_dir, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 # 用户上传文件服务（保留，因为这是业务功能，不是前端静态文件）
 app.mount("/files", StaticFiles(directory=files_dir), name="files")
 
@@ -136,7 +140,7 @@ async def catch_all(request: Request, path: str):
         )
     
     # 跳过静态文件路径，这些路径应该由静态文件服务处理
-    if path.startswith("static/") or path.startswith("files/"):
+    if path.startswith("static/") or path.startswith("files/") or path.startswith("assets/"):
         from fastapi.responses import Response
         return Response(status_code=404)
     
