@@ -61,11 +61,17 @@ COPY . .
 RUN npm install -g pnpm
 
 # 构建前端（如果存在web_ui目录）
+# 优先使用 build.sh 脚本（它已经包含了 pnpm install 和 pnpm build）
 RUN if [ -d "web_ui" ]; then \
     cd web_ui && \
-    pnpm install && \
-    pnpm build && \
-    if [ -f "build.sh" ]; then bash build.sh; else \
+    if [ -f "build.sh" ]; then \
+        chmod +x build.sh && \
+        echo "使用 build.sh 脚本构建前端..." && \
+        bash build.sh; \
+    else \
+        echo "直接使用 pnpm 构建前端..." && \
+        pnpm install --frozen-lockfile && \
+        pnpm build && \
         mkdir -p ../static && \
         cp -rf dist/* ../static/; \
     fi && \

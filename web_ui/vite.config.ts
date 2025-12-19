@@ -30,9 +30,14 @@ export default defineConfig(({ command, mode }) => {
       rollupOptions: {
         output: {
           // 代码分割配置：将大型库单独打包
+          // 注意：顺序很重要，React 相关库必须最先处理，确保依赖关系正确
           manualChunks: (id) => {
             // 将 node_modules 中的大型库单独打包
             if (id.includes('node_modules')) {
+              // React 相关库单独打包（必须最先处理，确保其他库可以依赖它）
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
+                return 'react-vendor';
+              }
               // Monaco Editor 单独打包（约 2-3MB）
               if (id.includes('monaco-editor') || id.includes('@monaco-editor')) {
                 return 'monaco-editor';
@@ -40,10 +45,6 @@ export default defineConfig(({ command, mode }) => {
               // VChart 图表库单独打包（约 1-2MB）
               if (id.includes('@visactor') || id.includes('vchart')) {
                 return 'vchart';
-              }
-              // React 相关库单独打包
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-                return 'react-vendor';
               }
               // Radix UI 组件库单独打包
               if (id.includes('@radix-ui')) {
@@ -58,6 +59,10 @@ export default defineConfig(({ command, mode }) => {
           entryFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]',
         },
+        // 确保模块依赖关系正确
+        external: [],
+        // 优化模块解析顺序
+        preserveEntrySignatures: 'strict',
       },
     },
     server: {
