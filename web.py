@@ -56,6 +56,12 @@ async def add_custom_header(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Version"] = VERSION
     response.headers["Server"] = cfg.get("app_name", "WeRSS")
+    # 为静态资源添加缓存控制头
+    if request.url.path.startswith(("/assets/", "/static/")):
+        # 开发环境禁用缓存，生产环境可以设置较长的缓存时间
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
     return response
 # 创建API路由分组
 api_router = APIRouter(prefix=f"{API_BASE}")
