@@ -122,24 +122,38 @@ def process_articles(session, mp_id=None,doc_id=None, page_size=10, page_count=1
         if page_count != 0 and i >= page_count:
             break
             
+        # 导入状态常量
+        from core.models.base import DATA_STATUS
+        
         # 如果指定了 doc_id（导出选中文章），则不要求必须有内容
         # 如果只按 mp_id 查询（导出所有），则要求必须有内容
+        # 使用与文章列表相同的过滤条件：status != DELETED（即 status != 1000）
         if doc_id is not None and len(doc_id) > 0:
-            # 导出选中文章时，不要求必须有内容
-            query = session.query(Article).where(Article.status == 1)
+            # 导出选中文章时，不要求必须有内容，但排除已删除的文章
+            query = session.query(Article).where(Article.status != DATA_STATUS.DELETED)
+            print(f"导出选中文章模式：不要求有内容，doc_id数量: {len(doc_id)}")
         else:
-            # 导出所有文章时，要求必须有内容
-            query = session.query(Article).filter(Article.content != None).where(Article.status == 1)
+            # 导出所有文章时，要求必须有内容，并排除已删除的文章
+            query = session.query(Article).filter(Article.content != None).where(Article.status != DATA_STATUS.DELETED)
+            print(f"导出所有文章模式：要求有内容")
         
-        # 如果 mp_id 不是 "all"，则按公众号ID过滤
-        if mp_id and isinstance(mp_id, str) and mp_id.strip() and mp_id != "all":
-            query = query.where(Article.mp_id.in_(mp_id.split(",")))
+        # 如果指定了 doc_id（选中文章导出），则不使用 mp_id 过滤，因为选中的文章可能来自不同公众号
+        # 只有在没有 doc_id 的情况下才使用 mp_id 过滤
+        if doc_id is None or len(doc_id) == 0:
+            # 如果 mp_id 不是 "all"，则按公众号ID过滤
+            if mp_id and isinstance(mp_id, str) and mp_id.strip() and mp_id != "all":
+                query = query.where(Article.mp_id.in_(mp_id.split(",")))
+        
         if doc_id is not None and len(doc_id) > 0:
             # 确保 doc_id 是字符串列表
             doc_id_list = [str(d) for d in doc_id] if doc_id else []
-            print(f"导出选中的文章ID: {doc_id_list}")
+            print(f"导出选中的文章ID（原始）: {doc_id}")
+            print(f"导出选中的文章ID（转换后）: {doc_id_list}")
+            print(f"doc_id 类型: {type(doc_id)}, doc_id_list 类型: {type(doc_id_list)}")
             query = query.where(Article.id.in_(doc_id_list))
-            is_break=True   
+            is_break=True
+            # 打印查询的SQL（用于调试）
+            print(f"查询条件: status != {DATA_STATUS.DELETED}, id IN {doc_id_list}")   
 
         query = query.order_by(Article.publish_time.desc(), Article.id.desc())
         if is_break==False:
@@ -151,15 +165,37 @@ def process_articles(session, mp_id=None,doc_id=None, page_size=10, page_count=1
             print(f"查询到的文章数量: {len(arts) if arts else 0}")
             if arts:
                 print(f"查询到的文章ID: {[art.id for art in arts]}")
+                print(f"查询到的文章标题: {[art.title for art in arts]}")
+            else:
+                print(f"警告：没有查询到任何文章！")
+                print(f"尝试查询的ID列表: {doc_id_list if 'doc_id_list' in locals() else 'N/A'}")
+                # 尝试直接查询一个ID看看是否存在
+                if 'doc_id_list' in locals() and doc_id_list and len(doc_id_list) > 0:
+                    test_id = doc_id_list[0]
+                    test_article = session.query(Article).filter(Article.id == test_id).first()
+                    if test_article:
+                        print(f"测试：直接查询ID {test_id} 成功")
+                        print(f"  文章标题: {test_article.title}")
+                        print(f"  文章状态: {test_article.status}")
+                        print(f"  文章内容: {'有' if test_article.content else '无'}")
+                        print(f"  mp_id: {test_article.mp_id}")
+                    else:
+                        print(f"测试：直接查询ID {test_id} 失败，该ID不存在")
         
         if arts is None or len(arts) == 0:
+            if doc_id is not None and len(doc_id) > 0:
+                print(f"错误：导出选中文章时没有查询到任何文章，退出循环")
             break
             
         for art in arts:
+            print(f"处理文章: ID={art.id}, 标题={art.title}, 状态={art.status}, 内容={'有' if art.content else '无'}")
             if process_single_article(art, add_title, remove_images, remove_links, 
                                     export_md, export_docx, export_json, export_csv, 
                                     export_pdf, docx_path, writer):
                 record_count += 1
+                print(f"文章 {art.id} 导出成功，当前计数: {record_count}")
+            else:
+                print(f"文章 {art.id} 导出失败")
     
     return record_count
 
