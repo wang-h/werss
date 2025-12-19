@@ -24,6 +24,8 @@ def init_user(_db: Db):
           # 如果用户不存在，创建新用户
           session.add(User(
               id=0,
+
+              
               username=username,
               password_hash=pwd_context.hash(password),
               ))
@@ -34,11 +36,9 @@ def init_user(_db: Db):
         pass
 def sync_models():
      # 同步模型到表结构
-         from data_sync import DatabaseSynchronizer
          DB.create_tables()
-         time.sleep(3)
-         synchronizer = DatabaseSynchronizer(db_url=cfg.get("db",""))
-         synchronizer.sync()
+         time.sleep(1)
+         DB.migrate_tables()
          print_info("模型同步完成")
 
      

@@ -14,7 +14,7 @@ RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debia
     echo "deb http://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
     echo "deb http://mirrors.aliyun.com/debian-security/ bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
 
-# 安装系统依赖
+# 安装系统依赖（包括Node.js用于前端构建）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     git \
@@ -29,7 +29,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     bash \
     ca-certificates \
+    curl \
     && rm -rf /var/lib/apt/lists/*
+
+# 安装Node.js（用于前端构建）
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y --no-install-recommends nodejs && \
+    rm -rf /var/lib/apt/lists/*
 
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
@@ -43,6 +49,20 @@ COPY requirements.txt .
 # 复制后端代码
 COPY config.example.yaml config.yaml
 COPY . .
+
+# 构建前端（如果存在web_ui目录）
+RUN if [ -d "web_ui" ]; then \
+    cd web_ui && \
+    npm install -g yarn && \
+    yarn install && \
+    yarn build && \
+    if [ -f "build.sh" ]; then bash build.sh; else \
+        mkdir -p ../static && \
+        cp -rf dist/* ../static/; \
+    fi && \
+    cd .. && \
+    rm -rf web_ui/node_modules web_ui/dist; \
+    fi
 
 # 设置脚本权限
 RUN chmod +x install.sh start.sh

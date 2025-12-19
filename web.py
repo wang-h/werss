@@ -98,36 +98,60 @@ if os.path.exists(static_dir):
 # 用户上传文件服务（保留，因为这是业务功能，不是前端静态文件）
 app.mount("/files", StaticFiles(directory=files_dir), name="files")
 
-# 根路由 - 返回API信息
+# 根路由和前端路由 - 返回前端页面（SPA应用）
 @app.get("/",tags=['默认'],include_in_schema=False)
 async def serve_root(request: Request):
-    """处理根路由 - 前后端分离架构，后端只提供API"""
-    from fastapi.responses import JSONResponse
-    return JSONResponse({
-        "name": "WeRSS API",
-        "version": VERSION,
-        "status": "running",
-        "docs": f"{request.base_url}api/docs",
-        "message": u"前后端分离架构：前端由独立服务器提供，后端只提供API服务"
-    })
+    """处理根路由 - 返回前端页面"""
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        from fastapi.responses import FileResponse
+        return FileResponse(index_path)
+    else:
+        # 如果前端文件不存在，返回API信息
+        from fastapi.responses import JSONResponse
+        return JSONResponse({
+            "name": "WeRSS API",
+            "version": VERSION,
+            "status": "running",
+            "docs": f"{request.base_url}api/docs",
+            "message": u"前端文件未找到，请先构建前端"
+        })
 
-# 404处理 - 对于未匹配的路由返回API信息
-# 注意：不匹配 /static/ 和 /files/ 路径，这些路径由静态文件服务处理
+# SPA路由处理 - 对于前端路由返回index.html
+# 注意：不匹配 /api/, /static/, /files/ 路径
 @app.get("/{path:path}",tags=['默认'],include_in_schema=False)
 @app.head("/{path:path}",tags=['默认'],include_in_schema=False)
 async def catch_all(request: Request, path: str):
-    """捕获所有未匹配的路由 - 前后端分离架构，后端只提供API"""
+    """捕获所有未匹配的路由 - SPA应用，返回前端页面"""
+    # 跳过API路径
+    if path.startswith("api/"):
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "Not Found",
+                "message": u"API路径不存在",
+                "api_docs": f"{request.base_url}api/docs"
+            }
+        )
+    
     # 跳过静态文件路径，这些路径应该由静态文件服务处理
     if path.startswith("static/") or path.startswith("files/"):
         from fastapi.responses import Response
         return Response(status_code=404)
     
-    from fastapi.responses import JSONResponse
-    return JSONResponse(
-        status_code=404,
-        content={
-            "error": "Not Found",
-            "message": u"该路径不存在。前后端分离架构，前端由独立服务器提供",
-            "api_docs": f"{request.base_url}api/docs"
-        }
-    )
+    # 对于其他路径（前端路由），返回index.html
+    index_path = os.path.join(static_dir, "index.html")
+    if os.path.exists(index_path):
+        from fastapi.responses import FileResponse
+        return FileResponse(index_path)
+    else:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "Not Found",
+                "message": u"前端文件未找到，请先构建前端",
+                "api_docs": f"{request.base_url}api/docs"
+            }
+        )

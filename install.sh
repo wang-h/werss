@@ -1,6 +1,8 @@
 #!/bin/bash
 plantform="$(uname -m)"
-PLANT_PATH=${PLANT_PATH:-/app/data/}
+PLANT_PATH=${PLANT_PATH:-/app/data}
+# 确保路径末尾没有斜杠
+PLANT_PATH=${PLANT_PATH%/}
 plant=$PLANT_PATH_$plantform
 python3 -m venv $plant
 source $plant/bin/activate
