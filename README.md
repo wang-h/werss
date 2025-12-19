@@ -100,6 +100,11 @@ WeRSS 是一个前后端分离的微信公众号热度分析系统，可以帮�
 - ✅ Markdown导出（需启用）
 - ✅ 批量导出支持
 
+### 图片存储
+- ✅ MinIO 对象存储支持
+- ✅ 文章图片自动下载和上传
+- ✅ 图片URL自动替换为MinIO链接
+
 ### 通知系统
 - ✅ 钉钉Webhook通知
 - ✅ 企业微信Webhook通知
@@ -263,6 +268,21 @@ npm run dev
 ### 方式三：Docker部署
 
 ```bash
+# 构建镜像（会自动构建前端）
+docker build -t werss:latest .
+
+# 运行容器
+docker run -d -p 8001:8001 werss:latest
+
+# 访问应用
+# 前端界面: http://localhost:8001
+# API文档: http://localhost:8001/api/docs
+```
+
+**注意**：Docker 镜像已包含前端构建，无需单独启动前端服务。前端和 API 都通过 `http://localhost:8001` 访问。
+
+如果使用 docker-compose：
+```bash
 # 使用 docker-compose（推荐）
 # 进入项目根目录（包含 docker-compose.dev.yml 的目录）
 cd <project-root>
@@ -368,6 +388,21 @@ article_tag:
   extract_method: ai  # 提取方式：textrank/keybert/ai
   max_tags: 5  # 最大标签数量
 ```
+
+#### MinIO配置（可选）
+
+```yaml
+minio:
+  enabled: false  # 是否启用MinIO图片上传
+  endpoint: "localhost:9000"  # MinIO服务地址
+  access_key: "minioadmin"  # 访问密钥
+  secret_key: "minioadmin"  # 密钥
+  bucket: "articles"  # 存储桶名称
+  secure: false  # 是否使用HTTPS
+  public_url: "http://localhost:9000"  # 公开访问URL（可选）
+```
+
+启用 MinIO 后，文章爬取时会自动下载图片并上传到 MinIO，文章内容中的图片 URL 会被替换为 MinIO 链接。
 
 更多配置项请参考 `config.example.yaml` 文件。
 
@@ -564,6 +599,7 @@ chmod 755 data
 - **PyMySQL**: MySQL支持
 - **reportlab**: PDF导出支持
 - **python-docx**: Word文档处理
+- **minio**: MinIO 对象存储客户端（用于图片存储）
 
 完整依赖列表请查看 `requirements.txt`。
 

@@ -13,7 +13,6 @@ from core.print import print_info, print_error, print_success, print_warning
 
 try:
     from minio import Minio
-    from minio.error import S3Error
     MINIO_AVAILABLE = True
 except ImportError:
     MINIO_AVAILABLE = False
