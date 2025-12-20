@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/wang-h/werss/main/static/logo.svg" alt="WeRSS Logo" width="150" height="150">
+<img src="https://raw.githubusercontent.com/wang-h/werss/main/static/logo.svg" alt="WeRSS Logo" width="100" height="100">
 
 # WeRSS - 微信公众号热度分析系统
 
@@ -10,7 +10,7 @@
 ![GitHub Stars](https://img.shields.io/github/stars/wang-h/werss?style=social)
 ![GitHub Forks](https://img.shields.io/github/forks/wang-h/werss?style=social)
 
-**一个功能强大的微信公众号RSS订阅服务，支持自动采集、标签管理、多格式导出、主题词提取与热度追踪等功能**
+**一个功能强大的微信公众号热度分析系统，支持自动采集、标签管理、多格式导出、主题词提取与热度追踪等功能**
 
 [功能特性](#-功能特性) • [快速开始](#-快速开始) • [配置说明](#-配置说明) • [API文档](#-api文档) • [开发指南](#-开发指南)
 
@@ -267,9 +267,25 @@ npm run dev
 
 ### 方式三：Docker部署
 
+#### 标准版本（使用官方镜像源）
+
 ```bash
 # 构建镜像（会自动构建前端）
 docker build -t werss:latest .
+
+# 运行容器
+docker run -d -p 8001:8001 werss:latest
+
+# 访问应用
+# 前端界面: http://localhost:8001
+# API文档: http://localhost:8001/api/docs
+```
+
+#### 国内镜像源版本（推荐国内用户使用）
+
+```bash
+# 构建镜像（使用国内镜像源，构建速度更快）
+docker build -f Dockerfile.cn -t werss:latest .
 
 # 运行容器
 docker run -d -p 8001:8001 werss:latest
@@ -328,7 +344,7 @@ export THREADS=2
 # RSS配置
 export RSS_BASE_URL=https://your-domain.com/
 export RSS_TITLE=我的RSS订阅
-export RSS_DESCRIPTION=微信公众号RSS订阅服务
+export RSS_DESCRIPTION=微信公众号热度分析系统
 
 # 通知配置
 export DINGDING_WEBHOOK=https://oapi.dingtalk.com/robot/send?access_token=xxx
@@ -362,7 +378,7 @@ rss:
   base_url: https://your-domain.com/  # RSS域名地址
   local: False  # 是否为本地RSS链接
   title: 我的RSS订阅  # RSS标题
-  description: 微信公众号RSS订阅服务  # RSS描述
+  description: 微信公众号热度分析系统  # RSS描述
   full_context: True  # 是否显示全文
   add_cover: True  # 是否添加封面图片
   page_size: 30  # RSS分页大小
