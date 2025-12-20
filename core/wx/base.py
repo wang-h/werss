@@ -143,12 +143,44 @@ class WxGather:
                 setStatus(True)
                 from core.models import Article
                 from datetime import datetime
+                
+                # 处理封面图片上传到MinIO
+                pic_url = data.get('cover', '')
+                if pic_url:
+                    try:
+                        from core.storage.minio_client import MinIOClient
+                        import re
+                        minio_client = MinIOClient()
+                        
+                        # 从URL中提取文章ID
+                        article_id = str(data.get('id', '')) or "unknown"
+                        if not article_id or article_id == "unknown":
+                            # 尝试从link中提取
+                            link = data.get('link', '')
+                            if link:
+                                match = re.search(r'/s/([^/?]+)', str(link))
+                                if match:
+                                    article_id = match.group(1)
+                        
+                        # 如果MinIO可用且封面图不是MinIO URL，则上传
+                        if minio_client.is_available() and pic_url:
+                            # 跳过已经是MinIO URL的图片
+                            if 'minio' not in pic_url.lower() and (not minio_client.public_url or minio_client.public_url not in pic_url):
+                                minio_cover_url = minio_client.upload_image(pic_url, article_id)
+                                if minio_cover_url:
+                                    pic_url = minio_cover_url
+                                    print_info(f"封面图片已上传到MinIO: {data.get('cover', '')[:80]}... -> {minio_cover_url[:80]}...")
+                    except Exception as e:
+                        logger.warning(f"处理封面图片失败: {e}")
+                        # 失败时使用原始URL
+                        pass
+                
                 art={
                     "id":str(data['id']),
                     "mp_id":data['mp_id'],
                     "title":data['title'],
                     "url":data['link'],
-                    "pic_url":data['cover'],
+                    "pic_url":pic_url,
                     "content":data.get("content",""),
                     "publish_time":data['update_time'],
                 }
