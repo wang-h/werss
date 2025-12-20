@@ -45,6 +45,8 @@ async def clean_orphan_articles(
                 message="清理无效文章失败"
             )
         )
+    finally:
+        session.close()
     
 @router.delete("/clean_duplicate_articles", summary="清理重复文章")
 async def clean_duplicate(
@@ -160,6 +162,8 @@ async def get_articles(
                 message=f"获取文章列表失败: {str(e)}"
             )
         )
+    finally:
+        session.close()
 
 @router.get("/{article_id}", summary="获取文章详情")
 async def get_article_detail(
@@ -213,7 +217,9 @@ async def get_article_detail(
                 code=50001,
                 message=f"获取文章详情失败: {str(e)}"
             )
-        )   
+        )
+    finally:
+        session.close()
 
 # 更新文章请求模型
 class ArticleUpdateRequest(BaseModel):
@@ -330,6 +336,8 @@ async def delete_article(
                 message=f"删除文章失败: {str(e)}"
             )
         )
+    finally:
+        session.close()
 
 @router.get("/{article_id}/next", summary="获取下一篇文章")
 async def get_next_article(
@@ -377,6 +385,8 @@ async def get_next_article(
                 message=f"获取下一篇文章失败: {str(e)}"
             )
         )
+    finally:
+        session.close()
 
 @router.get("/{article_id}/prev", summary="获取上一篇文章")
 async def get_prev_article(
@@ -424,6 +434,8 @@ async def get_prev_article(
                 message=f"获取上一篇文章失败: {str(e)}"
             )
         )
+    finally:
+        session.close()
 
 @router.post("/{article_id}/fetch_content", summary="重新获取文章内容")
 async def fetch_article_content(
