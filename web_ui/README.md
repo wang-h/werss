@@ -1,4 +1,4 @@
-# 微信公众号订阅助手 - WebUI
+# 微信公众号热度分析系统 - WebUI
 
 基于 React + TypeScript + Vite 构建的现代化前端界面
 

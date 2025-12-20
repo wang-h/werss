@@ -17,7 +17,7 @@ const Navbar: React.FC = () => {
   const { t } = useTranslation()
   // 开发环境使用 public 目录下的文件，生产环境使用后端静态文件服务
   const logo = import.meta.env.DEV ? '/logo.svg' : '/static/logo.svg'
-  const appTitle = import.meta.env.VITE_APP_TITLE || '微信公众号订阅助手'
+  const appTitle = import.meta.env.VITE_APP_TITLE || '微信公众号热度分析系统'
 
   const menuItems = [
     {
