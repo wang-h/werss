@@ -150,18 +150,69 @@ async def update_mps(
                     data={"time_span":time_span}
                 )
         result=[]    
-        def UpArt(mp):
-            from core.wx import WxGather
-            wx=WxGather().Model()
-            wx.get_Articles(mp.faker_id,Mps_id=mp.id,Mps_title=mp.mp_name,CallBack=UpdateArticle,start_page=start_page,MaxPage=end_page)
-            result=wx.articles
+        error_info = {"error": None, "message": None}  # 用于存储线程中的错误信息
         import threading
-        threading.Thread(target=UpArt,args=(mp,)).start()
+        lock = threading.Lock()  # 用于保护共享数据
+        
+        def UpArt(mp):
+            try:
+                from core.wx import WxGather
+                wx=WxGather().Model()
+                wx.get_Articles(mp.faker_id,Mps_id=mp.id,Mps_title=mp.mp_name,CallBack=UpdateArticle,start_page=start_page,MaxPage=end_page)
+                # 使用锁保护共享数据
+                with lock:
+                    if wx.articles:
+                        result.extend(wx.articles)
+            except Exception as e:
+                # 捕获线程中的异常，避免线程崩溃
+                error_msg = str(e)
+                with lock:
+                    error_info["error"] = error_msg
+                    error_info["message"] = "更新公众号文章时发生错误"
+                import traceback
+                print(f"更新公众号文章线程异常: {error_msg}")
+                print(traceback.format_exc())
+        
+        thread = threading.Thread(target=UpArt, args=(mp,), name=f"UpArt-{mp_id}")
+        thread.daemon = True  # 设置为守护线程
+        thread.start()
+        thread.join(timeout=30)  # 等待最多30秒
+        
+        # 检查是否有错误
+        with lock:
+            if error_info["error"]:
+                error_msg = error_info["error"]
+                # 如果是会话失效错误，返回特定错误码
+                if "Invalid Session" in error_msg:
+                    return error_response(
+                        code=40101,
+                        message="微信公众平台登录已失效，请重新登录",
+                        data={"error": error_msg}
+                    )
+                else:
+                    return error_response(
+                        code=50001,
+                        message=error_info["message"] or "更新公众号文章失败",
+                        data={"error": error_msg}
+                    )
+        
+        # 检查线程是否还在运行（超时）
+        if thread.is_alive():
+            # 线程仍在运行，返回进行中的状态
+            return success_response({
+                "time_span": time_span,
+                "list": result,
+                "total": len(result),
+                "mps": mp,
+                "status": "processing",
+                "message": "文章更新正在进行中，请稍后查看"
+            })
+        
         return success_response({
-            "time_span":time_span,
-            "list":result,
-            "total":len(result),
-            "mps":mp
+            "time_span": time_span,
+            "list": result,
+            "total": len(result),
+            "mps": mp
         })
     except Exception as e:
         print(f"更新公众号文章: {str(e)}",e)

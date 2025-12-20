@@ -2,11 +2,12 @@
 from core.config import cfg
 import os
 import uuid
-import os
 import requests
 from urllib.parse import urlparse
-files_dir="data/files"
-avatar_dir=f"{files_dir}/avatars"
+
+# 使用绝对路径，确保在 Docker 容器中也能正确工作
+files_dir = os.path.abspath("data/files")
+avatar_dir = os.path.join(files_dir, "avatars")
 os.makedirs(avatar_dir, exist_ok=True)
 def save_avatar_locally(avatar_url):
     if not cfg.get("local_avatar",False):

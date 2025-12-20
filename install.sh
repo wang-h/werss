@@ -17,9 +17,9 @@ fi
 
 # 如果不需要使用系统 Python，则创建虚拟环境
 if [ "$USE_SYSTEM_PYTHON" = false ]; then
-    python3 -m venv $plant
-    source $plant/bin/activate
-    echo "使用虚拟环境: $plant"
+python3 -m venv $plant
+source $plant/bin/activate
+echo "使用虚拟环境: $plant"
 else
     echo "使用系统 Python（Docker 环境）"
 fi
@@ -84,7 +84,7 @@ chmod +x /app/environment.sh
 cat /app/environment.sh
 source /app/environment.sh
 if [ "$USE_SYSTEM_PYTHON" = false ]; then
-    echo "source /app/environment.sh
+echo "source /app/environment.sh
 source $plant/bin/activate">/etc/profile
 else
     echo "source /app/environment.sh">/etc/profile
@@ -101,17 +101,17 @@ if [ -f "requirements.txt" ]; then
     if [ "$USE_SYSTEM_PYTHON" = true ]; then
         echo "使用系统 Python，依赖已在构建时安装，跳过安装步骤"
     else
-        CURRENT_MD5=$(md5sum requirements.txt | cut -d' ' -f1)
-        OLD_MD5_FILE="$PLANT_PATH/requirements.txt.md5"
-        
-        if [ -f "$OLD_MD5_FILE" ] && [ "$CURRENT_MD5" = "$(cat $OLD_MD5_FILE)" ]; then
-            echo "requirements.txt未更新，跳过安装"
-        else
-            echo "使用 uv 安装requirements.txt依赖..."
-            # 优先使用 uv，如果失败则回退到 pip
-            uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple || \
-            pip3 install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
-            echo $CURRENT_MD5 > $OLD_MD5_FILE
+    CURRENT_MD5=$(md5sum requirements.txt | cut -d' ' -f1)
+    OLD_MD5_FILE="$PLANT_PATH/requirements.txt.md5"
+    
+    if [ -f "$OLD_MD5_FILE" ] && [ "$CURRENT_MD5" = "$(cat $OLD_MD5_FILE)" ]; then
+        echo "requirements.txt未更新，跳过安装"
+    else
+        echo "使用 uv 安装requirements.txt依赖..."
+        # 优先使用 uv，如果失败则回退到 pip
+        uv pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple || \
+        pip3 install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+        echo $CURRENT_MD5 > $OLD_MD5_FILE
         fi
     fi
 fi 

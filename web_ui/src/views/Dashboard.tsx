@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react'
+import React, { useState, useEffect, lazy, Suspense, ErrorInfo, Component } from 'react'
 import { getDashboardStats, type DashboardData, type SourceStats, type KeywordStats, type TrendData, type KeywordTrendData } from '@/api/dashboard'
 import { getArticles, type Article } from '@/api/article'
 import { getSubscriptions, type Subscription } from '@/api/subscription'
@@ -16,8 +16,55 @@ import { useTheme } from '@/store'
 const VChart = lazy(() => 
   import('@visactor/react-vchart').then(module => ({ 
     default: module.VChart 
-  }))
+  })).catch(error => {
+    console.error('VChart 加载失败:', error)
+    // 返回一个占位组件
+    return {
+      default: ({ spec, style }: any) => (
+        <div style={style} className="flex items-center justify-center text-muted-foreground">
+          <div className="text-center">
+            <div className="mb-2">图表加载失败</div>
+            <div className="text-sm">请刷新页面重试</div>
+          </div>
+        </div>
+      )
+    }
+  })
 )
+
+// 错误边界组件
+class ChartErrorBoundary extends Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean; error?: Error }
+> {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false }
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error }
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error('图表渲染错误:', error, errorInfo)
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || (
+        <div className="flex items-center justify-center h-[400px] text-muted-foreground">
+          <div className="text-center">
+            <div className="mb-2">图表渲染失败</div>
+            <div className="text-sm">请刷新页面重试</div>
+          </div>
+        </div>
+      )
+    }
+
+    return this.props.children
+  }
+}
 
 const Dashboard: React.FC = () => {
   const { theme } = useTheme()
@@ -545,15 +592,29 @@ const Dashboard: React.FC = () => {
                 )}
 
                 {/* 视图模式 2: 趋势图 */}
-                {keywordViewMode === 'chart' && keywordTrendData.length > 0 && topKeywords.length > 0 && (
-                  <div className="mt-6 h-[400px] animate-in fade-in slide-in-from-bottom-2 duration-300">
-                    <Suspense fallback={<div className="flex justify-center items-center h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
-                      <VChart 
-                        spec={keywordChartType === 'stack' ? getKeywordStackChartSpec(keywordTrendData, topKeywords) : getKeywordLineChartSpec(keywordTrendData, topKeywords)} 
-                        style={{ height: '400px' }} 
-                      />
-                    </Suspense>
-                  </div>
+                {keywordViewMode === 'chart' && (
+                  <>
+                    {keywordTrendData.length > 0 && topKeywords.length > 0 ? (
+                      <div className="mt-6 h-[400px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <ChartErrorBoundary>
+                          <Suspense fallback={<div className="flex justify-center items-center h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
+                            <VChart 
+                              spec={keywordChartType === 'stack' ? getKeywordStackChartSpec(keywordTrendData, topKeywords) : getKeywordLineChartSpec(keywordTrendData, topKeywords)} 
+                              style={{ height: '400px' }} 
+                            />
+                          </Suspense>
+                        </ChartErrorBoundary>
+                      </div>
+                    ) : (
+                      <div className="text-center text-muted-foreground py-10">
+                        {topKeywords.length === 0 ? (
+                          <div>暂无热门关键词数据，无法显示趋势图表</div>
+                        ) : (
+                          <div>暂无趋势数据，请等待数据采集完成后查看</div>
+                        )}
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             ) : (
