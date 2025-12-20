@@ -342,8 +342,7 @@ class CAAuth(object):
         # 将为每个域名生成的服务器证书，放到临时目录中
         cache_dir = gettempdir()
         root_dir = os.path.join(cache_dir, "baseproxy")
-        if not os.path.exists(root_dir):
-            os.makedirs(root_dir)
+        os.makedirs(root_dir, exist_ok=True)
 
         cnp = os.path.join(root_dir, "baseproxy_{}.pem".format(cn))
 

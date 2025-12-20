@@ -10,153 +10,78 @@ export default defineConfig(({ command, mode }) => {
     plugins: [
       react({
         jsxRuntime: 'automatic',
-      })
+      }),
     ],
     resolve: {
       alias: {
         "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
     },
-    // 基础路径配置
-    base: command === "serve" ? "/" : "/",
-    // 开发服务器配置
-    // 构建配置
+    base: "/",
+    
     build: {
       outDir: "dist",
       emptyOutDir: true,
       assetsDir: "assets",
-      // 启用代码分割和压缩
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 2000, // 调大警告阈值，因为我们合并了包
+      
+      // ⚠️ 关键修改 1: 降低构建目标版本
+      // 'esnext' 有时会导致 class 这里的初始化顺序问题，es2020 更稳健
+      target: 'es2020', 
+
       rollupOptions: {
+        // 处理循环依赖警告
+        onwarn(warning, warn) {
+          // 忽略循环依赖警告（这些通常不会影响功能）
+          if (warning.code === 'CIRCULAR_DEPENDENCY') {
+            return;
+          }
+          // 忽略动态导入警告（这些是预期的）
+          if (warning.message && warning.message.includes('dynamically imported')) {
+            return;
+          }
+          warn(warning);
+        },
         output: {
-          // 代码分割配置：将大型库单独打包
-          // 注意：顺序很重要，React 相关库必须最先处理，确保依赖关系正确
+          // ⚠️ 关键修改 2: 优化分包策略，解决循环依赖
           manualChunks: (id) => {
-            // 将 node_modules 中的大型库单独打包
             if (id.includes('node_modules')) {
-              // React 相关库单独打包（必须最先处理，确保其他库可以依赖它）
-              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) {
-                return 'react-vendor';
-              }
-              // Monaco Editor 单独打包（约 2-3MB）
+              // 1. 只把 Monaco Editor 拆出来 (它非常独立，拆分很安全)
               if (id.includes('monaco-editor') || id.includes('@monaco-editor')) {
-                return 'monaco-editor';
+                return 'monaco';
               }
-              // VChart 图表库单独打包（约 1-2MB）
-              if (id.includes('@visactor') || id.includes('vchart')) {
-                return 'vchart';
-              }
-              // Radix UI 组件库单独打包
-              if (id.includes('@radix-ui')) {
-                return 'radix-ui';
-              }
-              // 其他第三方库
+
+              // 2. ⚠️ 重点：不再单独拆分 vchart
+              // 将 vchart, react, radix 等全部归入 vendor。
+              // 这会增加 vendor.js 的体积，但能确保所有依赖在同一个闭包内按正确顺序执行。
               return 'vendor';
             }
+            // 3. 将 API 模块单独拆分，避免循环依赖
+            // 这样可以确保动态导入和静态导入都能正常工作
+            if (id.includes('/src/api/')) {
+              return 'api';
+            }
           },
-          // 优化 chunk 文件命名
+          inlineDynamicImports: false,
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash].[ext]',
         },
-        // 确保模块依赖关系正确
-        external: [],
-        // 优化模块解析顺序
-        preserveEntrySignatures: 'strict',
+      },
+      commonjsOptions: {
+        transformMixedEsModules: true,
       },
     },
+    
     server: {
       host: "0.0.0.0",
       port: 3000,
       proxy: {
-        "/static": {
-          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
-          changeOrigin: true,
-          secure: false,
-          ws: true,
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, req, res) => {
-              // 静默处理代理错误，避免中断开发服务器
-              // 只在非连接错误时显示（连接错误通常是后端服务器未启动）
-              if (err.code !== 'ECONNREFUSED') {
-                console.log(`[vite] proxy error: ${err.message}`);
-              }
-              // 对于连接错误，返回 404 而不是抛出异常
-              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end('Backend server not available');
-              }
-            });
-          },
-        },
-        "/files": {
-          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
-          changeOrigin: true,
-          secure: false,
-          ws: true,
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, req, res) => {
-              if (err.code !== 'ECONNREFUSED') {
-                console.log(`[vite] proxy error: ${err.message}`);
-              }
-              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end('Backend server not available');
-              }
-            });
-          },
-        },
-        "/rss": {
-          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
-          changeOrigin: true,
-          secure: false,
-          ws: true,
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, req, res) => {
-              if (err.code !== 'ECONNREFUSED') {
-                console.log(`[vite] proxy error: ${err.message}`);
-              }
-              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end('Backend server not available');
-              }
-            });
-          },
-        },
-        "/feed": {
-          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
-          changeOrigin: true,
-          secure: false,
-          ws: true,
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, req, res) => {
-              if (err.code !== 'ECONNREFUSED') {
-                console.log(`[vite] proxy error: ${err.message}`);
-              }
-              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end('Backend server not available');
-              }
-            });
-          },
-        },
-        "/api": {
-          target: env.VITE_API_BASE_URL || "http://127.0.0.1:8001",
-          changeOrigin: true,
-          secure: false,
-          ws: true,
-          configure: (proxy, _options) => {
-            proxy.on('error', (err, req, res) => {
-              if (err.code !== 'ECONNREFUSED') {
-                console.log(`[vite] proxy error: ${err.message}`);
-              }
-              if (err.code === 'ECONNREFUSED' && res && !res.headersSent) {
-                res.writeHead(404, { 'Content-Type': 'text/plain' });
-                res.end('Backend server not available');
-              }
-            });
-          },
-        },
+        "/static": createProxyTarget(env),
+        "/files": createProxyTarget(env),
+        "/rss": createProxyTarget(env),
+        "/feed": createProxyTarget(env),
+        "/api": createProxyTarget(env),
         "/test-results": {
           target: "http://localhost:3000",
           changeOrigin: true,
@@ -166,3 +91,27 @@ export default defineConfig(({ command, mode }) => {
     },
   };
 });
+
+/**
+ * 辅助函数：生成代理配置
+ */
+function createProxyTarget(env: Record<string, string>) {
+  const target = env.VITE_API_BASE_URL || "http://127.0.0.1:8001";
+  return {
+    target,
+    changeOrigin: true,
+    secure: false,
+    ws: true,
+    configure: (proxy: any, _options: any) => {
+      proxy.on('error', (err: any, req: any, res: any) => {
+        if (err?.code !== 'ECONNREFUSED') {
+          console.log(`[vite] proxy error: ${err?.message || err}`);
+        }
+        if (err?.code === 'ECONNREFUSED' && res && !res.headersSent) {
+          res.writeHead(404, { 'Content-Type': 'text/plain' });
+          res.end('Backend server not available (Proxy Error)');
+        }
+      });
+    },
+  };
+}

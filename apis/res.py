@@ -9,8 +9,7 @@ from core.config import cfg
 CACHE_DIR = cfg.get("cache.dir","data/cache")
 CACHE_TTL = 3600  # 缓存过期时间1小时
 
-if not os.path.exists(CACHE_DIR):
-    os.makedirs(CACHE_DIR)
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 router = APIRouter(prefix="/res", tags=["资源反向代理"])
 @router.api_route("/logo/{path:path}", methods=["GET", "HEAD", "POST", "PUT", "DELETE", "PATCH"], operation_id="reverse_proxy_logo")

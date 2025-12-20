@@ -35,8 +35,7 @@ class Wx:
         self.lock_path=os.path.dirname(self.lock_file_path)
         self.refresh_interval=3660*24
         self.controller=PlaywrightController()
-        if not os.path.exists(self.lock_path):
-            os.makedirs(self.lock_path)
+        os.makedirs(self.lock_path, exist_ok=True)
         self.Clean()
         self.release_lock()
         pass

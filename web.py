@@ -56,12 +56,19 @@ async def add_custom_header(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Version"] = VERSION
     response.headers["Server"] = cfg.get("app_name", "WeRSS")
-    # 为静态资源添加缓存控制头
-    if request.url.path.startswith(("/assets/", "/static/")):
+    # 为静态资源和 index.html 添加缓存控制头
+    path = request.url.path
+    if path.startswith(("/assets/", "/static/")) or path == "/" or (not path.startswith("/api/") and not path.startswith("/files/")):
         # 开发环境禁用缓存，生产环境可以设置较长的缓存时间
-        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
+        # 对于 index.html 和前端路由，必须禁用缓存，避免旧版本问题
+        if path == "/" or (not path.startswith("/assets/") and not path.startswith("/static/")):
+            # index.html 和前端路由：完全禁用缓存
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
+        else:
+            # 静态资源：可以缓存，但需要验证
+            response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
     return response
 # 创建API路由分组
 api_router = APIRouter(prefix=f"{API_BASE}")
@@ -113,33 +120,40 @@ app.include_router(resource_router)  # 处理 /static/res/logo/ 路径
 app.include_router(feeds_router)
 
 # 静态文件服务（支持 HEAD 方法，用于 wx_qrcode.png 等文件）
+# ⚠️ 关键：静态文件挂载必须在 API 路由之后，但在 catch-all 路由之前
+# FastAPI 的路由匹配顺序：include_router > mount > 普通路由
+from starlette.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse, Response
+from core.res.avatar import files_dir
+
+# 静态文件目录路径
+static_dir = os.path.join(os.path.dirname(__file__), "static")
+
+# 1. 挂载 assets 目录（前端构建后的 JS/CSS 文件）
+# 注意：必须在 /static 之前挂载，避免路径冲突
+assets_dir = os.path.join(static_dir, "assets")
+if os.path.exists(assets_dir):
+    app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+# 2. 挂载 static 目录（后端静态资源，如 logo.svg 等）
 # 注意：在 resource_router 之后挂载，这样 /static/res/logo/ 会被 resource_router 处理
 # 而其他 /static/ 路径（如 /static/wx_qrcode.png）会被静态文件服务处理
-# FastAPI 的路由匹配顺序：先匹配 include_router（精确匹配），再匹配 mount
-from starlette.staticfiles import StaticFiles
-from core.res.avatar import files_dir
-# 挂载 static 目录，支持 HEAD 方法检查文件是否存在
-static_dir = os.path.join(os.path.dirname(__file__), "static")
 if os.path.exists(static_dir):
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    # 挂载 assets 目录，因为前端构建后的文件路径是 /assets/...
-    assets_dir = os.path.join(static_dir, "assets")
-    if os.path.exists(assets_dir):
-        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
-# 用户上传文件服务（保留，因为这是业务功能，不是前端静态文件）
+
+# 3. 用户上传文件服务（保留，因为这是业务功能，不是前端静态文件）
 app.mount("/files", StaticFiles(directory=files_dir), name="files")
 
-# 根路由和前端路由 - 返回前端页面（SPA应用）
-@app.get("/",tags=['默认'],include_in_schema=False)
+# ⚠️ 关键：SPA 应用的兜底路由 - 必须在所有 mount 之后定义
+# 这个路由会捕获所有未匹配的路径，返回 index.html，让 React Router 接管路由
+@app.get("/", tags=['默认'], include_in_schema=False)
 async def serve_root(request: Request):
     """处理根路由 - 返回前端页面"""
     index_path = os.path.join(static_dir, "index.html")
     if os.path.exists(index_path):
-        from fastapi.responses import FileResponse
         return FileResponse(index_path)
     else:
         # 如果前端文件不存在，返回API信息
-        from fastapi.responses import JSONResponse
         return JSONResponse({
             "name": "WeRSS API",
             "version": VERSION,
@@ -148,15 +162,15 @@ async def serve_root(request: Request):
             "message": u"前端文件未找到，请先构建前端"
         })
 
-# SPA路由处理 - 对于前端路由返回index.html
-# 注意：不匹配 /api/, /static/, /files/ 路径
-@app.get("/{path:path}",tags=['默认'],include_in_schema=False)
-@app.head("/{path:path}",tags=['默认'],include_in_schema=False)
-async def catch_all(request: Request, path: str):
-    """捕获所有未匹配的路由 - SPA应用，返回前端页面"""
-    # 跳过API路径
-    if path.startswith("api/"):
-        from fastapi.responses import JSONResponse
+@app.get("/{catchall:path}", tags=['默认'], include_in_schema=False)
+@app.head("/{catchall:path}", tags=['默认'], include_in_schema=False)
+async def serve_react_app(request: Request, catchall: str):
+    """
+    捕获所有未匹配的路由 - SPA应用兜底路由
+    解决 React Router 在刷新页面时的 404 问题，避免递归循环
+    """
+    # 1. 跳过 API 路径（这些应该由 API 路由处理）
+    if catchall.startswith("api/"):
         return JSONResponse(
             status_code=404,
             content={
@@ -166,18 +180,17 @@ async def catch_all(request: Request, path: str):
             }
         )
     
-    # 跳过静态文件路径，这些路径应该由静态文件服务处理
-    if path.startswith("static/") or path.startswith("files/") or path.startswith("assets/"):
-        from fastapi.responses import Response
+    # 2. 跳过静态文件路径（这些应该由 StaticFiles 处理）
+    # 如果这些路径到达这里，说明静态文件不存在，返回 404
+    if catchall.startswith("static/") or catchall.startswith("files/") or catchall.startswith("assets/"):
         return Response(status_code=404)
     
-    # 对于其他路径（前端路由），返回index.html
+    # 3. 对于所有其他路径（前端路由），返回 index.html
+    # 让 React Router 在客户端处理路由
     index_path = os.path.join(static_dir, "index.html")
     if os.path.exists(index_path):
-        from fastapi.responses import FileResponse
         return FileResponse(index_path)
     else:
-        from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=404,
             content={

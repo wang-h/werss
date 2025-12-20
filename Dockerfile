@@ -33,9 +33,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # 安装Node.js（用于前端构建）
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
-    apt-get install -y --no-install-recommends nodejs && \
-    rm -rf /var/lib/apt/lists/*
+# 使用二进制安装方式（比 apt 安装快很多，不依赖外部仓库）
+# 使用国内镜像源加速下载（npmmirror.com）
+RUN NODE_VERSION=20.18.0 && \
+    ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then \
+        NODE_ARCH=x64; \
+    elif [ "$ARCH" = "arm64" ]; then \
+        NODE_ARCH=arm64; \
+    else \
+        NODE_ARCH=x64; \
+    fi && \
+    curl -fsSL https://registry.npmmirror.com/-/binary/node/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz | \
+    tar -xJ -C /usr/local --strip-components=1 && \
+    rm -rf /usr/local/{CHANGELOG.md,README.md,LICENSE,*.md,*.txt} && \
+    ln -sf /usr/local/bin/node /usr/bin/node && \
+    ln -sf /usr/local/bin/npm /usr/bin/npm && \
+    node --version && npm --version
 
 # 设置时区
 RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
@@ -72,8 +86,11 @@ RUN if [ -d "web_ui" ]; then \
         echo "直接使用 pnpm 构建前端..." && \
         pnpm install --frozen-lockfile && \
         pnpm build && \
+        echo "复制构建文件到 static 目录..." && \
         mkdir -p ../static && \
-        cp -rf dist/* ../static/; \
+        rm -rf ../static/* && \
+        cp -rf dist/* ../static/ && \
+        echo "构建文件已复制到 static 目录"; \
     fi && \
     cd .. && \
     rm -rf web_ui/node_modules web_ui/dist; \
@@ -81,7 +98,9 @@ RUN if [ -d "web_ui" ]; then \
 
 # 安装 Playwright 浏览器（Docker 环境默认安装）
 # 注意：Playwright 是 Python 包，需要先安装 Python 依赖
-ENV BROWSER_TYPE=${BROWSER_TYPE:-firefox}
+# 使用 ARG 接收构建参数，ENV 设置运行时环境变量
+ARG BROWSER_TYPE=firefox
+ENV BROWSER_TYPE=${BROWSER_TYPE}
 # PLAYWRIGHT_BROWSERS_PATH 在运行时由 install.sh 设置
 RUN python3 -m playwright install ${BROWSER_TYPE} --with-deps || \
     (echo "Playwright 浏览器安装失败，将在运行时安装" && true)
