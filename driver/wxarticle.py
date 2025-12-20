@@ -327,7 +327,11 @@ class WXArticleFetcher:
                 for img in content_element.locator("img").all()
                 if img.get_attribute("data-src") or img.get_attribute("src")
             ]
-            images=[]
+            
+            # 处理图片上传到MinIO
+            article_id = self.extract_id_from_url(url) or "unknown"
+            content = self.process_images_for_minio(content, article_id)
+            
             if images and len(images)>0:
                 info["pic_url"]=images[0]
 
@@ -411,6 +415,65 @@ class WXArticleFetcher:
             print_error(f"生成 PDF 失败: {str(e)}")
 
    
+    def process_images_for_minio(self, html_content: str, article_id: str) -> str:
+        """处理HTML内容中的图片，上传到MinIO并替换URL
+        
+        Args:
+            html_content: HTML内容
+            article_id: 文章ID
+            
+        Returns:
+            处理后的HTML内容
+        """
+        try:
+            from bs4 import BeautifulSoup
+            from core.storage.minio_client import MinIOClient
+            from core.log import logger
+            import re
+            
+            # 初始化MinIO客户端
+            minio_client = None
+            try:
+                minio_client = MinIOClient()
+            except Exception as e:
+                logger.warning(f"MinIO客户端初始化失败: {e}")
+                return html_content
+            
+            # 如果MinIO不可用，直接返回原内容
+            if not minio_client or not minio_client.is_available():
+                return html_content
+            
+            # 解析HTML
+            soup = BeautifulSoup(html_content, 'html.parser')
+            img_tags = soup.find_all('img')
+            
+            # 处理每个图片
+            for img_tag in img_tags:
+                # 获取图片URL
+                img_url = str(img_tag.get('data-src') or img_tag.get('src') or '')
+                if not img_url:
+                    continue
+                
+                # 尝试上传到MinIO
+                minio_url = minio_client.upload_image(img_url, article_id)
+                
+                if minio_url:
+                    # 替换为MinIO URL
+                    img_tag['src'] = minio_url
+                    if 'data-src' in img_tag.attrs:
+                        del img_tag['data-src']
+                    logger.info(f"图片已上传到MinIO: {img_url} -> {minio_url}")
+                else:
+                    # 如果上传失败，至少确保src可用
+                    if 'data-src' in img_tag.attrs:
+                        img_tag['src'] = img_tag['data-src']
+                        del img_tag['data-src']
+            
+            return str(soup)
+        except Exception as e:
+            logger.error(f"处理图片上传到MinIO失败: {e}")
+            return html_content
+    
     def clean_article_content(self,html_content: str):
         from tools.html import htmltools
         if not cfg.get("gather.clean_html",False):

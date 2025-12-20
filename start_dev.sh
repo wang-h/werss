@@ -191,6 +191,30 @@ start_backend() {
             export ARTICLE_TAG_AUTO_EXTRACT=$(grep "^ARTICLE_TAG_AUTO_EXTRACT=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         fi
         
+        # 显式导出 MinIO 相关环境变量
+        if grep -q "^MINIO_ENABLED=" .env 2>/dev/null; then
+            export MINIO_ENABLED=$(grep "^MINIO_ENABLED=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            echo -e "${GREEN}✅ 已加载 MINIO_ENABLED=${MINIO_ENABLED}${NC}"
+        fi
+        if grep -q "^MINIO_ENDPOINT=" .env 2>/dev/null; then
+            export MINIO_ENDPOINT=$(grep "^MINIO_ENDPOINT=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        if grep -q "^MINIO_ACCESS_KEY=" .env 2>/dev/null; then
+            export MINIO_ACCESS_KEY=$(grep "^MINIO_ACCESS_KEY=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        if grep -q "^MINIO_SECRET_KEY=" .env 2>/dev/null; then
+            export MINIO_SECRET_KEY=$(grep "^MINIO_SECRET_KEY=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        if grep -q "^MINIO_BUCKET=" .env 2>/dev/null; then
+            export MINIO_BUCKET=$(grep "^MINIO_BUCKET=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        if grep -q "^MINIO_SECURE=" .env 2>/dev/null; then
+            export MINIO_SECURE=$(grep "^MINIO_SECURE=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        if grep -q "^MINIO_PUBLIC_URL=" .env 2>/dev/null; then
+            export MINIO_PUBLIC_URL=$(grep "^MINIO_PUBLIC_URL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        fi
+        
         echo -e "${GREEN}✅ 环境变量已加载${NC}"
     fi
     

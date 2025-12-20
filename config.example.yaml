@@ -170,8 +170,8 @@ deepseek:
 
 # MinIO 对象存储配置（用于存储文章中的图片）
 minio:
-  # 是否启用MinIO图片上传功能，默认False
-  enabled: ${MINIO_ENABLED:-False}
+  # 是否启用MinIO图片上传功能，默认True
+  enabled: ${MINIO_ENABLED:-True}
   # MinIO服务地址，例如：localhost:9000 或 minio.example.com:9000
   endpoint: ${MINIO_ENDPOINT:-localhost:9000}
   # MinIO访问密钥
@@ -183,4 +183,4 @@ minio:
   # 是否使用HTTPS，默认False
   secure: ${MINIO_SECURE:-False}
   # 公开访问URL，用于生成图片访问链接，例如：http://localhost:9000 或 https://cdn.example.com
-  public_url: ${MINIO_PUBLIC_URL:-}
+  public_url: ${MINIO_PUBLIC_URL:-http://localhost:9000}
