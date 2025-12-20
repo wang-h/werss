@@ -113,7 +113,10 @@ const SubscriptionManagement: React.FC = () => {
       })
       
       // 成功情况（响应拦截器已经处理了 code === 0 的情况）
-      Message.success('刷新成功，正在更新文章...')
+      // 确保显示成功消息
+      setTimeout(() => {
+        Message.success('刷新成功，正在更新文章...')
+      }, 100)
       // 等待2秒后刷新订阅详情
       setTimeout(() => {
         loadSubscriptions()
