@@ -1,5 +1,11 @@
-import React, { useState, useEffect } from 'react'
-import { VChart } from '@visactor/react-vchart'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
+// 动态导入 VChart（体积较大，延迟加载以避免模块初始化顺序问题）
+// VChart 是命名导出，需要转换为默认导出以配合 React.lazy
+const VChart = lazy(() => 
+  import('@visactor/react-vchart').then(module => ({ 
+    default: module.VChart 
+  }))
+)
 import { getDashboardStats, type DashboardData, type SourceStats, type KeywordStats, type TrendData, type KeywordTrendData } from '@/api/dashboard'
 import { getArticles, type Article } from '@/api/article'
 import { getSubscriptions, type Subscription } from '@/api/subscription'
@@ -795,10 +801,16 @@ const Dashboard: React.FC = () => {
           </CardHeader>
           <CardContent>
             {sourceStats.length > 0 ? (
-              <VChart
-                spec={getSourceChartSpec(sourceStats)}
-                style={{ height: '320px' }}
-              />
+              <Suspense fallback={
+                <div className="flex justify-center items-center h-[320px]">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              }>
+                <VChart
+                  spec={getSourceChartSpec(sourceStats)}
+                  style={{ height: '320px' }}
+                />
+              </Suspense>
             ) : (
               <div className="flex justify-center items-center h-[320px] text-muted-foreground">
                 暂无数据
@@ -816,10 +828,16 @@ const Dashboard: React.FC = () => {
             {trendData.length > 0 && trendData.some(item => 
               Object.values(item.sources).some(count => count > 0)
             ) ? (
-              <VChart
-                spec={getTrendChartSpec(trendData)}
-                style={{ height: '320px' }}
-              />
+              <Suspense fallback={
+                <div className="flex justify-center items-center h-[320px]">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              }>
+                <VChart
+                  spec={getTrendChartSpec(trendData)}
+                  style={{ height: '320px' }}
+                />
+              </Suspense>
             ) : (
               <div className="flex justify-center items-center h-[320px] text-muted-foreground">
                 暂无数据
@@ -875,14 +893,20 @@ const Dashboard: React.FC = () => {
                 </div>
                 {keywordTrendData.length > 0 && topKeywords.length > 0 && (
                   <div className="mt-6 h-[400px]">
-                    <VChart
-                      spec={
-                        keywordChartType === 'stack'
-                          ? getKeywordStackChartSpec(keywordTrendData, topKeywords)
-                          : getKeywordLineChartSpec(keywordTrendData, topKeywords)
-                      }
-                      style={{ height: '400px' }}
-                    />
+                    <Suspense fallback={
+                      <div className="flex justify-center items-center h-[400px]">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    }>
+                      <VChart
+                        spec={
+                          keywordChartType === 'stack'
+                            ? getKeywordStackChartSpec(keywordTrendData, topKeywords)
+                            : getKeywordLineChartSpec(keywordTrendData, topKeywords)
+                        }
+                        style={{ height: '400px' }}
+                      />
+                    </Suspense>
                   </div>
                 )}
               </>
