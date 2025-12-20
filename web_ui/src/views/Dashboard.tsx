@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Statistic } from '@/components/extensions/statistic'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
-import { RadioGroup, Radio } from '@/components/extensions/radio-group'
+import { ButtonGroup } from '@/components/ui/button-group'
 import { Loader2, FileText, User, Calendar, Flame } from 'lucide-react'
 import { useTheme } from '@/store'
 
@@ -73,7 +73,7 @@ const Dashboard: React.FC = () => {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
   
   // 视图控制状态
-  const [keywordViewMode, setKeywordViewMode] = useState<'tags' | 'chart'>('tags')
+  const [keywordDateRange, setKeywordDateRange] = useState<7 | 30>(30) // 时间范围：7天或30天
   const [keywordChartType, setKeywordChartType] = useState<'stack' | 'line'>('stack')
 
   // 检测当前实际主题
@@ -209,19 +209,46 @@ const Dashboard: React.FC = () => {
         })
       })
 
+      // 基于所有数据生成关键词统计（用于标签视图）
       const keywordStats: KeywordStats[] = Array.from(keywordMap.entries())
         .map(([keyword, count]) => ({ keyword, count }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 20)
       
-      const topKeywords = keywordStats.slice(0, 10).map(k => k.keyword)
-      
-      const dateRange: string[] = []
+      // 生成所有可用的趋势数据（30天），后续根据选择的时间范围过滤
+      const dateRange30: string[] = []
       for (let i = 29; i >= 0; i--) {
-        dateRange.push(new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+        dateRange30.push(new Date(now.getTime() - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
       }
       
-      const keywordTrendData: KeywordTrendData[] = dateRange.map(date => {
+      // ⚠️ 关键修复：基于过去30天的趋势数据生成 topKeywords
+      // 这样确保图表中显示的关键词在过去30天内确实有出现
+      const trendKeywordMap = new Map<string, number>()
+      keywordTrendMap.forEach((dayMap) => {
+        dayMap.forEach((count, keyword) => {
+          trendKeywordMap.set(keyword, (trendKeywordMap.get(keyword) || 0) + count)
+        })
+      })
+      
+      // 基于趋势数据生成热门关键词（只包含过去30天内出现的关键词）
+      const trendKeywordStats = Array.from(trendKeywordMap.entries())
+        .map(([keyword, count]) => ({ keyword, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+      
+      let topKeywords = trendKeywordStats.map(k => k.keyword)
+      let usingFallback = false
+      
+      // 如果过去30天没有关键词数据，使用全局统计的前10个作为备选
+      if (topKeywords.length === 0 && keywordStats.length > 0) {
+        console.warn('过去30天没有关键词数据，使用全局统计')
+        const fallbackKeywords = keywordStats.slice(0, 10).map(k => k.keyword)
+        topKeywords = fallbackKeywords
+        usingFallback = true
+      }
+      
+      // 生成完整的30天趋势数据
+      const keywordTrendData30: KeywordTrendData[] = dateRange30.map(date => {
         const dayKeywords = keywordTrendMap.get(date) || new Map()
         const keywords: { [key: string]: number } = {}
         topKeywords.forEach(keyword => {
@@ -231,13 +258,32 @@ const Dashboard: React.FC = () => {
       })
       
       // 调试信息：检查数据是否正确生成
-      if (keywordTrendData.length > 0 && topKeywords.length > 0) {
-        console.log('关键词趋势数据已生成:', {
-          dateRange: dateRange.length,
-          topKeywords: topKeywords.length,
-          keywordTrendDataLength: keywordTrendData.length,
-          sampleData: keywordTrendData[0]
+      if (keywordTrendData30.length > 0 && topKeywords.length > 0) {
+        // 检查是否有实际数据
+        const hasActualData = keywordTrendData30.some(item => 
+          topKeywords.some(keyword => (item.keywords[keyword] || 0) > 0)
+        )
+        
+        // 统计每个关键词的总出现次数
+        const keywordTotals: { [key: string]: number } = {}
+        topKeywords.forEach(keyword => {
+          keywordTotals[keyword] = keywordTrendData30.reduce((sum, item) => sum + (item.keywords[keyword] || 0), 0)
         })
+        
+        console.log('关键词趋势数据已生成:', {
+          dateRange: dateRange30.length,
+          topKeywords: topKeywords.length,
+          keywordTrendDataLength: keywordTrendData30.length,
+          hasActualData,
+          keywordTotals,
+          sampleData: keywordTrendData30[0],
+          trendKeywordStatsCount: trendKeywordStats.length,
+          globalKeywordStatsCount: keywordStats.length
+        })
+        
+        if (!hasActualData) {
+          console.warn('⚠️ 警告：过去30天内没有关键词出现，图表将显示为空')
+        }
       }
 
       // 趋势统计
@@ -281,8 +327,13 @@ const Dashboard: React.FC = () => {
         sourceStats,
         keywordStats,
         trendData,
-        keywordTrendData
-      })
+        keywordTrendData: keywordTrendData30, // 存储完整的30天数据
+        // 保存额外信息用于渲染判断
+        _meta: {
+          topKeywords,
+          usingFallback
+        }
+      } as any)
     } catch (err) {
       console.error('计算统计数据失败:', err)
       throw err
@@ -391,6 +442,9 @@ const Dashboard: React.FC = () => {
   }
 
   const getKeywordStackChartSpec = (keywordTrendData: KeywordTrendData[], topKeywords: string[]) => {
+    // #region agent log
+    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:448',message:'getKeywordStackChartSpec - entry',data:{keywordTrendDataLength:keywordTrendData.length,topKeywordsLength:topKeywords.length,topKeywords:topKeywords.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C,D'})}).catch(()=>{});
+    // #endregion
     const dark = isDarkMode()
     const textColor = dark ? '#E5E7EB' : '#374151'
     const gridColor = dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
@@ -399,13 +453,35 @@ const Dashboard: React.FC = () => {
       date: item.date, keyword, count: item.keywords[keyword] || 0
     })))
 
-    // 确保有数据才渲染图表
-    if (chartData.length === 0) {
-      console.warn('关键词图表数据为空')
+    // #region agent log
+    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:456',message:'getKeywordStackChartSpec - chartData generated',data:{chartDataLength:chartData.length,sampleData:chartData.slice(0,3),maxCount:Math.max(...chartData.map(d=>d.count),0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+
+    // 检查是否有实际数据（至少有一个 count > 0）
+    const hasData = chartData.some(item => item.count > 0)
+    // #region agent log
+    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:460',message:'getKeywordStackChartSpec - hasData check',data:{hasData,chartDataLength:chartData.length,nonZeroCounts:chartData.filter(d=>d.count>0).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
+    if (!hasData) {
+      console.warn('关键词图表数据为空或全为0:', {
+        chartDataLength: chartData.length,
+        topKeywords,
+        sampleData: chartData.slice(0, 5)
+      })
+      // #region agent log
+      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:465',message:'getKeywordStackChartSpec - returning null (no data)',data:{chartDataLength:chartData.length,topKeywordsLength:topKeywords.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       return null
     }
+    
+    console.log('关键词堆叠图配置:', {
+      dataPoints: chartData.length,
+      dates: keywordTrendData.length,
+      keywords: topKeywords.length,
+      hasData
+    })
 
-    return {
+    const spec = {
       type: 'bar',
       background: 'transparent',
       data: { values: chartData },
@@ -434,7 +510,23 @@ const Dashboard: React.FC = () => {
           label: { 
             visible: true, 
             style: { fontSize: 10, angle: -45, fill: textColor },
-            formatMethod: (v: string, i: number) => i % 5 === 0 ? v : ''
+            formatMethod: (v: string, i: number) => {
+              // 根据数据点数量动态调整显示策略
+              const total = keywordTrendData.length
+              if (total <= 7) {
+                // 7天或更少：显示所有日期
+                return v
+              } else if (total <= 14) {
+                // 14天或更少：每2个显示一个
+                return i % 2 === 0 ? v : ''
+              } else if (total <= 30) {
+                // 30天或更少：每3个显示一个
+                return i % 3 === 0 ? v : ''
+              } else {
+                // 超过30天：每5个显示一个
+                return i % 5 === 0 ? v : ''
+              }
+            }
           }
         },
         {
@@ -453,6 +545,10 @@ const Dashboard: React.FC = () => {
         item: { label: { style: { fill: textColor, fontSize: 12 } } } 
       }
     }
+    // #region agent log
+    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:540',message:'getKeywordStackChartSpec - returning spec',data:{specType:spec.type,hasData:true,chartDataLength:chartData.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
+    return spec
   }
 
   const getKeywordLineChartSpec = (keywordTrendData: KeywordTrendData[], topKeywords: string[]) => {
@@ -464,11 +560,23 @@ const Dashboard: React.FC = () => {
       date: item.date, keyword, count: item.keywords[keyword] || 0
     })))
 
-    // 确保有数据才渲染图表
-    if (chartData.length === 0) {
-      console.warn('关键词折线图数据为空')
+    // 检查是否有实际数据（至少有一个 count > 0）
+    const hasData = chartData.some(item => item.count > 0)
+    if (!hasData) {
+      console.warn('关键词折线图数据为空或全为0:', {
+        chartDataLength: chartData.length,
+        topKeywords,
+        sampleData: chartData.slice(0, 5)
+      })
       return null
     }
+    
+    console.log('关键词折线图配置:', {
+      dataPoints: chartData.length,
+      dates: keywordTrendData.length,
+      keywords: topKeywords.length,
+      hasData
+    })
 
     return {
       type: 'line',
@@ -499,7 +607,23 @@ const Dashboard: React.FC = () => {
           label: { 
             visible: true, 
             style: { fontSize: 10, angle: -45, fill: textColor },
-            formatMethod: (v: string, i: number) => i % 5 === 0 ? v : ''
+            formatMethod: (v: string, i: number) => {
+              // 根据数据点数量动态调整显示策略
+              const total = keywordTrendData.length
+              if (total <= 7) {
+                // 7天或更少：显示所有日期
+                return v
+              } else if (total <= 14) {
+                // 14天或更少：每2个显示一个
+                return i % 2 === 0 ? v : ''
+              } else if (total <= 30) {
+                // 30天或更少：每3个显示一个
+                return i % 3 === 0 ? v : ''
+              } else {
+                // 超过30天：每5个显示一个
+                return i % 5 === 0 ? v : ''
+              }
+            }
           }
         },
         {
@@ -538,12 +662,21 @@ const Dashboard: React.FC = () => {
     )
   }
 
-  const { stats, sourceStats, keywordStats, trendData, keywordTrendData = [] } = dashboardData || {
+  const { stats, sourceStats, keywordStats, trendData, keywordTrendData: keywordTrendData30 = [] } = dashboardData || {
     stats: { totalArticles: 0, totalSources: 0, todayArticles: 0, weekArticles: 0 },
     sourceStats: [], keywordStats: [], trendData: [], keywordTrendData: []
   }
 
-  const topKeywords = keywordStats.slice(0, 10).map(k => k.keyword)
+  // 从元数据中获取 topKeywords，如果没有则使用全局统计的前10个作为备选
+  const meta = (dashboardData as any)?._meta
+  const topKeywords = meta?.topKeywords || keywordStats.slice(0, 10).map(k => k.keyword)
+  
+  // 根据选择的时间范围过滤趋势数据
+  const keywordTrendData = keywordTrendData30.slice(-keywordDateRange)
+  
+  // #region agent log
+  fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:648',message:'Dashboard render - data check',data:{hasDashboardData:!!dashboardData,keywordTrendData30Length:keywordTrendData30.length,keywordTrendDataLength:keywordTrendData.length,keywordDateRange,topKeywordsLength:topKeywords.length,topKeywords,keywordStatsLength:keywordStats.length,hasMeta:!!meta,usingFallback:meta?.usingFallback},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'A,B'})}).catch(()=>{});
+  // #endregion
 
   return (
     <div className="p-6">
@@ -612,16 +745,32 @@ const Dashboard: React.FC = () => {
           <CardHeader>
             <div className="flex justify-between items-center w-full">
               <CardTitle className="text-base font-semibold">热门关键词</CardTitle>
-              <div className="flex gap-2">
-                <RadioGroup value={keywordViewMode} onValueChange={(v: string) => setKeywordViewMode(v as any)} type="button" size="small">
-                  <Radio value="tags" button size="small">标签视图</Radio>
-                  <Radio value="chart" button size="small">趋势图表</Radio>
-                </RadioGroup>
-                {keywordViewMode === 'chart' && keywordTrendData.length > 0 && (
-                  <RadioGroup value={keywordChartType} onValueChange={(v: string) => setKeywordChartType(v as any)} type="button" size="small">
-                    <Radio value="stack" button size="small">堆叠柱状图</Radio>
-                    <Radio value="line" button size="small">折线图</Radio>
-                  </RadioGroup>
+              <div className="flex gap-3 items-center">
+                <ButtonGroup
+                  value={keywordDateRange.toString()}
+                  onValueChange={(v: string) => {
+                    const newRange = parseInt(v) as 7 | 30;
+                    // #region agent log
+                    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:717',message:'Date range changed',data:{oldRange:keywordDateRange,newRange},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'G'})}).catch(()=>{});
+                    // #endregion
+                    setKeywordDateRange(newRange);
+                  }}
+                  options={[
+                    { value: "7", label: "一周" },
+                    { value: "30", label: "三十天" }
+                  ]}
+                  size="sm"
+                />
+                {keywordTrendData.length > 0 && (
+                  <ButtonGroup
+                    value={keywordChartType}
+                    onValueChange={(v: string) => setKeywordChartType(v as any)}
+                    options={[
+                      { value: "stack", label: "堆叠柱状图" },
+                      { value: "line", label: "折线图" }
+                    ]}
+                    size="sm"
+                  />
                 )}
               </div>
             </div>
@@ -629,33 +778,75 @@ const Dashboard: React.FC = () => {
           <CardContent>
             {keywordStats.length > 0 ? (
               <>
-                {/* 视图模式 1: 标签云 */}
-                {keywordViewMode === 'tags' && (
-                  <div className="mb-5 flex flex-wrap gap-3 animate-in fade-in zoom-in duration-300">
-                    {keywordStats.slice(0, 20).map((item, index) => (
-                      <Badge key={index} variant={index < 3 ? "default" : "secondary"} className="text-sm px-4 py-2 font-normal">
-                        {item.keyword} ({item.count})
-                      </Badge>
-                    ))}
-                  </div>
-                )}
+                {/* 标签云 - 始终显示 */}
+                <div className="mb-5 flex flex-wrap gap-3 animate-in fade-in zoom-in duration-300">
+                  {keywordStats.slice(0, 20).map((item, index) => (
+                    <Badge key={index} variant={index < 3 ? "default" : "secondary"} className="text-sm px-4 py-2 font-normal">
+                      {item.keyword} ({item.count})
+                    </Badge>
+                  ))}
+                </div>
 
-                {/* 视图模式 2: 趋势图 */}
-                {keywordViewMode === 'chart' && (
+                {/* 趋势图 - 始终显示 */}
+                {(() => {
+                  // #region agent log
+                  fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:765',message:'Chart section - render check',data:{keywordTrendDataExists:!!keywordTrendData,keywordTrendDataLength:keywordTrendData?.length||0,keywordDateRange,topKeywordsExists:!!topKeywords,topKeywordsLength:topKeywords?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'F'})}).catch(()=>{});
+                  // #endregion
+                  return null;
+                })()}
+                {(
                   <>
                     {keywordTrendData && keywordTrendData.length > 0 && topKeywords && topKeywords.length > 0 ? (() => {
-                      const chartSpec = keywordChartType === 'stack' 
-                        ? getKeywordStackChartSpec(keywordTrendData, topKeywords) 
-                        : getKeywordLineChartSpec(keywordTrendData, topKeywords)
+                      // 检查是否有实际数据
+                      const hasActualData = keywordTrendData.some(item => 
+                        topKeywords.some((keyword: string) => (item.keywords[keyword] || 0) > 0)
+                      )
                       
-                      if (!chartSpec) {
+                      // 获取元数据（如果存在）
+                      const meta = (dashboardData as any)?._meta
+                      const usingFallback = meta?.usingFallback || false
+                      
+                      // #region agent log
+                      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:730',message:'Chart render - data validation',data:{hasActualData,usingFallback,keywordChartType,willShowChart:hasActualData||usingFallback},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                      // #endregion
+                      
+                      // 如果使用了备选关键词且没有实际数据，仍然显示图表（即使数据为0）
+                      // 这样用户至少能看到图表结构，知道系统在工作
+                      if (!hasActualData && !usingFallback) {
+                        // #region agent log
+                        fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:736',message:'Chart render - early return no data',data:{hasActualData,usingFallback},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                        // #endregion
                         return (
                           <div className="text-center text-muted-foreground py-10">
-                            <div>图表配置生成失败，请检查数据</div>
+                            <div>暂无趋势数据，关键词在过去30天内没有出现</div>
+                            <div className="text-sm mt-2">请等待数据采集完成后查看</div>
                           </div>
                         )
                       }
                       
+                      const chartSpec = keywordChartType === 'stack' 
+                        ? getKeywordStackChartSpec(keywordTrendData, topKeywords) 
+                        : getKeywordLineChartSpec(keywordTrendData, topKeywords)
+                      
+                      // #region agent log
+                      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:748',message:'Chart render - spec generation',data:{chartSpecExists:!!chartSpec,keywordChartType,keywordTrendDataLength:keywordTrendData.length,topKeywordsLength:topKeywords.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                      // #endregion
+                      
+                      if (!chartSpec) {
+                        // #region agent log
+                        fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:752',message:'Chart render - spec is null',data:{keywordChartType,keywordTrendDataLength:keywordTrendData.length,topKeywordsLength:topKeywords.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                        // #endregion
+                        return (
+                          <div className="text-center text-muted-foreground py-10">
+                            <div>图表配置生成失败，请检查数据</div>
+                            <div className="text-sm mt-2">数据: {keywordTrendData.length} 天, {topKeywords.length} 个关键词</div>
+                          </div>
+                        )
+                      }
+                      
+                      // #region agent log
+                      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:760',message:'Chart render - rendering VChart',data:{chartSpecType:chartSpec.type,hasSpec:!!chartSpec},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                      // #endregion
                       return (
                         <div className="mt-6 h-[400px] animate-in fade-in slide-in-from-bottom-2 duration-300">
                           <ChartErrorBoundary>
@@ -663,20 +854,33 @@ const Dashboard: React.FC = () => {
                               <VChart 
                                 spec={chartSpec} 
                                 style={{ height: '400px', width: '100%' }} 
+                                onError={(error: any) => {
+                                  // #region agent log
+                                  fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:768',message:'VChart render error',data:{error:error?.message||String(error),errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
+                                  // #endregion
+                                  console.error('VChart 渲染错误:', error)
+                                }}
                               />
                             </Suspense>
                           </ChartErrorBoundary>
                         </div>
                       )
-                    })() : (
-                      <div className="text-center text-muted-foreground py-10">
-                        {!topKeywords || topKeywords.length === 0 ? (
-                          <div>暂无热门关键词数据，无法显示趋势图表</div>
-                        ) : (
-                          <div>暂无趋势数据，请等待数据采集完成后查看</div>
-                        )}
-                      </div>
-                    )}
+                    })() : (() => {
+                      // #region agent log
+                      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:775',message:'Chart render - condition not met',data:{keywordTrendDataExists:!!keywordTrendData,keywordTrendDataLength:keywordTrendData?.length||0,topKeywordsExists:!!topKeywords,topKeywordsLength:topKeywords?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
+                      // #endregion
+                      return (
+                        <div className="text-center text-muted-foreground py-10">
+                          {!topKeywords || topKeywords.length === 0 ? (
+                            <div>暂无热门关键词数据，无法显示趋势图表</div>
+                          ) : !keywordTrendData || keywordTrendData.length === 0 ? (
+                            <div>暂无趋势数据，请等待数据采集完成后查看</div>
+                          ) : (
+                            <div>数据加载中...</div>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </>
                 )}
               </>

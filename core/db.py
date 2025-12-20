@@ -299,7 +299,7 @@ class Db:
             
             # ========== 自动提取标签 ==========
             try:
-                # 基于文章内容自动提取标签（会自动创建新标签）
+                # 基于文章内容自动提取标签（会自动创建新标签） 
                 auto_extract_enabled = cfg.get("article_tag.auto_extract", True)
                 print_info(f"🔍 标签提取配置: auto_extract={auto_extract_enabled}")
                 
@@ -465,8 +465,8 @@ class Db:
             import uuid
             from datetime import datetime
             
-            # 获取提取方式
-            extract_method = cfg.get("article_tag.extract_method", "textrank")
+            # 获取提取方式（默认使用 AI，与配置文件保持一致）
+            extract_method = cfg.get("article_tag.extract_method", "ai")
             
             # 使用全局单例提取器（模型常驻内存）
             from core.tag_extractor import get_tag_extractor

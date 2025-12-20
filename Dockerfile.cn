@@ -15,7 +15,9 @@ RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debia
     echo "deb http://mirrors.aliyun.com/debian-security/ bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list
 
 # 安装系统依赖
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# 配置 procps 不尝试应用 sysctl 配置（避免 Docker 容器中的权限警告）
+RUN echo 'procps procps/apply_sysctl boolean false' | debconf-set-selections && \
+    apt-get update && apt-get install -y --no-install-recommends \
     wget \
     git \
     build-essential \

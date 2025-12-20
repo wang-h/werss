@@ -153,7 +153,20 @@ class Config:
                     def replace_match(match):
                         var_name = match.group(1)
                         default_value = match.group(2)
-                        return os.getenv(var_name, default_value) if default_value is not None else os.getenv(var_name, '')
+                        # 环境变量名不能包含点号，所以将点号转换为下划线
+                        # 先尝试原始名称（支持直接使用下划线的环境变量）
+                        env_value = os.getenv(var_name)
+                        if env_value is None:
+                            # 如果原始名称不存在，尝试将点号转换为下划线
+                            env_var_name = var_name.replace('.', '_')
+                            env_value = os.getenv(env_var_name)
+                        # 如果环境变量存在，使用环境变量的值；否则使用默认值
+                        if env_value is not None:
+                            return env_value
+                        elif default_value is not None:
+                            return default_value
+                        else:
+                            return ''
                     return pattern.sub(replace_match, data)
                 except:
                     return data
