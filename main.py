@@ -1,6 +1,7 @@
 import uvicorn
 from core.config import cfg
 from core.print import print_warning, print_info
+from core.debug_log import clear_debug_log
 import threading
 import os
 
@@ -51,6 +52,9 @@ def print_database_source():
     print_info(f"数据库连接: {display_value}")
 
 if __name__ == '__main__':
+    # 清空debug日志文件
+    clear_debug_log()
+    
     # 确保数据库表存在（无论是否传递 -init 参数）
     from core.db import DB
     try:

@@ -332,17 +332,44 @@ class WXArticleFetcher:
             article_id = self.extract_id_from_url(url) or "unknown"
             content = self.process_images_for_minio(content, article_id)
             
-            if images and len(images)>0:
-                info["pic_url"]=images[0]
+            # 处理封面图片上传到MinIO
+            try:
+                from core.storage.minio_client import MinIOClient
+                minio_client = MinIOClient()
+                
+                # 优先使用 topic_image，如果没有则使用正文第一张图片
+                cover_image_url = topic_image if topic_image else (images[0] if images and len(images) > 0 else None)
+                
+                if cover_image_url and minio_client.is_available():
+                    minio_cover_url = minio_client.upload_image(cover_image_url, article_id)
+                    if minio_cover_url:
+                        info["pic_url"] = minio_cover_url
+                        if topic_image:
+                            info["topic_image"] = minio_cover_url
+                        print_info(f"封面图片已上传到MinIO: {cover_image_url} -> {minio_cover_url}")
+                    else:
+                        # 上传失败，使用原始URL
+                        info["pic_url"] = cover_image_url
+                        if topic_image:
+                            info["topic_image"] = topic_image
+                else:
+                    # MinIO不可用或没有封面图，使用原始URL
+                    if images and len(images)>0:
+                        info["pic_url"]=images[0]
+            except Exception as e:
+                from core.print import print_warning
+                print_warning(f"处理封面图片失败: {e}")
+                # 失败时使用原始图片
+                if images and len(images)>0:
+                    info["pic_url"]=images[0]
 
 
             try:
-
                 #获取发布时间
                 publish_time_str = page.locator("#publish_time").text_content().strip()
                 # 将发布时间转换为时间戳
                 publish_time = self.convert_publish_time_to_timestamp(publish_time_str)
-            except:
+            except Exception as e:
                 print_warning(f"获取作者和发布时间失败: {e}")
                 publish_time=""
             info["title"]=title
@@ -351,7 +378,9 @@ class WXArticleFetcher:
             info["images"]=images
             info["author"]=author
             info["description"]=description
-            info["topic_image"]=topic_image
+            # topic_image 已在封面图片处理中设置（如果上传成功）
+            if "topic_image" not in info:
+                info["topic_image"]=topic_image
 
         except Exception as e:
             print_error(f"文章内容获取失败: {str(e)}")
@@ -448,6 +477,8 @@ class WXArticleFetcher:
             img_tags = soup.find_all('img')
             
             # 处理每个图片
+            uploaded_count = 0
+            failed_count = 0
             for img_tag in img_tags:
                 # 获取图片URL
                 img_url = str(img_tag.get('data-src') or img_tag.get('src') or '')
@@ -463,11 +494,13 @@ class WXArticleFetcher:
                     if 'data-src' in img_tag.attrs:
                         del img_tag['data-src']
                     logger.info(f"图片已上传到MinIO: {img_url} -> {minio_url}")
+                    uploaded_count += 1
                 else:
                     # 如果上传失败，至少确保src可用
                     if 'data-src' in img_tag.attrs:
                         img_tag['src'] = img_tag['data-src']
                         del img_tag['data-src']
+                    failed_count += 1
             
             return str(soup)
         except Exception as e:

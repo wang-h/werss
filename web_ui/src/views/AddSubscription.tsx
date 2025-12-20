@@ -231,7 +231,7 @@ const AddSubscription: React.FC = () => {
   const avatarUrl = avatar ? AvatarUtil(avatar) : '/static/default-avatar.png'
 
   return (
-    <div className="p-5 max-w-[800px] mx-auto">
+    <div className="p-5 max-w-[1200px] mx-auto">
       <PageHeader
         title="添加订阅"
         subTitle="添加新的公众号订阅"
@@ -265,7 +265,7 @@ const AddSubscription: React.FC = () => {
                 value={articleLink}
                 onChange={(e) => setArticleLink(e.target.value)}
                 placeholder="请输入一个公众号文章链接地址"
-                className="max-w-[300px]"
+                className="max-w-[500px]"
               />
               <Button onClick={handleGetMpInfo} disabled={isFetching}>
                 {isFetching ? '获取中...' : '获取'}
@@ -301,7 +301,7 @@ const AddSubscription: React.FC = () => {
                             handleSelect(item)
                           }
                         }}
-                        className="max-w-[300px]"
+                        className="max-w-[500px]"
                       />
                     </FormControl>
                     <FormMessage />
@@ -349,7 +349,7 @@ const AddSubscription: React.FC = () => {
                   <FormItem>
                     <FormLabel>公众号ID</FormLabel>
                     <FormControl>
-                      <div className="relative max-w-[300px]">
+                      <div className="relative max-w-[500px]">
                         <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           {...field}
@@ -378,7 +378,7 @@ const AddSubscription: React.FC = () => {
                         {...field}
                         placeholder="请输入公众号描述"
                         rows={3}
-                        className="max-w-[500px]"
+                        className="max-w-[700px]"
                       />
                     </FormControl>
                     <FormDescription>最多200个字符</FormDescription>

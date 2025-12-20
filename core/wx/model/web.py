@@ -46,6 +46,7 @@ class MpsWeb(WxGather):
                     logger.warning(f"MinIO客户端初始化失败: {e}")
                 
                 # 遍历每个img标签并处理图片
+                uploaded_count = 0
                 for img_tag in img_tags:
                     # 获取图片URL
                     img_url = str(img_tag.get('data-src') or img_tag.get('src') or '')
@@ -63,6 +64,7 @@ class MpsWeb(WxGather):
                         if hasattr(img_tag, 'attrs') and 'data-src' in img_tag.attrs:
                             del img_tag['data-src']  # type: ignore
                         logger.info(f"图片已上传到MinIO: {img_url} -> {minio_url}")
+                        uploaded_count += 1
                     else:
                         # 如果上传失败，至少确保src可用
                         if hasattr(img_tag, 'attrs') and 'data-src' in img_tag.attrs:

@@ -46,6 +46,16 @@ class MinIOClient:
         self.secure = cfg.get("minio.secure", False)
         self.public_url = cfg.get("minio.public_url", "")
         self.enabled = cfg.get("minio.enabled", False)
+        # 是否使用 presigned URL（如果 bucket 不是公开的，设置为 True）
+        self.use_presigned_url = cfg.get("minio.use_presigned_url", False)
+        
+        # 清理 endpoint：移除协议前缀和路径（MinIO 客户端只接受 host:port 格式）
+        if self.endpoint:
+            # 移除 http:// 或 https:// 前缀
+            self.endpoint = self.endpoint.replace('http://', '').replace('https://', '')
+            # 移除路径部分（如果有）
+            if '/' in self.endpoint:
+                self.endpoint = self.endpoint.split('/')[0]
         
         # 如果未启用或配置不完整，则不初始化客户端
         if not self.enabled or not self.endpoint or not self.access_key or not self.secret_key:
@@ -66,6 +76,9 @@ class MinIOClient:
             if not self.client.bucket_exists(self.bucket_name):
                 self.client.make_bucket(self.bucket_name)
                 print_success(f"创建MinIO bucket: {self.bucket_name}")
+                if not self.use_presigned_url:
+                    print_warning(f"⚠️  提示：如果bucket {self.bucket_name} 未设置为公开读取，请在MinIO管理界面设置bucket策略，或配置 use_presigned_url: true 使用临时访问链接")
+            
             self._initialized = True
             print_success(f"MinIO客户端初始化成功: {self.endpoint}/{self.bucket_name}")
         except Exception as e:
@@ -127,12 +140,40 @@ class MinIOClient:
             )
             
             # 返回MinIO的访问URL
-            if self.public_url:
-                minio_url = f"{self.public_url.rstrip('/')}/{self.bucket_name}/{object_name}"
-            else:
-                # 如果没有配置public_url，使用endpoint构建
-                protocol = "https" if self.secure else "http"
-                minio_url = f"{protocol}://{self.endpoint}/{self.bucket_name}/{object_name}"
+            minio_url = None
+            
+            # 如果配置了使用 presigned URL，生成临时访问链接（7天有效期）
+            if self.use_presigned_url:
+                try:
+                    from datetime import timedelta
+                    # 生成 presigned URL（7天有效期）
+                    minio_url = self.client.presigned_get_object(
+                        self.bucket_name,
+                        object_name,
+                        expires=timedelta(days=7)
+                    )
+                except Exception as presigned_error:
+                    print_warning(f"生成presigned URL失败，使用直接URL: {presigned_error}")
+                    # 回退到直接URL
+                    minio_url = None
+            
+            # 如果未使用 presigned URL 或生成失败，使用直接访问URL
+            if not minio_url:
+                # 优先使用 public_url，如果没有配置则使用 endpoint
+                if self.public_url:
+                    # 清理 public_url：移除末尾的斜杠
+                    public_url_clean = str(self.public_url).rstrip('/')
+                    # 如果 public_url 以 bucket 名称结尾，说明已经包含 bucket
+                    if public_url_clean.endswith(f'/{self.bucket_name}') or public_url_clean.endswith(self.bucket_name):
+                        # public_url 已经包含 bucket，直接拼接 object_name
+                        minio_url = f"{public_url_clean}/{object_name}"
+                    else:
+                        # public_url 不包含 bucket，需要拼接
+                        minio_url = f"{public_url_clean}/{self.bucket_name}/{object_name}"
+                else:
+                    # 如果没有配置public_url，使用endpoint构建
+                    protocol = "https" if self.secure else "http"
+                    minio_url = f"{protocol}://{self.endpoint}/{self.bucket_name}/{object_name}"
             
             print_info(f"图片上传成功: {image_url} -> {minio_url}")
             return minio_url

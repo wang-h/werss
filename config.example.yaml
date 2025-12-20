@@ -184,3 +184,7 @@ minio:
   secure: ${MINIO_SECURE:-False}
   # 公开访问URL，用于生成图片访问链接，例如：http://localhost:9000 或 https://cdn.example.com
   public_url: ${MINIO_PUBLIC_URL:-http://localhost:9000}
+  # 是否使用 presigned URL（临时访问链接，7天有效期）
+  # 如果 bucket 未设置为公开读取，设置为 true 使用 presigned URL
+  # 注意：presigned URL 有过期时间，不适合长期存储的场景
+  use_presigned_url: ${MINIO_USE_PRESIGNED_URL:-False}

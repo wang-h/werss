@@ -247,7 +247,7 @@ const BasicLayout: React.FC = () => {
                       onClick={showAuthQrcode}
                       className={cn(
                         "cursor-pointer text-lg transition-colors",
-                        !haswxLogined ? 'text-destructive hover:text-destructive/80' : 'text-foreground hover:text-foreground/70'
+                        !haswxLogined ? 'text-red-500 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400' : 'text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-300'
                       )}
                     >
                       <QrCode className="h-5 w-5" />
@@ -311,7 +311,10 @@ const BasicLayout: React.FC = () => {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={showAuthQrcode}>
-                    <QrCode className="h-4 w-4 mr-2" />
+                    <QrCode className={cn(
+                      "h-4 w-4 mr-2",
+                      !haswxLogined ? 'text-red-500 dark:text-red-500' : 'text-foreground'
+                    )} />
                     {t('layout.scanAuth')}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
