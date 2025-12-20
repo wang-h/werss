@@ -61,6 +61,11 @@ WeRSS 是一个前后端分离的微信公众号热度分析系统，可以帮�
   <img src="https://raw.githubusercontent.com/wang-h/werss/main/images/dashboard-dark.png" alt="数据概览（深色主题）" width="800"/>
 </div>
 
+### 热点追踪
+<div align="center">
+  <img src="https://raw.githubusercontent.com/wang-h/werss/main/images/hot-topics.png" alt="热点追踪" width="800"/>
+</div>
+
 ### 文章列表
 <div align="center">
   <img src="https://raw.githubusercontent.com/wang-h/werss/main/images/articlelist.png" alt="文章列表" width="800"/>
