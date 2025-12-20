@@ -9,7 +9,7 @@ from .base import success_response, error_response
 from core.config import cfg
 from apis.base import format_search_kw
 from core.print import print_warning, print_info, print_error, print_success
-from core.cache import get_cache, set_cache, get_cache_key
+from core.cache import get_cache, set_cache, get_cache_key, clear_cache_pattern
 from typing import Optional
 router = APIRouter(prefix=f"/articles", tags=["文章管理"])
 
@@ -318,6 +318,9 @@ async def update_article(
         session.commit()
         print_success(f"成功更新文章 {article.title}")
         
+        # 清除文章列表缓存（因为文章信息已更新）
+        clear_cache_pattern("articles:")
+        
         return success_response(None, message="文章更新成功")
     except HTTPException as e:
         raise e
@@ -366,6 +369,9 @@ async def delete_article(
             message = "文章已标记为删除"
         
         session.commit()
+        
+        # 清除文章列表缓存（因为文章已删除）
+        clear_cache_pattern("articles:")
         
         return success_response(None, message=message)
     except Exception as e:
@@ -535,6 +541,8 @@ async def fetch_article_content(
             if content == "DELETED":
                 article.status = DATA_STATUS.DELETED
                 session.commit()
+                # 清除文章列表缓存（因为文章状态已更新）
+                clear_cache_pattern("articles:")
                 raise HTTPException(
                     status_code=fast_status.HTTP_406_NOT_ACCEPTABLE,
                     detail=error_response(
@@ -547,6 +555,9 @@ async def fetch_article_content(
             article.content = content
             session.commit()
             print_success(f"成功更新文章 {article.title} 的内容")
+            
+            # 清除文章列表缓存（因为文章内容已更新）
+            clear_cache_pattern("articles:")
             
             return success_response({
                 "message": "内容获取成功",
