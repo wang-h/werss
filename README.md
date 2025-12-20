@@ -97,8 +97,12 @@ WeRSS 是一个前后端分离的微信公众号热度分析系统，可以帮�
 ### 标签系统
 - ✅ 手动标签管理
 - ✅ 自动标签提取（TextRank/KeyBERT/AI）
+  - **TextRank**：基于图算法的本地关键词提取，无需外部依赖
+  - **KeyBERT**：基于 BERT 的语义关键词提取，支持多语言模型
+  - **AI (DeepSeek)**：使用 DeepSeek API 进行智能标签提取，准确度最高
 - ✅ 基于公众号的自动标签关联
 - ✅ 标签统计和分析
+- ✅ 智能标签自动创建
 
 ### 导出功能
 - ✅ PDF导出（需启用）
@@ -408,7 +412,66 @@ article_tag:
   auto_extract: False  # 是否自动提取标签
   extract_method: ai  # 提取方式：textrank/keybert/ai
   max_tags: 5  # 最大标签数量
+  # TextRank 配置
+  textrank:
+    allow_pos: n,nz,vn,a  # 允许的词性：n（名词）、nz（其他专名）、vn（动名词）、a（形容词）
+  # KeyBERT 配置
+  keybert:
+    model: minishlab/potion-multilingual-128M  # 模型名称（推荐多语言模型）
+    hybrid: True  # 是否使用混合方案（结合 TextRank 实体提取）
+  # AI 提取配置
+  ai:
+    auto_create: True  # 是否自动创建不存在的标签
 ```
+
+#### DeepSeek AI 配置
+
+系统支持使用 DeepSeek API 进行智能标签提取，这是最准确的提取方式：
+
+```yaml
+deepseek:
+  api_key: sk-xxx  # DeepSeek API Key（必填，用于 AI 标签提取）
+  base_url: https://api.deepseek.com  # API 地址（默认）
+  model: deepseek-chat  # 模型名称（默认）
+```
+
+**环境变量配置：**
+```bash
+# DeepSeek API 配置
+export DEEPSEEK_API_KEY=sk-xxx
+export DEEPSEEK_BASE_URL=https://api.deepseek.com
+export DEEPSEEK_MODEL=deepseek-chat
+
+# 标签提取配置
+export ARTICLE_TAG_AUTO_EXTRACT=True
+export ARTICLE_TAG_EXTRACT_METHOD=ai
+export ARTICLE_TAG_MAX_TAGS=5
+export ARTICLE_TAG_AI_AUTO_CREATE=True
+```
+
+**获取 DeepSeek API Key：**
+1. 访问 [DeepSeek 官网](https://www.deepseek.com/)
+2. 注册账号并登录
+3. 进入 API 管理页面
+4. 创建 API Key
+5. 将 API Key 配置到环境变量或 `config.yaml` 中
+
+**三种提取方式对比：**
+
+| 特性 | TextRank | KeyBERT | AI (DeepSeek) |
+|------|----------|---------|---------------|
+| **准确度** | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **速度** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
+| **依赖** | 无（内置） | 需要下载模型 | 需要 API Key |
+| **成本** | 免费 | 免费 | 按 API 调用计费 |
+| **多语言支持** | ✅ 中文 | ✅ 多语言 | ✅ 多语言 |
+| **上下文理解** | ❌ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **推荐场景** | 快速提取、离线环境 | 平衡准确度和速度 | 高质量标签提取 |
+
+**使用建议：**
+- **开发/测试环境**：使用 TextRank，无需配置，速度快
+- **生产环境（中等规模）**：使用 KeyBERT，准确度和速度平衡
+- **生产环境（高质量要求）**：使用 AI (DeepSeek)，准确度最高，适合对标签质量要求高的场景
 
 #### MinIO配置（可选）
 
@@ -424,6 +487,83 @@ minio:
 ```
 
 启用 MinIO 后，文章爬取时会自动下载图片并上传到 MinIO，文章内容中的图片 URL 会被替换为 MinIO 链接。
+
+#### AI 标签提取功能详解
+
+**功能概述：**
+系统支持三种标签提取方式，可以根据需求选择最适合的方案。
+
+**1. TextRank 提取（本地算法）**
+- **原理**：基于图算法的关键词提取，无需外部依赖
+- **优点**：速度快、无需网络、完全免费
+- **缺点**：准确度相对较低，主要基于词频和共现关系
+- **适用场景**：快速提取、离线环境、对准确度要求不高的场景
+
+**配置示例：**
+```yaml
+article_tag:
+  auto_extract: True
+  extract_method: textrank
+  max_tags: 5
+  textrank:
+    allow_pos: n,nz,vn,a  # 允许的词性
+```
+
+**2. KeyBERT 提取（语义模型）**
+- **原理**：基于 BERT 的语义相似度计算，提取与文档最相关的关键词
+- **优点**：准确度较高、支持多语言、可本地运行
+- **缺点**：首次使用需要下载模型（约 200-500MB）、内存占用较大
+- **适用场景**：平衡准确度和速度的场景、需要多语言支持
+
+**配置示例：**
+```yaml
+article_tag:
+  auto_extract: True
+  extract_method: keybert
+  max_tags: 5
+  keybert:
+    model: minishlab/potion-multilingual-128M  # 推荐多语言模型
+    hybrid: True  # 使用混合方案（结合 TextRank）
+```
+
+**推荐模型：**
+- `paraphrase-multilingual-MiniLM-L12-v2`：官方推荐多语言模型，准确度最高
+- `minishlab/potion-multilingual-128M`：轻量级多语言模型，CPU 友好
+- `all-MiniLM-L6-v2`：英文文档专用，更轻量级
+
+**3. AI (DeepSeek) 提取（智能理解）**
+- **原理**：使用 DeepSeek 大语言模型理解文章内容，智能提取标签
+- **优点**：准确度最高、理解上下文、支持复杂语义
+- **缺点**：需要 API Key、有调用成本、需要网络连接
+- **适用场景**：高质量标签提取、对准确度要求极高的场景
+
+**配置示例：**
+```yaml
+article_tag:
+  auto_extract: True
+  extract_method: ai
+  max_tags: 5
+  ai:
+    auto_create: True  # 自动创建不存在的标签
+
+deepseek:
+  api_key: sk-xxx  # 必填
+  base_url: https://api.deepseek.com
+  model: deepseek-chat
+```
+
+**AI 提取工作流程：**
+1. 系统读取文章标题、描述和内容
+2. 将内容发送到 DeepSeek API
+3. AI 分析文章主题和关键信息
+4. 返回 3-5 个最相关的标签关键词
+5. 系统自动创建标签（如果 `auto_create: True`）
+6. 将标签关联到文章
+
+**性能优化建议：**
+- 对于大量文章，建议使用 KeyBERT 或 TextRank
+- 对于重要文章，使用 AI 提取获得最佳效果
+- 可以混合使用：大部分文章用 KeyBERT，重要文章用 AI
 
 更多配置项请参考 `config.example.yaml` 文件。
 
@@ -612,7 +752,8 @@ chmod 755 data
 - **PyJWT**: JWT认证
 - **BeautifulSoup4**: HTML解析
 - **jieba**: 中文分词
-- **KeyBERT**: 关键词提取（可选）
+- **KeyBERT**: 关键词提取（可选，用于 KeyBERT 标签提取）
+- **openai**: OpenAI 兼容客户端（可选，用于 DeepSeek AI 标签提取）
 
 ### 可选依赖
 
