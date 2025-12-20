@@ -51,7 +51,5 @@ jobs:
           context: .
           platforms: linux/amd64,linux/arm64
           push: true
-        #   tags: ${{ steps.meta.outputs.tags }}
-          tags: |
-            ${{ env.IMAGE_NAME }}:latest
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
