@@ -51,6 +51,14 @@ def print_database_source():
     print_info(f"数据库连接: {display_value}")
 
 if __name__ == '__main__':
+    # 确保数据库表存在（无论是否传递 -init 参数）
+    from core.db import DB
+    try:
+        # 确保所有表都存在
+        DB.ensure_tables_exist()
+    except Exception as e:
+        print_warning(f"检查数据库表失败: {e}")
+    
     if cfg.args.init=="True":
         import init_sys as init
         init.init()

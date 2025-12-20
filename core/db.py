@@ -79,11 +79,20 @@ class Db:
                                      )
             self.session_factory=self.get_session_factory()
             
-            # 自动执行数据库迁移（检测并添加缺失的字段）
+            # 自动执行数据库迁移（检测并创建缺失的表和字段）
             try:
+                # 先确保所有表都存在（如果不存在则创建）
+                self.ensure_tables_exist()
+                # 然后执行迁移（添加缺失的字段）
                 self.migrate_tables()
             except Exception as e:
                 print_warning(f"自动迁移执行失败（不影响启动）: {e}")
+                # 如果迁移失败，尝试直接创建所有表
+                try:
+                    print_info("尝试直接创建所有表...")
+                    self.create_tables()
+                except Exception as create_error:
+                    print_error(f"创建表也失败: {create_error}")
         except Exception as e:
             print(f"Error creating database connection: {e}")
             raise
@@ -95,6 +104,68 @@ class Db:
             print_success('所有表创建成功！')
         except Exception as e:
             print_error(f"创建表失败: {e}")
+            raise
+    
+    def ensure_tables_exist(self):
+        """
+        确保所有表都存在，如果不存在则创建
+        这个方法会在 migrate_tables 之前调用，确保表结构存在
+        适用于 PostgreSQL、MySQL 等数据库
+        """
+        from core.models.base import Base as B
+        from sqlalchemy import inspect as sql_inspect
+        
+        try:
+            # 测试数据库连接
+            with self.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            
+            inspector = sql_inspect(self.engine)
+            tables_to_create = []
+            
+            # 检查所有模型表是否存在
+            for table_name, table in B.metadata.tables.items():
+                try:
+                    if not inspector.has_table(table_name):
+                        tables_to_create.append((table_name, table))
+                except Exception as check_error:
+                    # 如果检查失败，假设表不存在，尝试创建
+                    print_warning(f"检查表 {table_name} 存在性时出错: {check_error}，将尝试创建")
+                    tables_to_create.append((table_name, table))
+            
+            # 如果有表需要创建，批量创建
+            if tables_to_create:
+                print_info(f"检测到 {len(tables_to_create)} 个表不存在，开始创建...")
+                created_count = 0
+                failed_count = 0
+                for table_name, table in tables_to_create:
+                    try:
+                        print_info(f"📦 创建表: {table_name}")
+                        table.create(self.engine, checkfirst=True)
+                        created_count += 1
+                    except Exception as e:
+                        print_error(f"创建表 {table_name} 失败: {e}")
+                        failed_count += 1
+                        # 继续创建其他表，不中断
+                
+                if created_count > 0:
+                    print_success(f"✅ 成功创建 {created_count} 个表")
+                if failed_count > 0:
+                    print_warning(f"⚠️  {failed_count} 个表创建失败")
+            else:
+                print_info("✅ 所有表已存在")
+        except Exception as e:
+            print_error(f"检查表存在性失败: {e}")
+            # 如果检查失败，尝试直接创建所有表（使用 create_all，它会自动跳过已存在的表）
+            print_info("尝试使用 create_all 创建所有表...")
+            try:
+                B.metadata.create_all(self.engine, checkfirst=True)
+                print_success("✅ 使用 create_all 创建表成功")
+            except Exception as create_error:
+                print_error(f"create_all 也失败: {create_error}")
+                # 不抛出异常，允许应用继续启动（可能表已经存在）
+                import traceback
+                traceback.print_exc()
     
     def migrate_tables(self):
         """
