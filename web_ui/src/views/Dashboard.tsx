@@ -20,7 +20,7 @@ const VChart = lazy(() =>
     console.error('VChart 加载失败:', error)
     // 返回一个占位组件
     return {
-      default: ({ spec, style }: any) => (
+      default: ({ style }: any) => (
         <div style={style} className="flex items-center justify-center text-muted-foreground">
           <div className="text-center">
             <div className="mb-2">图表加载失败</div>
@@ -28,7 +28,7 @@ const VChart = lazy(() =>
           </div>
         </div>
       )
-    }
+    } as any
   })
 )
 
@@ -229,6 +229,16 @@ const Dashboard: React.FC = () => {
         })
         return { date, keywords }
       })
+      
+      // 调试信息：检查数据是否正确生成
+      if (keywordTrendData.length > 0 && topKeywords.length > 0) {
+        console.log('关键词趋势数据已生成:', {
+          dateRange: dateRange.length,
+          topKeywords: topKeywords.length,
+          keywordTrendDataLength: keywordTrendData.length,
+          sampleData: keywordTrendData[0]
+        })
+      }
 
       // 趋势统计
       const trendMap = new Map<string, Map<string, number>>()
@@ -389,11 +399,20 @@ const Dashboard: React.FC = () => {
       date: item.date, keyword, count: item.keywords[keyword] || 0
     })))
 
+    // 确保有数据才渲染图表
+    if (chartData.length === 0) {
+      console.warn('关键词图表数据为空')
+      return null
+    }
+
     return {
       type: 'bar',
       background: 'transparent',
       data: { values: chartData },
-      xField: 'date', yField: 'count', seriesField: 'keyword', stack: true,
+      xField: 'date', 
+      yField: 'count', 
+      seriesField: 'keyword', 
+      stack: true,
       bar: { style: { cornerRadius: 4 } },
       color: getColorPalette(topKeywords.length),
       tooltip: {
@@ -407,21 +426,32 @@ const Dashboard: React.FC = () => {
       },
       axes: [
         {
-          orient: 'bottom' as const, type: 'band' as const,
+          orient: 'bottom' as const, 
+          type: 'band' as const,
           domainLine: { visible: true, style: { stroke: gridColor } },
           grid: { visible: true, style: { stroke: gridColor } },
           tick: { visible: false },
-          label: { visible: true, style: { fontSize: 10, angle: -45, fill: textColor } }
+          label: { 
+            visible: true, 
+            style: { fontSize: 10, angle: -45, fill: textColor },
+            formatMethod: (v: string, i: number) => i % 5 === 0 ? v : ''
+          }
         },
         {
-          orient: 'left' as const, type: 'linear' as const,
+          orient: 'left' as const, 
+          type: 'linear' as const,
           domainLine: { visible: true, style: { stroke: gridColor } },
           grid: { visible: true, style: { stroke: gridColor } },
           tick: { visible: true, style: { stroke: gridColor } },
           label: { visible: true, style: { fill: textColor, fontSize: 12 } }
         }
       ],
-      legends: { visible: true, orient: 'top' as const, position: 'start' as const, item: { label: { style: { fill: textColor, fontSize: 12 } } } }
+      legends: { 
+        visible: true, 
+        orient: 'top' as const, 
+        position: 'start' as const, 
+        item: { label: { style: { fill: textColor, fontSize: 12 } } } 
+      }
     }
   }
 
@@ -434,11 +464,19 @@ const Dashboard: React.FC = () => {
       date: item.date, keyword, count: item.keywords[keyword] || 0
     })))
 
+    // 确保有数据才渲染图表
+    if (chartData.length === 0) {
+      console.warn('关键词折线图数据为空')
+      return null
+    }
+
     return {
       type: 'line',
       background: 'transparent',
       data: { values: chartData },
-      xField: 'date', yField: 'count', seriesField: 'keyword',
+      xField: 'date', 
+      yField: 'count', 
+      seriesField: 'keyword',
       point: { visible: true, style: { size: 3 } },
       line: { style: { lineWidth: 2 } },
       color: getColorPalette(topKeywords.length),
@@ -453,21 +491,32 @@ const Dashboard: React.FC = () => {
       },
       axes: [
         {
-          orient: 'bottom' as const, type: 'band' as const,
+          orient: 'bottom' as const, 
+          type: 'band' as const,
           domainLine: { visible: true, style: { stroke: gridColor } },
           grid: { visible: true, style: { stroke: gridColor } },
           tick: { visible: false },
-          label: { visible: true, style: { fontSize: 10, angle: -45, fill: textColor } }
+          label: { 
+            visible: true, 
+            style: { fontSize: 10, angle: -45, fill: textColor },
+            formatMethod: (v: string, i: number) => i % 5 === 0 ? v : ''
+          }
         },
         {
-          orient: 'left' as const, type: 'linear' as const,
+          orient: 'left' as const, 
+          type: 'linear' as const,
           domainLine: { visible: true, style: { stroke: gridColor } },
           grid: { visible: true, style: { stroke: gridColor } },
           tick: { visible: true, style: { stroke: gridColor } },
           label: { visible: true, style: { fill: textColor, fontSize: 12 } }
         }
       ],
-      legends: { visible: true, orient: 'top' as const, position: 'start' as const, item: { label: { style: { fill: textColor, fontSize: 12 } } } }
+      legends: { 
+        visible: true, 
+        orient: 'top' as const, 
+        position: 'start' as const, 
+        item: { label: { style: { fill: textColor, fontSize: 12 } } } 
+      }
     }
   }
 
@@ -594,20 +643,34 @@ const Dashboard: React.FC = () => {
                 {/* 视图模式 2: 趋势图 */}
                 {keywordViewMode === 'chart' && (
                   <>
-                    {keywordTrendData.length > 0 && topKeywords.length > 0 ? (
-                      <div className="mt-6 h-[400px] animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <ChartErrorBoundary>
-                          <Suspense fallback={<div className="flex justify-center items-center h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
-                            <VChart 
-                              spec={keywordChartType === 'stack' ? getKeywordStackChartSpec(keywordTrendData, topKeywords) : getKeywordLineChartSpec(keywordTrendData, topKeywords)} 
-                              style={{ height: '400px' }} 
-                            />
-                          </Suspense>
-                        </ChartErrorBoundary>
-                      </div>
-                    ) : (
+                    {keywordTrendData && keywordTrendData.length > 0 && topKeywords && topKeywords.length > 0 ? (() => {
+                      const chartSpec = keywordChartType === 'stack' 
+                        ? getKeywordStackChartSpec(keywordTrendData, topKeywords) 
+                        : getKeywordLineChartSpec(keywordTrendData, topKeywords)
+                      
+                      if (!chartSpec) {
+                        return (
+                          <div className="text-center text-muted-foreground py-10">
+                            <div>图表配置生成失败，请检查数据</div>
+                          </div>
+                        )
+                      }
+                      
+                      return (
+                        <div className="mt-6 h-[400px] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                          <ChartErrorBoundary>
+                            <Suspense fallback={<div className="flex justify-center items-center h-[400px]"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
+                              <VChart 
+                                spec={chartSpec} 
+                                style={{ height: '400px', width: '100%' }} 
+                              />
+                            </Suspense>
+                          </ChartErrorBoundary>
+                        </div>
+                      )
+                    })() : (
                       <div className="text-center text-muted-foreground py-10">
-                        {topKeywords.length === 0 ? (
+                        {!topKeywords || topKeywords.length === 0 ? (
                           <div>暂无热门关键词数据，无法显示趋势图表</div>
                         ) : (
                           <div>暂无趋势数据，请等待数据采集完成后查看</div>
