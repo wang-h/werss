@@ -18,11 +18,11 @@ import ACodeEditor from '@/components/ACodeEditor'
 
 const formSchema = z.object({
   name: z.string().min(2, '任务名称长度应在2-30个字符之间').max(30, '任务名称长度应在2-30个字符之间'),
-  message_type: z.number().default(0),
+  message_type: z.number(),
   message_template: z.string().optional(),
   web_hook_url: z.string().optional(),
   mps_id: z.array(z.any()).optional(),
-  status: z.number().default(1),
+  status: z.number(),
   cron_exp: z.string().min(1, '请输入cron表达式'),
 })
 
@@ -58,7 +58,7 @@ const MessageTaskForm: React.FC = () => {
   const fetchTaskDetail = async (taskId: string) => {
     setLoading(true)
     try {
-      const res = await getMessageTask(taskId)
+      const res = await getMessageTask(taskId) as any
       form.reset({
         name: res.name,
         message_type: res.message_type,
