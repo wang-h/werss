@@ -328,9 +328,13 @@ class WXArticleFetcher:
                 if img.get_attribute("data-src") or img.get_attribute("src")
             ]
             
-            # 处理图片上传到MinIO
+            # 处理图片上传到MinIO并替换URL
             article_id = self.extract_id_from_url(url) or "unknown"
+            # 处理正文中的图片，上传到MinIO并替换为MinIO地址
             content = self.process_images_for_minio(content, article_id)
+            if not content:
+                # 如果处理失败，使用原始内容
+                content = content_element.inner_html()
             
             # 处理封面图片上传到MinIO
             try:
@@ -480,9 +484,13 @@ class WXArticleFetcher:
             uploaded_count = 0
             failed_count = 0
             for img_tag in img_tags:
-                # 获取图片URL
+                # 获取图片URL（优先使用data-src，因为微信图片通常使用懒加载）
                 img_url = str(img_tag.get('data-src') or img_tag.get('src') or '')
-                if not img_url:
+                if not img_url or img_url.strip() == '':
+                    continue
+                
+                # 跳过已经是MinIO URL的图片（避免重复上传）
+                if 'minio' in img_url.lower() or (minio_client.public_url and minio_client.public_url in img_url):
                     continue
                 
                 # 尝试上传到MinIO
@@ -491,16 +499,21 @@ class WXArticleFetcher:
                 if minio_url:
                     # 替换为MinIO URL
                     img_tag['src'] = minio_url
+                    # 删除data-src属性，因为已经替换为MinIO地址
                     if 'data-src' in img_tag.attrs:
                         del img_tag['data-src']
-                    logger.info(f"图片已上传到MinIO: {img_url} -> {minio_url}")
+                    logger.info(f"图片已上传到MinIO并替换URL: {img_url[:80]}... -> {minio_url[:80]}...")
                     uploaded_count += 1
                 else:
-                    # 如果上传失败，至少确保src可用
-                    if 'data-src' in img_tag.attrs:
+                    # 如果上传失败，至少确保src可用（将data-src移到src）
+                    if 'data-src' in img_tag.attrs and not img_tag.get('src'):
                         img_tag['src'] = img_tag['data-src']
                         del img_tag['data-src']
                     failed_count += 1
+            
+            if uploaded_count > 0:
+                from core.print import print_info
+                print_info(f"正文图片处理完成: 成功上传 {uploaded_count} 张，失败 {failed_count} 张")
             
             return str(soup)
         except Exception as e:
