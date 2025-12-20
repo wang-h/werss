@@ -9,6 +9,7 @@ from .base import success_response, error_response
 from core.config import cfg
 from apis.base import format_search_kw
 from core.print import print_warning, print_info, print_error, print_success
+from core.cache import get_cache, set_cache, get_cache_key
 from typing import Optional
 router = APIRouter(prefix=f"/articles", tags=["文章管理"])
 
@@ -80,6 +81,14 @@ async def get_articles(
     has_content:bool=Query(False),
     current_user: dict = Depends(get_current_user)
 ):
+    # 生成缓存键
+    cache_key = f"articles:{get_cache_key(offset, limit, status, mp_id, search, has_content)}"
+    
+    # 尝试从缓存获取
+    cached_result = get_cache(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
     session = DB.get_session()
     try:
       
@@ -115,32 +124,59 @@ async def get_articles(
         
         # 打印生成的 SQL 语句（包含分页参数）
         print_warning(query.statement.compile(compile_kwargs={"literal_binds": True}))
-                       
-        # 查询公众号名称
-        from core.models.feed import Feed
-        mp_names = {}
-        for article in articles:
-            if article.mp_id and article.mp_id not in mp_names:
-                feed = session.query(Feed).filter(Feed.id == article.mp_id).first()
-                mp_names[article.mp_id] = feed.mp_name if feed else "未知公众号"
         
-        # 合并公众号名称和标签到文章列表
+        if not articles:
+            # 如果没有文章，直接返回空列表
+            from .base import success_response
+            return success_response({
+                "list": [],
+                "total": total
+            })
+                       
+        # 批量查询优化：一次性获取所有需要的数据
+        from core.models.feed import Feed
         from core.models.article_tags import ArticleTag
         from core.models.tags import Tags as TagsModel
         
+        # 1. 批量查询公众号信息
+        article_ids = [a.id for a in articles]
+        mp_ids = list(set([a.mp_id for a in articles if a.mp_id]))
+        mp_names = {}
+        if mp_ids:
+            feeds = session.query(Feed).filter(Feed.id.in_(mp_ids)).all()
+            mp_names = {feed.id: feed.mp_name for feed in feeds}
+        
+        # 2. 批量查询所有文章的标签关联
+        all_article_tags = session.query(ArticleTag).filter(
+            ArticleTag.article_id.in_(article_ids)
+        ).all()
+        
+        # 3. 按文章 ID 分组标签 ID
+        tags_by_article = {}
+        all_tag_ids = set()
+        for at in all_article_tags:
+            if at.article_id not in tags_by_article:
+                tags_by_article[at.article_id] = []
+            tags_by_article[at.article_id].append(at.tag_id)
+            all_tag_ids.add(at.tag_id)
+        
+        # 4. 批量查询所有标签信息
+        tags_dict = {}
+        if all_tag_ids:
+            tags = session.query(TagsModel).filter(TagsModel.id.in_(list(all_tag_ids))).all()
+            tags_dict = {t.id: t for t in tags}
+        
+        # 5. 在内存中组装数据
         article_list = []
         for article in articles:
-            article_dict = article.__dict__
+            article_dict = article.__dict__.copy()
             article_dict["mp_name"] = mp_names.get(article.mp_id, "未知公众号")
             
-            # 获取文章的标签（通过 article_tags 关联到 tags 表）
-            article_tags = session.query(ArticleTag).filter(
-                ArticleTag.article_id == article.id
-            ).all()
-            tag_ids = [at.tag_id for at in article_tags]
-            tags = session.query(TagsModel).filter(TagsModel.id.in_(tag_ids)).all() if tag_ids else []
-            article_dict["tags"] = [{"id": t.id, "name": t.name} for t in tags]
-            article_dict["tag_names"] = [t.name for t in tags]  # 用于显示
+            # 从预加载的数据中获取标签
+            article_tag_ids = tags_by_article.get(article.id, [])
+            article_tags = [tags_dict[tag_id] for tag_id in article_tag_ids if tag_id in tags_dict]
+            article_dict["tags"] = [{"id": t.id, "name": t.name} for t in article_tags]
+            article_dict["tag_names"] = [t.name for t in article_tags]  # 用于显示
             # topics 应该独立于 tags，不应该被 tag 覆盖
             article_dict["topics"] = []
             article_dict["topic_names"] = []
@@ -148,10 +184,15 @@ async def get_articles(
             article_list.append(article_dict)
         
         from .base import success_response
-        return success_response({
+        result = success_response({
             "list": article_list,
             "total": total
         })
+        
+        # 存入缓存（缓存5分钟）
+        set_cache(cache_key, result, ttl=300)
+        
+        return result
     except HTTPException as e:
         raise e
     except Exception as e:
