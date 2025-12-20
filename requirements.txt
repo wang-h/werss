@@ -80,3 +80,7 @@ webdriver-manager==4.0.2
 websocket-client==1.8.0
 wsproto==1.2.0
 yarl==1.22.0
+# AI 标签提取功能（DeepSeek API）
+openai>=2.11.0
+# MinIO 对象存储（用于图片上传）
+minio>=7.2.0
