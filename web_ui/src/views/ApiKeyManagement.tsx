@@ -73,7 +73,33 @@ const ApiKeyManagement: React.FC = () => {
   const [regenerateDialogOpen, setRegenerateDialogOpen] = useState(false)
   const [regenerateTargetId, setRegenerateTargetId] = useState<string | null>(null)
   const [newApiKey, setNewApiKey] = useState<string | null>(null)
+  const [newApiKeyId, setNewApiKeyId] = useState<string | null>(null) // 存储新创建的 API Key ID
+  
+  // 从 localStorage 加载已保存的 API Key
+  const loadApiKeyMapFromStorage = (): Record<string, string> => {
+    try {
+      const stored = localStorage.getItem('apiKeyMap')
+      return stored ? JSON.parse(stored) : {}
+    } catch {
+      return {}
+    }
+  }
+  
+  const [apiKeyMap, setApiKeyMap] = useState<Record<string, string>>(loadApiKeyMapFromStorage()) // 存储 API Key ID -> Key 的映射
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({})
+  
+  // 保存 API Key 到 localStorage
+  const saveApiKeyToStorage = (id: string, key: string) => {
+    setApiKeyMap(prev => {
+      const updated = { ...prev, [id]: key }
+      try {
+        localStorage.setItem('apiKeyMap', JSON.stringify(updated))
+      } catch (error) {
+        console.error('保存 API Key 到 localStorage 失败:', error)
+      }
+      return updated
+    })
+  }
   const [logs, setLogs] = useState<ApiKeyLog[]>([])
   const [logsLoading, setLogsLoading] = useState(false)
   const [logsPagination, setLogsPagination] = useState({
@@ -158,7 +184,10 @@ const ApiKeyManagement: React.FC = () => {
 
   // 选择 API Key
   const handleSelectApiKey = (apiKey: ApiKey) => {
-    setSelectedApiKey(apiKey)
+    // 如果 localStorage 中有保存的 Key，则合并到 apiKey 对象中
+    const savedKey = apiKeyMap[apiKey.id]
+    const apiKeyWithSavedKey = savedKey ? { ...apiKey, key: savedKey } : apiKey
+    setSelectedApiKey(apiKeyWithSavedKey)
     setLogsPagination(prev => ({ ...prev, current: 1 }))
     loadLogs(apiKey.id)
   }
@@ -202,16 +231,30 @@ const ApiKeyManagement: React.FC = () => {
       } else {
         const res = await createApiKey(submitData)
         const newKey = (res as any)?.data?.key || (res as any)?.key
-        if (newKey) {
+        const newKeyId = (res as any)?.data?.id || (res as any)?.id
+        if (newKey && newKeyId) {
           setNewApiKey(newKey)
+          setNewApiKeyId(newKeyId)
+          // 保存到 Map 和 localStorage 中，以便后续显示（即使刷新页面也不会丢失）
+          saveApiKeyToStorage(newKeyId, newKey)
           Message.success(t('apiKeys.messages.createSuccess'))
         } else {
           Message.success(t('apiKeys.messages.createSuccessSimple'))
         }
       }
       setVisible(false)
-      setNewApiKey(null)
-      loadApiKeys()
+      await loadApiKeys()
+      // 如果创建成功，自动选中新创建的 API Key
+      if (!isEditing && newApiKeyId) {
+        // 等待 loadApiKeys 完成后再查找
+        setTimeout(() => {
+          const newKey = apiKeys.find(k => k.id === newApiKeyId)
+          if (newKey) {
+            setSelectedApiKey({ ...newKey, key: apiKeyMap[newApiKeyId] })
+            setShowApiKey(prev => ({ ...prev, [newApiKeyId]: true })) // 自动显示密钥
+          }
+        }, 100)
+      }
       if (selectedApiKey && isEditing) {
         const updated = apiKeys.find(k => k.id === selectedApiKey.id)
         if (updated) {
@@ -250,6 +293,9 @@ const ApiKeyManagement: React.FC = () => {
       const newKey = (res as any)?.data?.key || (res as any)?.key
       if (newKey) {
         setNewApiKey(newKey)
+        setNewApiKeyId(id)
+        // 保存到 Map 和 localStorage 中，以便后续显示（即使刷新页面也不会丢失）
+        saveApiKeyToStorage(id, newKey)
         Message.success(t('apiKeys.messages.regenerateSuccess'))
       } else {
         Message.success(t('apiKeys.messages.regenerateSuccessSimple'))
@@ -257,6 +303,10 @@ const ApiKeyManagement: React.FC = () => {
       setRegenerateDialogOpen(false)
       setRegenerateTargetId(null)
       loadApiKeys()
+      // 如果当前选中的是重新生成的 API Key，更新 selectedApiKey
+      if (selectedApiKey?.id === id) {
+        setSelectedApiKey(prev => prev ? { ...prev, key: newKey } : null)
+      }
     } catch (error: any) {
       Message.error(error.message || t('apiKeys.messages.regenerateFailed'))
     }
@@ -486,7 +536,9 @@ const ApiKeyManagement: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <code className="flex-1 px-3 py-2 bg-background rounded text-sm font-mono break-all">
-                          {showApiKey[selectedApiKey.id] ? (selectedApiKey.key || '密钥不可用（仅在创建/重新生成时显示）') : '•'.repeat(32)}
+                          {showApiKey[selectedApiKey.id] 
+                            ? (selectedApiKey.key || apiKeyMap[selectedApiKey.id] || '密钥不可用（仅在创建/重新生成时显示）') 
+                            : '•'.repeat(32)}
                         </code>
                         <Button
                           variant="outline"
@@ -502,8 +554,13 @@ const ApiKeyManagement: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => selectedApiKey.key && handleCopy(selectedApiKey.key)}
-                          disabled={!selectedApiKey.key}
+                          onClick={() => {
+                            const keyToCopy = selectedApiKey.key || apiKeyMap[selectedApiKey.id]
+                            if (keyToCopy) {
+                              handleCopy(keyToCopy)
+                            }
+                          }}
+                          disabled={!selectedApiKey.key && !apiKeyMap[selectedApiKey.id]}
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
@@ -772,10 +829,17 @@ const ApiKeyManagement: React.FC = () => {
       </Dialog>
 
       {/* 新 API Key 显示弹窗 */}
-      <Dialog open={!!newApiKey} onOpenChange={() => setNewApiKey(null)}>
+      <Dialog open={!!newApiKey} onOpenChange={() => {
+        setNewApiKey(null)
+        setNewApiKeyId(null)
+        // 关闭对话框后，如果新创建的 API Key 被选中，更新 selectedApiKey
+        if (newApiKeyId && selectedApiKey?.id === newApiKeyId) {
+          setSelectedApiKey(prev => prev ? { ...prev, key: newApiKey || undefined } : null)
+        }
+      }}>
         <DialogContent className="max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>API Key 创建成功</DialogTitle>
+            <DialogTitle>{newApiKeyId && selectedApiKey?.id === newApiKeyId ? 'API Key 重新生成成功' : 'API Key 创建成功'}</DialogTitle>
             <DialogDescription>
               请立即保存此 API Key，创建后无法再次查看完整内容
             </DialogDescription>
@@ -797,7 +861,14 @@ const ApiKeyManagement: React.FC = () => {
             </Button>
           </div>
           <DialogFooter>
-            <Button onClick={() => setNewApiKey(null)}>已保存</Button>
+            <Button onClick={() => {
+              setNewApiKey(null)
+              setNewApiKeyId(null)
+              // 关闭对话框后，如果新创建的 API Key 被选中，更新 selectedApiKey
+              if (newApiKeyId && selectedApiKey?.id === newApiKeyId) {
+                setSelectedApiKey(prev => prev ? { ...prev, key: newApiKey || undefined } : null)
+              }
+            }}>已保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
