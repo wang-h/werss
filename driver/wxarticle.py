@@ -157,6 +157,8 @@ class WXArticleFetcher:
         """
         try:
             from jobs.article import UpdateArticle
+            import core.db as db
+            from core.models.article import Article
             
             # 设置默认URL列表
             if urls is []:
@@ -164,6 +166,7 @@ class WXArticleFetcher:
                 
             success_count = 0
             total_count = len(urls)
+            DB = db.Db(tag="文章修复")
             
             for i, url in enumerate(urls, 1):
                 if url=="":
@@ -171,6 +174,30 @@ class WXArticleFetcher:
                 print_info(f"正在处理第 {i}/{total_count} 篇文章: {url}")
                 
                 try:
+                    # 先提取文章ID，检查文章是否已存在
+                    article_id_from_url = self.extract_id_from_url(url)
+                    article_exists = False
+                    existing_article = None
+                    
+                    if article_id_from_url and mp_id:
+                        # 构建完整的文章ID（与 add_article 中的逻辑一致）
+                        full_article_id = f"{str(mp_id)}-{article_id_from_url}".replace("MP_WXS_","")
+                        session = DB.get_session()
+                        existing_article = session.query(Article).filter(Article.id == full_article_id).first()
+                        if existing_article:
+                            article_exists = True
+                            # 检查文章是否已有完整内容
+                            if existing_article.content and len(existing_article.content.strip()) > 0:
+                                print_info(f"文章已存在且内容完整，跳过处理: {full_article_id}")
+                                continue
+                            else:
+                                print_info(f"文章已存在但内容不完整，继续处理: {full_article_id}")
+                    
+                    # 如果文章已存在且内容完整，跳过处理（避免重复上传图片）
+                    if article_exists and existing_article and existing_article.content and len(existing_article.content.strip()) > 0:
+                        print_info(f"文章已存在且内容完整，跳过处理: {full_article_id}")
+                        continue
+                    
                     article_data = self.get_article_content(url)
                     
                     # 构建文章数据
@@ -196,7 +223,7 @@ class WXArticleFetcher:
                         success_count += 1
                         print_info(f"已更新文章: {article_data.get('title', '未知标题')}")
                     else:
-                        print_warning(f"更新失败: {article_data.get('title', '未知标题')}")
+                        print_warning(f"更新失败（文章可能已存在）: {article_data.get('title', '未知标题')}")
                         
                     # 恢复content字段
                     article_data['content'] = content_backup

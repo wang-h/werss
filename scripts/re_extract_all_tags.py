@@ -417,7 +417,7 @@ def main():
     
     # 显示配置信息
     extract_method = cfg.get("article_tag.extract_method", "textrank")
-    max_tags = cfg.get("article_tag.max_topics", 5)
+    max_tags = cfg.get("article_tag.max_tags", 5)
     auto_extract = cfg.get("article_tag.auto_extract", False)
     
     # 显示数据库连接信息

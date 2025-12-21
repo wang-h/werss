@@ -1,5 +1,5 @@
 import React, { useState, useImperativeHandle, forwardRef } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Alert, AlertDescription } from '@/components/ui/alert'
@@ -29,14 +29,14 @@ const WechatAuthQrcode = forwardRef<WechatAuthQrcodeRef, WechatAuthQrcodeProps>(
       setErrorMessage('')
       
       // 获取二维码
-      const res = await QRCode()
+      const res = await QRCode() as { code: string }
       setQrcodeUrl(res?.code || '')
       setLoading(false)
 
       // 开始检查授权状态
       checkQRCodeStatus()
         .then((statusRes) => {
-          if (statusRes?.login_status) {
+          if ((statusRes as { login_status: boolean }).login_status) {
             // Message.success('授权成功')
             onSuccess?.(statusRes)
             setOpen(false)
@@ -63,6 +63,7 @@ const WechatAuthQrcode = forwardRef<WechatAuthQrcodeRef, WechatAuthQrcodeProps>(
       <DialogContent className="sm:max-w-[400px]">
         <DialogHeader>
           <DialogTitle>微信授权</DialogTitle>
+          <DialogDescription>使用微信扫码完成授权</DialogDescription>
         </DialogHeader>
         <div className="flex flex-col items-center p-5">
           {loading && (

@@ -125,7 +125,7 @@ article_tag:
   auto_assign_by_mp: ${ARTICLE_TAG_AUTO_ASSIGN_BY_MP:-True}
   # 是否自动提取标签（基于文章内容）
   auto_extract: ${ARTICLE_TAG_AUTO_EXTRACT:-False}
-  # 标签提取方式：textrank（本地）、keybert（KeyBERT模型）或 ai（DeepSeek API）
+  # 标签提取方式：textrank（本地）、keybert（KeyBERT模型）或 ai（OpenAI API）
   extract_method: ${ARTICLE_TAG_EXTRACT_METHOD:-ai}
   # 提取标签的最大数量
   max_tags: ${ARTICLE_TAG_MAX_TAGS:-5}
@@ -154,19 +154,19 @@ article_tag:
     # true: 先使用 TextRank 提取候选实体，再用 KeyBERT 进行语义排序（推荐，质量更好）
     # false: 直接使用 KeyBERT 提取（速度快，但可能提取到不合适的词）
     hybrid: ${ARTICLE_TAG_KEYBERT_HYBRID:-True}
-  # AI 提取配置（需要配置 DeepSeek API）
+  # AI 提取配置（需要配置 OpenAI API）
   ai:
     # 是否自动创建不存在的标签
     auto_create: ${ARTICLE_TAG_AI_AUTO_CREATE:-False}
 
-# DeepSeek API 配置（用于标签提取）
-deepseek:
-  # DeepSeek API Key（可选，用于 AI 主题提取功能）
-  api_key: ${DEEPSEEK_API_KEY:-}
-  # DeepSeek API Base URL（默认：https://api.deepseek.com）
-  base_url: ${DEEPSEEK_BASE_URL:-https://api.deepseek.com}
-  # DeepSeek 模型名称（默认：deepseek-chat）
-  model: ${DEEPSEEK_MODEL:-deepseek-chat}
+# OpenAI API 配置（用于标签提取）
+openai:
+  # OpenAI API Key（可选，用于 AI 主题提取功能）
+  api_key: ${OPENAI_API_KEY:-}
+  # OpenAI API Base URL（默认：https://api.openai.com/v1）
+  base_url: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+  # OpenAI 模型名称（默认：gpt-4o）
+  model: ${OPENAI_MODEL:-gpt-4o}
 
 # MinIO 对象存储配置（用于存储文章中的图片）
 minio:

@@ -12,5 +12,7 @@ from .config_management import ConfigManagement
 from .tags import Tags
 # 导入文章-标签关联模型
 from .article_tags import ArticleTag
+# 导入 API Key 模型
+from .api_key import ApiKey, ApiKeyLog
 # 导入基础模型
 from .base import *

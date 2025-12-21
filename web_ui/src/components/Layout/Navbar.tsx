@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import { FileText, Rss, Tag, Bell, Settings, Info, LayoutDashboard, GalleryVerticalEnd } from 'lucide-react'
+import { FileText, Rss, Tag, Bell, Settings, Info, LayoutDashboard, GalleryVerticalEnd, Key } from 'lucide-react'
 import { NavMain } from '@/components/nav-main'
 
 const Navbar: React.FC = () => {
@@ -59,6 +59,11 @@ const Navbar: React.FC = () => {
       title: t('layout.sysInfo'),
       url: '/sys-info',
       icon: Info,
+    },
+    {
+      title: t('layout.apiKeys'),
+      url: '/api-keys',
+      icon: Key,
     }
   ]
 

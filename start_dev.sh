@@ -38,6 +38,121 @@ cleanup() {
 # 注册清理函数
 trap cleanup SIGINT SIGTERM
 
+# ==================== OpenAI API 测试 ====================
+test_openai_api() {
+    if [ -z "$OPENAI_API_KEY" ]; then
+        echo -e "${YELLOW}⚠️  OPENAI_API_KEY 未设置，跳过 API 测试${NC}"
+        return 0
+    fi
+    
+    echo -e "${BLUE}🧪 测试 OpenAI API 连接...${NC}"
+    
+    # 使用 Python 测试 OpenAI API（确保环境变量传递）
+    python3 << PYTHON_SCRIPT
+import os
+import sys
+
+# 从环境变量获取配置
+api_key = os.getenv("OPENAI_API_KEY")
+base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+model = os.getenv("OPENAI_MODEL", "gpt-4o")
+
+print(f"测试配置:")
+print(f"  API Key: {api_key[:15]}..." if api_key and len(api_key) > 15 else f"  API Key: {api_key or '未设置'}")
+print(f"  Base URL: {base_url}")
+print(f"  Model: {model}")
+print()
+
+try:
+    from openai import OpenAI
+except ImportError:
+    print("⚠️  openai 模块未安装，跳过 API 测试")
+    print("   安装命令: pip install openai")
+    sys.exit(0)
+
+if not api_key:
+    print("❌ OPENAI_API_KEY 未设置")
+    sys.exit(1)
+
+try:
+    client = OpenAI(
+        api_key=api_key,
+        base_url=base_url,
+    )
+    
+    # 发送一个简单的测试请求
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "user", "content": "Hello"}
+        ],
+        max_tokens=10,
+        timeout=15
+    )
+    
+    if response.choices and len(response.choices) > 0:
+        content = response.choices[0].message.content
+        print(f"✅ OpenAI API 测试成功")
+        print(f"   响应: {content}")
+        sys.exit(0)
+    else:
+        print("❌ API 响应异常：未返回内容")
+        sys.exit(1)
+        
+except Exception as e:
+    error_msg = str(e)
+    error_type = type(e).__name__
+    
+    print(f"❌ API 测试失败")
+    print(f"   错误类型: {error_type}")
+    
+    # 检查 HTTP 状态码
+    if hasattr(e, 'status_code'):
+        status_code = e.status_code
+        print(f"   HTTP 状态码: {status_code}")
+        if status_code == 401:
+            print(f"   原因: API Key 无效或未授权")
+        elif status_code == 404:
+            print(f"   原因: 模型 '{model}' 不存在或 Base URL '{base_url}' 错误")
+        elif status_code == 429:
+            print(f"   原因: 请求频率过高")
+        elif status_code >= 500:
+            print(f"   原因: 服务器错误")
+    
+    # 检查响应体
+    if hasattr(e, 'response') and e.response is not None:
+        try:
+            error_body = e.response.json() if hasattr(e.response, 'json') else str(e.response)
+            print(f"   响应详情: {error_body}")
+        except:
+            pass
+    
+    # 通用错误信息
+    if "401" in error_msg or "Unauthorized" in error_msg or "authentication" in error_msg.lower():
+        print(f"   原因: API Key 无效或未授权")
+    elif "404" in error_msg or "Not Found" in error_msg or "model" in error_msg.lower():
+        print(f"   原因: 模型 '{model}' 可能不存在，请检查模型名称")
+        print(f"   提示: 请确认 Base URL '{base_url}' 支持模型 '{model}'")
+    elif "timeout" in error_msg.lower():
+        print(f"   原因: 请求超时（可能是网络问题或服务器响应慢）")
+    else:
+        print(f"   错误信息: {error_msg[:200]}")
+    
+    sys.exit(1)
+PYTHON_SCRIPT
+    
+    TEST_RESULT=$?
+    if [ $TEST_RESULT -eq 0 ]; then
+        echo -e "${GREEN}✅ OpenAI API 测试通过${NC}"
+    elif [ $TEST_RESULT -eq 1 ]; then
+        echo -e "${RED}❌ OpenAI API 测试失败，请检查配置${NC}"
+        echo -e "${YELLOW}   提示: 请确保 OPENAI_API_KEY 正确，且网络连接正常${NC}"
+    else
+        echo -e "${YELLOW}⚠️  跳过 OpenAI API 测试${NC}"
+    fi
+    echo ""
+}
+
 # ==================== 后台服务启动 ====================
 start_backend() {
     echo -e "${BLUE}📦 启动后台服务...${NC}"
@@ -162,21 +277,21 @@ start_backend() {
     # 从主项目的 .env 文件加载所有环境变量
     if [ -f ".env" ]; then
         echo -e "${YELLOW}📝 加载外层 .env 文件...${NC}"
-        # 使用 source 加载所有环境变量（包括 USERNAME, PASSWORD, DEEPSEEK_API_KEY 等）
+        # 使用 source 加载所有环境变量（包括 USERNAME, PASSWORD, OPENAI_API_KEY 等）
         set -a  # 自动导出所有变量
         source .env 2>/dev/null || true
         set +a  # 关闭自动导出
         
-        # 显式导出 DeepSeek 相关环境变量（确保传递给 Python 进程）
-        if grep -q "^DEEPSEEK_API_KEY=" .env 2>/dev/null; then
-            export DEEPSEEK_API_KEY=$(grep "^DEEPSEEK_API_KEY=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
-            echo -e "${GREEN}✅ 已加载 DEEPSEEK_API_KEY${NC}"
+        # 显式导出 OpenAI 相关环境变量（确保传递给 Python 进程）
+        if grep -q "^OPENAI_API_KEY=" .env 2>/dev/null; then
+            export OPENAI_API_KEY=$(grep "^OPENAI_API_KEY=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+            echo -e "${GREEN}✅ 已加载 OPENAI_API_KEY${NC}"
         fi
-        if grep -q "^DEEPSEEK_BASE_URL=" .env 2>/dev/null; then
-            export DEEPSEEK_BASE_URL=$(grep "^DEEPSEEK_BASE_URL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if grep -q "^OPENAI_BASE_URL=" .env 2>/dev/null; then
+            export OPENAI_BASE_URL=$(grep "^OPENAI_BASE_URL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         fi
-        if grep -q "^DEEPSEEK_MODEL=" .env 2>/dev/null; then
-            export DEEPSEEK_MODEL=$(grep "^DEEPSEEK_MODEL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        if grep -q "^OPENAI_MODEL=" .env 2>/dev/null; then
+            export OPENAI_MODEL=$(grep "^OPENAI_MODEL=" .env 2>/dev/null | cut -d'=' -f2- | tr -d '"' | tr -d "'" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
         fi
         
         # 显式导出文章标签提取相关环境变量
@@ -216,6 +331,11 @@ start_backend() {
         fi
         
         echo -e "${GREEN}✅ 环境变量已加载${NC}"
+        
+        # 测试 OpenAI API（如果已配置）
+        if [ ! -z "$OPENAI_API_KEY" ]; then
+            test_openai_api
+        fi
     fi
     
     # 设置开发环境变量

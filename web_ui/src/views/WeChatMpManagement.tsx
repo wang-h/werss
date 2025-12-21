@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -333,6 +333,9 @@ const WeChatMpManagement: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{modalTitle}</DialogTitle>
+            <DialogDescription>
+              {editingRecord ? '修改公众号的基本信息' : '添加一个新的公众号'}
+            </DialogDescription>
           </DialogHeader>
           {visible && form?.control && (
             <Form {...form}>

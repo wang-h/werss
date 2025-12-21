@@ -1,5 +1,7 @@
 from core.models.user import User
 from core.models.article import Article
+# 导入所有模型以确保它们被注册到 Base.metadata
+from core.models import ApiKey, ApiKeyLog
 from core.db import Db,DB
 from core.config import cfg
 from core.auth import pwd_context

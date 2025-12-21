@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -309,6 +309,7 @@ const MessageTaskForm: React.FC = () => {
         <DialogContent className="max-w-[800px]">
           <DialogHeader>
             <DialogTitle>选择cron表达式</DialogTitle>
+            <DialogDescription>选择或自定义任务执行的 cron 表达式</DialogDescription>
           </DialogHeader>
           <CronExpressionPicker
             value={cronExp || ''}
@@ -324,6 +325,7 @@ const MessageTaskForm: React.FC = () => {
         <DialogContent className="max-w-[800px]">
           <DialogHeader>
             <DialogTitle>选择公众号</DialogTitle>
+            <DialogDescription>选择要发送消息的公众号</DialogDescription>
           </DialogHeader>
           <MpMultiSelect
             value={mpsId}

@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -838,6 +838,7 @@ const ArticleListDesktop: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>刷新设置</DialogTitle>
+            <DialogDescription>设置要刷新的文章页面范围</DialogDescription>
           </DialogHeader>
           <Form {...refreshForm}>
             <form onSubmit={refreshForm.handleSubmit(handleRefresh)} className="space-y-4">

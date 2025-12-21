@@ -18,6 +18,7 @@ import TagList from '../views/TagList'
 import TagForm from '../views/TagForm'
 import Dashboard from '../views/Dashboard'
 import Settings from '../views/Settings'
+import ApiKeyManagement from '../views/ApiKeyManagement'
 // import { verifyToken } from '@/api/auth'
 
 // 路由守卫组件
@@ -179,6 +180,14 @@ const router = createBrowserRouter(
         element: (
           <PermissionRoute permissions={['tag:edit']}>
             <TagForm />
+          </PermissionRoute>
+        )
+      },
+      {
+        path: 'api-keys',
+        element: (
+          <PermissionRoute permissions={['admin']}>
+            <ApiKeyManagement />
           </PermissionRoute>
         )
       }

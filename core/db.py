@@ -559,7 +559,7 @@ class Db:
                                     title, 
                                     description, 
                                     content,
-                                    cfg.get("article_tag.max_topics", 3)
+                                    int(cfg.get("article_tag.max_tags", 5))
                                 )
                             )
                             topics = future.result()
@@ -568,14 +568,14 @@ class Db:
                             title, 
                             description, 
                             content,
-                            cfg.get("article_tag.max_topics", 3)
+                            int(cfg.get("article_tag.max_tags", 5))
                         ))
                 except RuntimeError:
                     topics = asyncio.run(extractor.extract_with_ai(
                         title, 
                         description, 
                         content,
-                        cfg.get("article_tag.max_topics", 3)
+                        int(cfg.get("article_tag.max_tags", 5))
                     ))
                 except Exception as ai_error:
                     print_warning(f"⚠️  AI 提取失败，回退到 TextRank: {ai_error}")

@@ -2,13 +2,13 @@ from datetime import datetime, timedelta
 import jwt
 import bcrypt
 from functools import wraps
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer
 from typing import Optional
 from core.models import User as DBUser
 from core.config import  cfg,API_BASE
 from sqlalchemy.orm import Session
-from core.models import User
+from core.models import User, ApiKey
 import core.db  as db
 from passlib.context import CryptContext
 import json
@@ -124,38 +124,135 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-async def get_current_user(token: str = Depends(oauth2_scheme)):
-    """获取当前用户"""
+def extract_api_key_from_request(request: Request) -> Optional[str]:
+    """从请求头中提取 API Key
+    
+    支持两种方式：
+    1. X-API-Key 头
+    2. Authorization: Bearer <api_key>
+    """
+    # 方式1: 从 X-API-Key 头获取
+    api_key = request.headers.get("X-API-Key")
+    if api_key:
+        return api_key
+    
+    # 方式2: 从 Authorization 头获取 (Bearer <api_key>)
+    authorization = request.headers.get("Authorization", "")
+    if authorization.startswith("Bearer "):
+        api_key = authorization[7:]  # 去掉 "Bearer " 前缀
+        # 如果看起来不像 JWT token（JWT 通常包含多个点），可能是 API Key
+        if api_key and "." not in api_key:
+            return api_key
+        # 如果包含点，可能是 JWT，先尝试作为 JWT 处理，如果失败再作为 API Key
+        # 这里先返回 None，让 JWT 验证先处理
+    
+    return None
+
+async def get_current_user_by_api_key(api_key: str) -> Optional[dict]:
+    """通过 API Key 获取当前用户"""
+    if not api_key:
+        return None
+    
+    session = DB.get_session()
+    try:
+        # 查询 API Key
+        api_key_obj = session.query(ApiKey).filter(
+            ApiKey.key == api_key,
+            ApiKey.is_active == True
+        ).first()
+        
+        if not api_key_obj:
+            return None
+        
+        # 更新最后使用时间
+        from datetime import datetime
+        api_key_obj.last_used_at = datetime.now()
+        session.commit()
+        
+        # 获取关联的用户
+        user = session.query(DBUser).filter(DBUser.id == api_key_obj.user_id).first()
+        if not user:
+            return None
+        
+        # 解析权限（优先使用 API Key 的权限，如果没有则使用用户的权限）
+        permissions = api_key_obj.permissions
+        if not permissions:
+            permissions = user.permissions
+        
+        # 转换为字典格式
+        user_dict = user.__dict__.copy()
+        user_dict.pop('_sa_instance_state', None)
+        user_dict = User(**user_dict)
+        
+        return {
+            "username": user.username,
+            "role": user.role,
+            "permissions": permissions,
+            "original_user": user,
+            "api_key_id": api_key_obj.id  # 添加 API Key ID，用于日志记录
+        }
+    except Exception as e:
+        from core.print import print_error
+        print_error(f"API Key 认证错误: {str(e)}")
+        return None
+    finally:
+        session.close()
+
+async def get_current_user(
+    request: Request,
+    token: Optional[str] = Depends(oauth2_scheme)
+):
+    """获取当前用户
+    
+    认证优先级：
+    1. JWT Token（如果存在）
+    2. API Key（如果 JWT Token 不存在）
+    3. 返回 401（如果都没有）
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise credentials_exception
-    except jwt.PyJWTError:
-        raise credentials_exception
     
-    # 尝试从数据库获取用户，如果不存在则使用默认值（仅验证 token 有效性）
-    user = get_user(username)
-    if user is None:
-        # Token 有效但数据库中没有用户，返回默认用户信息（允许 API 访问）
-        return {
-            "username": username,
-            "role": "user",
-            "permissions": None,
-            "original_user": None
-        }
-        
-    return {
-        "username": user.username,
-        "role": user.role,
-        "permissions": user.permissions,
-        "original_user": user
-    }
+    # 优先尝试 JWT Token 认证
+    if token:
+        try:
+            payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            username: str = payload.get("sub")
+            if username is None:
+                raise credentials_exception
+            
+            # 尝试从数据库获取用户，如果不存在则使用默认值（仅验证 token 有效性）
+            user = get_user(username)
+            if user is None:
+                # Token 有效但数据库中没有用户，返回默认用户信息（允许 API 访问）
+                return {
+                    "username": username,
+                    "role": "user",
+                    "permissions": None,
+                    "original_user": None
+                }
+                
+            return {
+                "username": user.username,
+                "role": user.role,
+                "permissions": user.permissions,
+                "original_user": user
+            }
+        except jwt.PyJWTError:
+            # JWT 验证失败，继续尝试 API Key
+            pass
+    
+    # JWT Token 不存在或验证失败，尝试 API Key 认证
+    api_key = extract_api_key_from_request(request)
+    if api_key:
+        user = await get_current_user_by_api_key(api_key)
+        if user:
+            return user
+    
+    # 两种认证方式都失败，返回 401
+    raise credentials_exception
 
 def requires_role(role: str):
     """检查用户角色的装饰器"""

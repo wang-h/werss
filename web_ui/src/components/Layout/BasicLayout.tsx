@@ -180,6 +180,7 @@ const BasicLayout: React.FC = () => {
     '/message-tasks': t('layout.messageTasks'),
     '/configs': t('layout.configs'),
     '/sys-info': t('layout.sysInfo'),
+    '/api-keys': t('layout.apiKeys'),
   }
 
   const getBreadcrumbItems = (): Array<{ label: string; path: string }> => {

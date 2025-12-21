@@ -35,9 +35,9 @@ def _load_env_before_config():
             
             if os.path.exists(env_path):
                 # 先检查环境变量是否已存在
-                api_key_before = os.getenv("DEEPSEEK_API_KEY")
+                api_key_before = os.getenv("OPENAI_API_KEY")
                 load_dotenv(env_path, override=False)  # override=False 表示不覆盖已存在的环境变量
-                api_key_after = os.getenv("DEEPSEEK_API_KEY")
+                api_key_after = os.getenv("OPENAI_API_KEY")
                 
                 # 如果加载成功，尝试记录日志（避免循环导入）
                 if api_key_after and not api_key_before:
@@ -224,7 +224,7 @@ class Config:
             return v
         except:
             return v
-    def get(self,key,default:any=None):
+    def get(self,key,default:any=None, silent:bool=False):
         _config=self.replace_env_vars(self.config)
         
         # 支持嵌套key访问
@@ -239,9 +239,9 @@ class Config:
             else:
                 return val
         except (KeyError, TypeError):
-            # 只在 DEBUG 模式下打印警告，避免过多日志
             # 如果提供了默认值，这是正常情况，不需要警告
-            if default is None:
+            # 如果 silent=True，也不输出警告（用于有 fallback 机制的情况，如从环境变量读取）
+            if default is None and not silent:
                 print_warning("Key {} not found in configuration".format(key))
         return default 
 

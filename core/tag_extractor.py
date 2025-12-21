@@ -1,4 +1,4 @@
-"""标签提取模块 - 支持 TextRank（jieba）和 AI（DeepSeek）两种方式"""
+"""标签提取模块 - 支持 TextRank（jieba）和 AI（OpenAI）两种方式"""
 import jieba.analyse
 from typing import List, Optional
 import os
@@ -42,9 +42,10 @@ class TagExtractor:
         
         # 检查是否配置了 AI
         if AI_AVAILABLE:
-            api_key = cfg.get("deepseek.api_key") or os.getenv("DEEPSEEK_API_KEY", "")
-            base_url = cfg.get("deepseek.base_url") or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-            model = cfg.get("deepseek.model") or os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+            # 提供默认值 None，silent=True 避免输出警告（如果配置文件中没有这些项，会从环境变量读取）
+            api_key = cfg.get("openai.api_key", None, silent=True) or os.getenv("OPENAI_API_KEY", "")
+            base_url = cfg.get("openai.base_url", None, silent=True) or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            model = cfg.get("openai.model", None, silent=True) or os.getenv("OPENAI_MODEL", "gpt-4o")
             
             if api_key:
                 self.ai_client = AsyncOpenAI(
@@ -52,10 +53,10 @@ class TagExtractor:
                     base_url=base_url,
                 )
                 self.ai_model = model
-                logger.info(f"DeepSeek API 已配置，模型: {model}, Base URL: {base_url}")
+                logger.info(f"OpenAI API 已配置，模型: {model}, Base URL: {base_url}")
             else:
-                logger.warning("DeepSeek API Key 未配置，AI 提取功能不可用")
-                logger.debug(f"检查路径: cfg.get('deepseek.api_key')={cfg.get('deepseek.api_key')}, os.getenv('DEEPSEEK_API_KEY')={os.getenv('DEEPSEEK_API_KEY', '')}")
+                logger.warning("OpenAI API Key 未配置，AI 提取功能不可用")
+                logger.debug(f"检查路径: cfg.get('openai.api_key')={cfg.get('openai.api_key')}, os.getenv('OPENAI_API_KEY')={os.getenv('OPENAI_API_KEY', '')}")
         else:
             logger.warning("openai 模块未安装，AI 提取功能不可用")
         
@@ -952,7 +953,7 @@ class TagExtractor:
         max_tags: int = 3
     ) -> List[str]:
         """
-        使用 DeepSeek API 提取标签关键词
+        使用 OpenAI API 提取标签关键词
         
         Args:
             title: 文章标题
@@ -964,7 +965,7 @@ class TagExtractor:
             标签关键词列表
         """
         if not self.ai_client:
-            logger.warning("DeepSeek API 未配置，无法使用 AI 提取")
+            logger.warning("OpenAI API 未配置，无法使用 AI 提取")
             return []
         
         # 处理 HTML 内容：转换为纯文本，避免提取到 CSS 样式等无关内容
@@ -1027,17 +1028,25 @@ class TagExtractor:
         
         prompt = f"""请从以下文章中提取 {max_tags} 个最核心的**具体**标签关键词。
 
+【提取优先级（按重要性排序）】：
+1. **公司名称**：文章中提到的所有公司、企业、组织名称（如：字节跳动、腾讯、阿里巴巴、OpenAI、Anthropic、英伟达、华为、小米等）
+2. **产品/服务名称**：具体的产品、服务、平台名称（如：ChatGPT、Claude、豆包、微信、抖音、iOS、Android等）
+3. **技术/工具名称**：具体的技术、框架、工具、协议名称（如：React、TensorFlow、Kubernetes、HTTP/3等）
+4. **人物名称**：科技界、商业界的重要人物（如：马斯克、李彦宏、张一鸣等）
+5. **特定事件/项目**：具体的项目、事件、活动名称（如：诺贝尔奖、登月计划等）
+6. **特定领域/概念**：具体的细分领域或专业概念（如：自动驾驶、量子计算、区块链等）
+
 【重要要求】：
-1. 标签词必须**具体且有区分度**，避免通用词汇
-2. 优先提取：具体技术名称、产品名称、科技人物、公司名称、特定领域、特定事件
-3. 避免提取：AI、大语言模型、云计算、机器学习等过于宽泛的词
-4. 每个标签词 2-10 个字
-5. 按重要性排序
-6. 只返回 JSON 数组格式
+1. **必须提取公司名称**：如果文章提到公司，公司名称必须包含在标签中
+2. 标签词必须**具体且有区分度**，避免通用词汇
+3. 避免提取：AI、大语言模型、云计算、机器学习、技术、产品等过于宽泛的词
+4. 每个标签词 2-15 个字（公司名称可以更长）
+5. 按重要性排序（公司名称通常最重要）
+6. 只返回 JSON 数组格式，不要包含任何解释或思考过程
 
 【好的示例】：
-- 好："Anthropic Claude"、"CAR-T疗法"、"Crossplane"、"快手OneRec"、"李彦宏"、"DeepSeek"、"英伟达"
-- 差："AI"、"大语言模型"、"云计算"、"人工智能"
+- 好："字节跳动"、"豆包视频"、"Seedance 1.5"、"火山引擎"、"Anthropic"、"Claude"、"诺贝尔奖"、"Crossplane"、"快手OneRec"、"李彦宏"、"DeepSeek"、"英伟达"、"NVIDIA"
+- 差："AI"、"大语言模型"、"云计算"、"人工智能"、"技术"、"产品"、"公司"
 
 文章：
 {text}
@@ -1047,32 +1056,107 @@ class TagExtractor:
         try:
             import json
             
-            response = await self.ai_client.chat.completions.create(
-                model=self.ai_model,
-                messages=[
-                    {"role": "system", "content": "你是一个专业的文章标签分析专家，用作近期热点主题聚类。专注提取具体的、有区分度的技术和产品名称，避免宽泛的通用词汇。只返回 JSON 格式的标签数组。"},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.2,
-                max_tokens=200,
+            # 检查是否是 Qwen3 模型，如果是则禁用思考功能
+            # DeepSeek 模型不需要处理（不会有思考过程问题）
+            model_name_lower = str(self.ai_model).lower() if self.ai_model else ""
+            is_qwen3 = "qwen3" in model_name_lower or (
+                "qwen" in model_name_lower and "3" in model_name_lower
             )
             
-            result = response.choices[0].message.content.strip()
-            # 解析 JSON
-            tags = json.loads(result)
-            return tags[:max_tags] if isinstance(tags, list) else []
+            # 构建 API 调用参数
+            api_params = {
+                "model": self.ai_model,
+                "messages": [
+                    {"role": "system", "content": "你是一个专业的文章标签分析专家，用于热点主题聚类。必须优先提取公司名称、产品名称、技术名称等具体实体，避免宽泛的通用词汇。如果文章提到公司，公司名称必须包含在标签中。只返回 JSON 格式的标签数组，不要包含任何解释。"},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.2,
+                "max_tokens": 300,  # 增加token限制，确保能提取更多标签
+            }
             
-        except json.JSONDecodeError:
-            # 如果解析失败，尝试提取方括号内容
+            # 如果是 Qwen3 模型，添加禁用思考的参数
+            if is_qwen3:
+                api_params["extra_body"] = {
+                    "chat_template_kwargs": {
+                        "enable_thinking": False
+                    }
+                }
+            
+            response = await self.ai_client.chat.completions.create(**api_params)
+            
+            result = response.choices[0].message.content
+            if result is None:
+                logger.error("AI 返回内容为空")
+                return []
+            result = result.strip()
+            
+            # 处理可能包含 reasoning 标签的情况（如 o1 系列模型）
             import re
-            match = re.search(r'\[.*?\]', result, re.DOTALL)
-            if match:
-                try:
-                    tags = json.loads(match.group())
-                    return tags[:max_tags] if isinstance(tags, list) else []
-                except:
-                    pass
-            logger.error(f"AI 提取 JSON 解析失败: {result}")
+            original_result = result  # 保存原始结果用于错误日志
+            
+            # 移除各种 reasoning 标签及其内容（包括没有闭合标签的情况）
+            reasoning_patterns = [
+                r'<think>.*?</think>',
+                r'<thinking>.*?</thinking>',
+                r'<reasoning>.*?</reasoning>',
+                r'<think>.*?</think>',
+                # 处理没有闭合标签的情况（匹配到文件末尾或下一个标签）
+                r'<think>.*?(?=\[|$)',
+                r'<thinking>.*?(?=\[|$)',
+                r'<reasoning>.*?(?=\[|$)',
+                r'<think>.*?(?=\[|$)',
+            ]
+            for pattern in reasoning_patterns:
+                result = re.sub(pattern, '', result, flags=re.DOTALL)
+            result = result.strip()
+            
+            # 如果移除标签后结果为空，尝试从原始结果中提取 JSON
+            if not result:
+                result = original_result
+            
+            # 尝试直接解析 JSON
+            try:
+                tags = json.loads(result)
+                if isinstance(tags, list) and len(tags) > 0:
+                    return tags[:max_tags]
+            except json.JSONDecodeError:
+                pass
+            
+            # 如果直接解析失败，尝试提取所有可能的 JSON 数组
+            # 使用更宽松的正则表达式匹配 JSON 数组（包括嵌套和转义字符）
+            json_array_pattern = r'\[(?:[^\[\]]+|\[[^\]]*\])*\]'
+            matches = list(re.finditer(json_array_pattern, result, re.DOTALL))
+            if not matches:
+                # 如果没找到，尝试更简单的模式
+                matches = list(re.finditer(r'\[.*?\]', result, re.DOTALL))
+            
+            if matches:
+                # 从后往前尝试（通常最后的 JSON 是最终答案）
+                for match in reversed(matches):
+                    try:
+                        candidate = match.group()
+                        tags = json.loads(candidate)
+                        if isinstance(tags, list) and len(tags) > 0:
+                            # 验证标签格式：应该是字符串列表
+                            if all(isinstance(tag, str) and len(tag.strip()) > 0 for tag in tags):
+                                return tags[:max_tags]
+                    except (json.JSONDecodeError, AttributeError):
+                        continue
+            
+            # 如果还是失败，尝试查找包含引号的数组模式（更宽松）
+            # 匹配类似 ["tag1", "tag2", "tag3"] 的模式
+            quoted_array_pattern = r'\[(?:"[^"]*"(?:\s*,\s*"[^"]*")*)?\]'
+            matches = list(re.finditer(quoted_array_pattern, result, re.DOTALL))
+            if matches:
+                for match in reversed(matches):
+                    try:
+                        tags = json.loads(match.group())
+                        if isinstance(tags, list) and len(tags) > 0:
+                            return tags[:max_tags]
+                    except:
+                        continue
+            
+            logger.error(f"AI 提取 JSON 解析失败，原始响应前500字符: {original_result[:500]}")
             return []
         except Exception as e:
             logger.error(f"AI 提取失败: {e}")
@@ -1092,7 +1176,7 @@ class TagExtractor:
             title: 文章标题
             description: 文章描述
             content: 文章内容（可能是 HTML 格式）
-            method: 提取方式，'textrank'（TextRank）、'keybert'（KeyBERT）或 'ai'（DeepSeek API）
+            method: 提取方式，'textrank'（TextRank）、'keybert'（KeyBERT）或 'ai'（OpenAI API）
             
         Returns:
             标签关键词列表
@@ -1155,14 +1239,14 @@ class TagExtractor:
         
         if method == "textrank":
             # 获取配置
-            topK = cfg.get("article_tag.max_topics", 5)
+            topK = cfg.get("article_tag.max_tags", 5)
             allow_pos_str = cfg.get("article_tag.textrank.allow_pos", "n,nz")
             allow_pos = tuple(pos.strip() for pos in allow_pos_str.split(","))
             
             return self.extract_with_textrank(text, topK=topK, allowPOS=allow_pos)
         elif method == "keybert":
             # KeyBERT 提取
-            topK = cfg.get("article_tag.max_topics", 5)
+            topK = cfg.get("article_tag.max_tags", 5)
             # 检查是否使用混合方案（结合 TextRank 实体提取）
             use_hybrid = cfg.get("article_tag.keybert.hybrid", False)
             if use_hybrid:
@@ -1189,20 +1273,30 @@ def get_tag_extractor() -> TagExtractor:
     global _global_extractor
     if _global_extractor is None:
         _global_extractor = TagExtractor()
-        logger.info("已创建全局 TagExtractor 实例，KeyBERT 模型将常驻内存")
+        
+        # 根据配置的提取方法输出相应的日志信息
+        extract_method = cfg.get("article_tag.extract_method", "textrank")
+        
+        if extract_method == "ai" and _global_extractor.ai_client is not None:
+            logger.info("已创建全局 TagExtractor 实例，使用 AI 提取（OpenAI API）")
+        elif extract_method == "keybert" and _global_extractor.keybert_available:
+            logger.info("已创建全局 TagExtractor 实例，KeyBERT 模型将在首次使用时加载")
+        else:
+            logger.info("已创建全局 TagExtractor 实例，使用 TextRank 提取")
     else:
         # 如果实例已存在，但 AI 客户端未初始化，尝试重新初始化
         if AI_AVAILABLE and _global_extractor.ai_client is None:
             load_dev_env_if_needed()
-            api_key = cfg.get("deepseek.api_key") or os.getenv("DEEPSEEK_API_KEY", "")
+            # 提供默认值 None，silent=True 避免输出警告（如果配置文件中没有这些项，会从环境变量读取）
+            api_key = cfg.get("openai.api_key", None, silent=True) or os.getenv("OPENAI_API_KEY", "")
             if api_key:
-                base_url = cfg.get("deepseek.base_url") or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
-                model = cfg.get("deepseek.model") or os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
+                base_url = cfg.get("openai.base_url", None, silent=True) or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+                model = cfg.get("openai.model", None, silent=True) or os.getenv("OPENAI_MODEL", "gpt-4o")
                 _global_extractor.ai_client = AsyncOpenAI(
                     api_key=api_key,
                     base_url=base_url,
                 )
                 _global_extractor.ai_model = model
-                logger.info(f"已重新初始化 DeepSeek API 客户端，模型: {model}")
+                logger.info(f"已重新初始化 OpenAI API 客户端，模型: {model}")
     return _global_extractor
 

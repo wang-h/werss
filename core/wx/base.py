@@ -144,29 +144,53 @@ class WxGather:
                 from core.models import Article
                 from datetime import datetime
                 
-                # 处理封面图片上传到MinIO
+                # 先构建文章ID，用于检查文章是否已存在
+                article_id = str(data.get('id', ''))
+                mp_id = data.get('mp_id', '')
+                if article_id and mp_id:
+                    # 构建完整的文章ID（与 add_article 中的逻辑一致）
+                    full_article_id = f"{str(mp_id)}-{article_id}".replace("MP_WXS_","")
+                else:
+                    full_article_id = None
+                
+                # 先检查文章是否已存在，避免重复上传图片
+                article_exists = False
+                if full_article_id:
+                    try:
+                        import core.db as db
+                        DB = db.Db(tag="文章检查")
+                        session = DB.get_session()
+                        existing_article = session.query(Article).filter(Article.id == full_article_id).first()
+                        if existing_article is not None:
+                            article_exists = True
+                            logger.info(f"文章已存在，跳过图片上传: {full_article_id}")
+                    except Exception as e:
+                        logger.warning(f"检查文章是否存在时出错: {e}")
+                        # 检查失败时继续处理，避免影响正常流程
+                
+                # 只有在文章不存在时才上传封面图片
                 pic_url = data.get('cover', '')
-                if pic_url:
+                if pic_url and not article_exists:
                     try:
                         from core.storage.minio_client import MinIOClient
                         import re
                         minio_client = MinIOClient()
                         
-                        # 从URL中提取文章ID
-                        article_id = str(data.get('id', '')) or "unknown"
-                        if not article_id or article_id == "unknown":
+                        # 从URL中提取文章ID（用于MinIO路径）
+                        article_id_for_minio = article_id or "unknown"
+                        if not article_id_for_minio or article_id_for_minio == "unknown":
                             # 尝试从link中提取
                             link = data.get('link', '')
                             if link:
                                 match = re.search(r'/s/([^/?]+)', str(link))
                                 if match:
-                                    article_id = match.group(1)
+                                    article_id_for_minio = match.group(1)
                         
                         # 如果MinIO可用且封面图不是MinIO URL，则上传
                         if minio_client.is_available() and pic_url:
                             # 跳过已经是MinIO URL的图片
                             if 'minio' not in pic_url.lower() and (not minio_client.public_url or minio_client.public_url not in pic_url):
-                                minio_cover_url = minio_client.upload_image(pic_url, article_id)
+                                minio_cover_url = minio_client.upload_image(pic_url, article_id_for_minio)
                                 if minio_cover_url:
                                     pic_url = minio_cover_url
                                     print_info(f"封面图片已上传到MinIO: {data.get('cover', '')[:80]}... -> {minio_cover_url[:80]}...")
@@ -174,6 +198,22 @@ class WxGather:
                         logger.warning(f"处理封面图片失败: {e}")
                         # 失败时使用原始URL
                         pass
+                elif article_exists:
+                    # 如果文章已存在，尝试从现有文章中获取已上传的封面图URL
+                    try:
+                        import core.db as db
+                        from core.storage.minio_client import MinIOClient
+                        DB = db.Db(tag="文章检查")
+                        session = DB.get_session()
+                        existing_article = session.query(Article).filter(Article.id == full_article_id).first()
+                        if existing_article and existing_article.pic_url:
+                            # 如果现有文章已有MinIO URL，使用它
+                            minio_client = MinIOClient()
+                            if 'minio' in existing_article.pic_url.lower() or (minio_client.public_url and minio_client.public_url in existing_article.pic_url):
+                                pic_url = existing_article.pic_url
+                                logger.info(f"使用已存在的封面图URL: {pic_url[:80]}...")
+                    except Exception as e:
+                        logger.warning(f"获取已存在文章封面图失败: {e}")
                 
                 art={
                     "id":str(data['id']),

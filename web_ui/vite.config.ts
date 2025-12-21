@@ -82,6 +82,7 @@ export default defineConfig(({ command, mode }) => {
         "/rss": createProxyTarget(env),
         "/feed": createProxyTarget(env),
         "/api": createProxyTarget(env),
+        "/assets": createProxyTarget(env),
         "/test-results": {
           target: "http://localhost:3000",
           changeOrigin: true,

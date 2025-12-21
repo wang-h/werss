@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Upload } from '@/components/extensions/upload'
 import { Message } from '@/utils/message'
 import { getTag, createTag, updateTag } from '@/api/tagManagement'
@@ -281,6 +281,7 @@ const TagForm: React.FC = () => {
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>选择公众号</DialogTitle>
+            <DialogDescription>选择要关联的公众号</DialogDescription>
           </DialogHeader>
           <MpMultiSelect
             value={mpsId}

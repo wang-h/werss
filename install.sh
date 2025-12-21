@@ -120,6 +120,9 @@ INSTALL=${INSTALL:-False}
 # 根据环境变量决定是否安装浏览器
 if [ "$INSTALL" = True ]; then
     echo "INSTALL环境变量为$INSTALL，开始安装playwright浏览器..."
+    # 使用国内镜像源加速下载
+    export PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright/
+    export PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=300000
     playwright install $BROWSER_TYPE --with-deps
 else
     echo "INSTALL环境变量为$INSTALL，跳过playwright浏览器安装"
