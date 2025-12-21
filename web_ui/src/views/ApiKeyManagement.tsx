@@ -56,6 +56,11 @@ const PERMISSION_OPTIONS = [
 ]
 
 const ApiKeyManagement: React.FC = () => {
+  // #region agent log
+  React.useEffect(() => {
+    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ApiKeyManagement.tsx:58','message':'ApiKeyManagement 组件渲染',data:{pathname:window.location.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+  }, []);
+  // #endregion
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
@@ -85,7 +90,7 @@ const ApiKeyManagement: React.FC = () => {
     }
   }
   
-  const [apiKeyMap, setApiKeyMap] = useState<Record<string, string>>(loadApiKeyMapFromStorage()) // 存储 API Key ID -> Key 的映射
+  const [apiKeyMap, setApiKeyMap] = useState<Record<string, string>>(loadApiKeyMapFromStorage())
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({})
   
   // 保存 API Key 到 localStorage
@@ -104,7 +109,7 @@ const ApiKeyManagement: React.FC = () => {
   const [logsLoading, setLogsLoading] = useState(false)
   const [logsPagination, setLogsPagination] = useState({
     current: 1,
-    pageSize: 10,
+    pageSize: 10, // 日志每页显示条数
     total: 0
   })
 
@@ -148,7 +153,6 @@ const ApiKeyManagement: React.FC = () => {
   }, [pagination.current, pagination.pageSize])
 
   useEffect(() => {
-    // 搜索时重新加载
     const timer = setTimeout(() => {
       if (pagination.current === 1) {
         loadApiKeys()
@@ -184,7 +188,6 @@ const ApiKeyManagement: React.FC = () => {
 
   // 选择 API Key
   const handleSelectApiKey = (apiKey: ApiKey) => {
-    // 如果 localStorage 中有保存的 Key，则合并到 apiKey 对象中
     const savedKey = apiKeyMap[apiKey.id]
     const apiKeyWithSavedKey = savedKey ? { ...apiKey, key: savedKey } : apiKey
     setSelectedApiKey(apiKeyWithSavedKey)
@@ -208,7 +211,7 @@ const ApiKeyManagement: React.FC = () => {
     setIsEditing(true)
     form.reset({
       name: apiKey.name,
-      permissions: apiKey.permissions || null, // 保持为 JSON 字符串格式
+      permissions: apiKey.permissions || null,
       is_active: apiKey.is_active
     })
     setSelectedApiKey(apiKey)
@@ -219,10 +222,9 @@ const ApiKeyManagement: React.FC = () => {
   const handleSave = async () => {
     try {
       const values = form.getValues()
-      // 确保 permissions 格式正确
       const submitData = {
         ...values,
-        permissions: values.permissions || null // 确保 null 而不是 undefined
+        permissions: values.permissions || null
       }
       
       if (isEditing && selectedApiKey) {
@@ -235,7 +237,6 @@ const ApiKeyManagement: React.FC = () => {
         if (newKey && newKeyId) {
           setNewApiKey(newKey)
           setNewApiKeyId(newKeyId)
-          // 保存到 Map 和 localStorage 中，以便后续显示（即使刷新页面也不会丢失）
           saveApiKeyToStorage(newKeyId, newKey)
           Message.success(t('apiKeys.messages.createSuccess'))
         } else {
@@ -244,14 +245,13 @@ const ApiKeyManagement: React.FC = () => {
       }
       setVisible(false)
       await loadApiKeys()
-      // 如果创建成功，自动选中新创建的 API Key
+      
       if (!isEditing && newApiKeyId) {
-        // 等待 loadApiKeys 完成后再查找
         setTimeout(() => {
           const newKey = apiKeys.find(k => k.id === newApiKeyId)
           if (newKey) {
             setSelectedApiKey({ ...newKey, key: apiKeyMap[newApiKeyId] })
-            setShowApiKey(prev => ({ ...prev, [newApiKeyId]: true })) // 自动显示密钥
+            setShowApiKey(prev => ({ ...prev, [newApiKeyId]: true }))
           }
         }, 100)
       }
@@ -271,7 +271,6 @@ const ApiKeyManagement: React.FC = () => {
     }
   }
 
-  // 删除 API Key
   const handleDelete = async (id: string) => {
     try {
       await deleteApiKey(id)
@@ -286,7 +285,6 @@ const ApiKeyManagement: React.FC = () => {
     }
   }
 
-  // 重新生成 API Key
   const handleRegenerate = async (id: string) => {
     try {
       const res = await regenerateApiKey(id)
@@ -294,7 +292,6 @@ const ApiKeyManagement: React.FC = () => {
       if (newKey) {
         setNewApiKey(newKey)
         setNewApiKeyId(id)
-        // 保存到 Map 和 localStorage 中，以便后续显示（即使刷新页面也不会丢失）
         saveApiKeyToStorage(id, newKey)
         Message.success(t('apiKeys.messages.regenerateSuccess'))
       } else {
@@ -303,7 +300,6 @@ const ApiKeyManagement: React.FC = () => {
       setRegenerateDialogOpen(false)
       setRegenerateTargetId(null)
       loadApiKeys()
-      // 如果当前选中的是重新生成的 API Key，更新 selectedApiKey
       if (selectedApiKey?.id === id) {
         setSelectedApiKey(prev => prev ? { ...prev, key: newKey } : null)
       }
@@ -312,7 +308,6 @@ const ApiKeyManagement: React.FC = () => {
     }
   }
 
-  // 复制到剪贴板
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
@@ -322,17 +317,19 @@ const ApiKeyManagement: React.FC = () => {
     }
   }
 
-  // 切换显示/隐藏 API Key
   const toggleShowApiKey = (id: string) => {
     setShowApiKey(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
   const totalPages = Math.ceil(pagination.total / pagination.pageSize)
+  const logTotalPages = Math.ceil(logsPagination.total / logsPagination.pageSize)
 
   return (
-    <div className="p-6 min-h-[calc(100vh-64px)] w-full box-border overflow-hidden">
-      {/* 页面标题 */}
-      <div className="mb-6">
+    // 使用 h-screen 和 flex flex-col 确保布局占满全屏，防止出现双滚动条
+    <div className="h-screen w-full flex flex-col overflow-hidden">
+      
+      {/* 头部标题区：固定高度 */}
+      <div className="flex-shrink-0 p-6 pb-4">
         <h1 className="text-3xl font-bold mb-2 text-foreground">
           API Key 管理
         </h1>
@@ -341,12 +338,14 @@ const ApiKeyManagement: React.FC = () => {
         </p>
       </div>
 
-      <div className="flex gap-4 items-start w-full overflow-hidden h-[calc(100vh-200px)]">
+      {/* 主内容区域：flex-1 自动填充剩余高度，min-h-0 防止子元素溢出 */}
+      <div className="flex-1 min-h-0 flex gap-6 px-6 pb-6">
+        
         {/* 左侧：API Key 列表 */}
-        <div className="w-[480px] bg-background rounded-lg shadow-sm border flex flex-col flex-shrink-0 overflow-hidden">
-          {/* 搜索和添加按钮区域 */}
-          <div className="p-5 border-b">
-            <div className="flex gap-3 mb-4">
+        <div className="w-[420px] bg-background rounded-lg shadow-sm border flex flex-col flex-shrink-0 overflow-hidden">
+          {/* 搜索区域 */}
+          <div className="p-4 border-b flex-shrink-0">
+            <div className="flex gap-3 mb-3">
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -366,11 +365,11 @@ const ApiKeyManagement: React.FC = () => {
             </Button>
           </div>
 
-          {/* 表格区域 */}
-          <div className="flex-1 overflow-auto p-4">
+          {/* 列表区域：使用 flex-1 撑开 */}
+          <div className="flex-1 overflow-auto p-2">
             <div className="rounded-md border">
               <Table>
-                <TableHeader>
+                <TableHeader className="sticky top-0 z-10 shadow-sm ">
                   <TableRow>
                     <TableHead>名称</TableHead>
                     <TableHead className="text-center">状态</TableHead>
@@ -400,12 +399,12 @@ const ApiKeyManagement: React.FC = () => {
                         }`}
                         onClick={() => handleSelectApiKey(record)}
                       >
-                        <TableCell className="font-medium">
+                        <TableCell className="font-medium py-3">
                           {record.name}
                         </TableCell>
-                        <TableCell className="text-center">
-                          <Badge variant={record.is_active ? 'default' : 'destructive'} className="rounded">
-                            <span className="dark:text-dark">{record.is_active ? '已启用' : '已禁用'}</span>
+                        <TableCell className="text-center py-3">
+                          <Badge variant={record.is_active ? 'default' : 'destructive'} className="rounded px-2">
+                            <span className="dark:text-dark text-xs">{record.is_active ? '启用' : '禁用'}</span>
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -414,8 +413,9 @@ const ApiKeyManagement: React.FC = () => {
                 </TableBody>
               </Table>
             </div>
+            {/* 左侧分页 */}
             {totalPages > 1 && (
-              <div className="mt-4">
+              <div className="mt-4 pb-2 px-1">
                 <Pagination>
                   <PaginationContent>
                     <PaginationItem>
@@ -430,32 +430,9 @@ const ApiKeyManagement: React.FC = () => {
                         className={pagination.current <= 1 ? 'pointer-events-none opacity-50' : ''}
                       />
                     </PaginationItem>
-                    {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                      let pageNum: number
-                      if (totalPages <= 5) {
-                        pageNum = i + 1
-                      } else if (pagination.current <= 3) {
-                        pageNum = i + 1
-                      } else if (pagination.current >= totalPages - 2) {
-                        pageNum = totalPages - 4 + i
-                      } else {
-                        pageNum = pagination.current - 2 + i
-                      }
-                      return (
-                        <PaginationItem key={pageNum}>
-                          <PaginationLink
-                            href="#"
-                            onClick={(e) => {
-                              e.preventDefault()
-                              setPagination(prev => ({ ...prev, current: pageNum }))
-                            }}
-                            isActive={pagination.current === pageNum}
-                          >
-                            {pageNum}
-                          </PaginationLink>
-                        </PaginationItem>
-                      )
-                    })}
+                    <PaginationItem>
+                         <span className="text-xs text-muted-foreground px-2">{pagination.current} / {totalPages}</span>
+                    </PaginationItem>
                     <PaginationItem>
                       <PaginationNext
                         href="#"
@@ -476,216 +453,180 @@ const ApiKeyManagement: React.FC = () => {
         </div>
 
         {/* 右侧：API Key 详情 */}
-        <div className="flex-1 min-w-[400px] max-w-full flex flex-col overflow-hidden">
+        <div className="flex-1 min-w-[500px] flex flex-col h-full overflow-hidden">
           {selectedApiKey ? (
-            <Card className="rounded-lg shadow-sm border bg-background w-full overflow-hidden h-full flex flex-col">
-              <CardHeader className="pb-5 pt-6 px-6 flex flex-col gap-4">
-                <div className="flex md:flex-row flex-col items-center gap-4 flex-1 min-w-0 w-full">
-                  <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
-                    <div className="h-14 w-14 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                      <Key className="h-7 w-7 text-primary" />
+            <Card className="rounded-lg shadow-sm border bg-background flex flex-col h-full overflow-hidden">
+              <CardHeader className="flex-shrink-0 pb-4 pt-6 px-6 border-b">
+                <div className="flex md:flex-row flex-col items-center gap-4 w-full">
+                  <div className="flex items-center gap-4 flex-1 min-w-0">
+                    <div className="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Key className="h-6 w-6 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xl font-bold text-foreground mb-1 overflow-hidden text-ellipsis whitespace-nowrap">
+                      <div className="text-lg font-bold text-foreground mb-1 truncate">
                         {selectedApiKey.name}
                       </div>
-                      <div className="text-xs text-muted-foreground overflow-hidden text-ellipsis whitespace-nowrap">
-                        ID: {selectedApiKey.id}
+                      <div className="text-xs text-muted-foreground truncate font-mono select-all">
+                        {selectedApiKey.id}
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2 flex-shrink-0">
-                    <Button variant="outline" onClick={() => handleEdit(selectedApiKey)}>
-                      <Edit className="h-4 w-4 mr-2" />
+                    <Button variant="outline" size="sm" onClick={() => handleEdit(selectedApiKey)}>
+                      <Edit className="h-3.5 w-3.5 mr-2" />
                       编辑
                     </Button>
                     <Button
                       variant="outline"
+                      size="sm"
                       onClick={() => {
                         setRegenerateTargetId(selectedApiKey.id)
                         setRegenerateDialogOpen(true)
                       }}
                     >
-                      <RefreshCw className="h-4 w-4 mr-2" />
-                      重新生成
+                      <RefreshCw className="h-3.5 w-3.5 mr-2" />
+                      重置
                     </Button>
                     <Button
                       variant="destructive"
+                      size="sm"
                       onClick={() => {
                         setDeleteTargetId(selectedApiKey.id)
                         setDeleteDialogOpen(true)
                       }}
                     >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      删除
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="px-6 pb-6 flex-1 overflow-auto">
-                <Tabs defaultValue="details" className="w-full">
-                  <TabsList>
-                    <TabsTrigger value="details">详情</TabsTrigger>
-                    <TabsTrigger value="logs">使用日志</TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="details" className="space-y-4 mt-4">
-                    {/* API Key 值 */}
-                    <div className="p-5 bg-muted/50 rounded-lg border">
-                      <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                        API Key
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 px-3 py-2 bg-background rounded text-sm font-mono break-all">
-                          {showApiKey[selectedApiKey.id] 
-                            ? (selectedApiKey.key || apiKeyMap[selectedApiKey.id] || '密钥不可用（仅在创建/重新生成时显示）') 
-                            : '•'.repeat(32)}
-                        </code>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => toggleShowApiKey(selectedApiKey.id)}
-                        >
-                          {showApiKey[selectedApiKey.id] ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            const keyToCopy = selectedApiKey.key || apiKeyMap[selectedApiKey.id]
-                            if (keyToCopy) {
-                              handleCopy(keyToCopy)
-                            }
-                          }}
-                          disabled={!selectedApiKey.key && !apiKeyMap[selectedApiKey.id]}
-                        >
-                          <Copy className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
 
-                    {/* 状态 */}
-                    <div className="p-5 bg-muted/50 rounded-lg border">
-                      <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                        状态
+              {/* 使用 flex-1 和 p-0 让 Tabs 接管剩余空间 */}
+              <CardContent className="flex-1 overflow-hidden p-0 flex flex-col min-h-0">
+                <Tabs defaultValue="details" className="flex flex-col h-full w-full">
+                  <div className="px-6 pt-4 border-b flex-shrink-0">
+                    <TabsList className="w-fit">
+                      <TabsTrigger value="details">详情信息</TabsTrigger>
+                      <TabsTrigger value="logs">调用日志</TabsTrigger>
+                    </TabsList>
+                  </div>
+                  
+                  {/* 详情 Tab：允许自身滚动 */}
+                  <TabsContent value="details" className="flex-1 overflow-y-auto p-6 space-y-6 m-0">
+                      {/* API Key 值 */}
+                      <div className="space-y-2 p-4 bg-muted/30 rounded-lg border">
+                        <div className="text-sm font-semibold text-muted-foreground">API Key 密钥</div>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 px-3 py-2 bg-background rounded text-sm font-mono break-all border shadow-sm">
+                            {showApiKey[selectedApiKey.id] 
+                              ? (selectedApiKey.key || apiKeyMap[selectedApiKey.id] || '密钥不可用') 
+                              : '••••••••••••••••••••••••••••••••'}
+                          </code>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleShowApiKey(selectedApiKey.id)}>
+                              {showApiKey[selectedApiKey.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8"
+                              disabled={!selectedApiKey.key && !apiKeyMap[selectedApiKey.id]}
+                              onClick={() => {
+                                const k = selectedApiKey.key || apiKeyMap[selectedApiKey.id]
+                                if(k) handleCopy(k)
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <Badge
-                          variant={selectedApiKey.is_active ? 'default' : 'destructive'}
-                          className="text-sm px-4 py-1.5 rounded-md font-medium"
-                        >
-                          <span className="dark:text-foreground">
+
+                      {/* 状态与权限 */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
+                          <div className="text-xs font-semibold text-muted-foreground">当前状态</div>
+                          <Badge variant={selectedApiKey.is_active ? 'default' : 'destructive'} className="text-sm px-3 py-1">
                             {selectedApiKey.is_active ? '已启用' : '已禁用'}
-                          </span>
-                        </Badge>
+                          </Badge>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
+                          <div className="text-xs font-semibold text-muted-foreground">权限范围</div>
+                          <div>
+                           {selectedApiKey.permissions === 'read' && <Badge variant="secondary">Read Only</Badge>}
+                           {selectedApiKey.permissions === 'read_write' && <Badge variant="secondary">Read / Write</Badge>}
+                           {!selectedApiKey.permissions && <span className="text-sm text-muted-foreground">-</span>}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-
-                    {/* 权限 */}
-                    <div className="p-5 bg-muted/50 rounded-lg border">
-                      <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                        权限
+                      
+                      {/* 时间信息 */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
+                          <div className="text-xs font-semibold text-muted-foreground">创建时间</div>
+                          <div className="text-sm font-mono text-foreground">{formatDateTime(selectedApiKey.created_at)}</div>
+                        </div>
+                        <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
+                          <div className="text-xs font-semibold text-muted-foreground">最后使用</div>
+                          <div className="text-sm font-mono text-foreground">
+                            {selectedApiKey.last_used_at ? formatDateTime(selectedApiKey.last_used_at) : '暂无调用记录'}
+                          </div>
+                        </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {(() => {
-                          // 直接使用字符串，不再解析 JSON
-                          const permission = selectedApiKey.permissions
-                          if (permission) {
-                            const option = PERMISSION_OPTIONS.find(opt => opt.value === permission)
-                            return (
-                              <Badge variant="secondary">
-                                {option ? option.label : permission}
-                              </Badge>
-                            )
-                          }
-                          return (
-                            <span className="text-sm text-muted-foreground">无特定权限限制</span>
-                          )
-                        })()}
-                      </div>
-                    </div>
-
-                    {/* 最后使用时间 */}
-                    <div className="p-5 bg-muted/50 rounded-lg border">
-                      <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                        最后使用时间
-                      </div>
-                      <div className="text-sm text-foreground font-medium">
-                        {selectedApiKey.last_used_at
-                          ? formatDateTime(selectedApiKey.last_used_at)
-                          : '从未使用'}
-                      </div>
-                    </div>
-
-                    {/* 创建时间 */}
-                    <div className="p-5 bg-muted/50 rounded-lg border">
-                      <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                        创建时间
-                      </div>
-                      <div className="text-sm text-foreground font-medium">
-                        {formatDateTime(selectedApiKey.created_at)}
-                      </div>
-                    </div>
                   </TabsContent>
-                  <TabsContent value="logs" className="mt-4">
-                    <div className="rounded-md border">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>时间</TableHead>
-                            <TableHead>接口</TableHead>
-                            <TableHead>方法</TableHead>
-                            <TableHead>IP</TableHead>
-                            <TableHead className="text-center">状态码</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {logsLoading ? (
+
+                  {/* 日志 Tab：核心修复区域，确保表格区域自适应高度且分页固定底部 */}
+                  <TabsContent value="logs" className="flex-1 flex flex-col min-h-0 overflow-hidden m-0 p-0">
+                    <div className="flex-1 overflow-hidden flex flex-col relative p-6 pb-2">
+                      <div className="border flex-1 overflow-auto bg-background shadow-sm">
+                        <Table>
+                          <TableHeader className="sticky top-0 backdrop-blur-sm z-10 shadow-sm">
                             <TableRow>
-                              <TableCell colSpan={5} className="h-24 text-center">
-                                <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                              </TableCell>
+                              <TableHead className="w-[170px]">调用时间</TableHead>
+                              <TableHead>接口地址</TableHead>
+                              <TableHead className="w-[80px]">方法</TableHead>
+                              <TableHead className="w-[120px]">来源 IP</TableHead>
+                              <TableHead className="text-center w-[80px]">状态码</TableHead>
                             </TableRow>
-                          ) : logs.length === 0 ? (
-                            <TableRow>
-                              <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                                暂无日志
-                              </TableCell>
-                            </TableRow>
-                          ) : (
-                            logs.map((log) => (
-                              <TableRow key={log.id}>
-                                <TableCell className="text-sm">
-                                  {formatDateTime(log.created_at)}
-                                </TableCell>
-                                <TableCell className="text-sm font-mono">{log.endpoint}</TableCell>
-                                <TableCell>
-                                  <Badge variant="outline">{log.method}</Badge>
-                                </TableCell>
-                                <TableCell className="text-sm">{log.ip_address}</TableCell>
-                                <TableCell className="text-center">
-                                  <Badge
-                                    variant={
-                                      log.status_code >= 200 && log.status_code < 300
-                                        ? 'default'
-                                        : 'destructive'
-                                    }
-                                  >
-                                    {log.status_code}
-                                  </Badge>
-                                </TableCell>
-                              </TableRow>
-                            ))
-                          )}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {logsLoading ? (
+                              <TableRow><TableCell colSpan={5} className="h-32 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto"/></TableCell></TableRow>
+                            ) : logs.length === 0 ? (
+                              <TableRow><TableCell colSpan={5} className="h-32 text-center text-muted-foreground">暂无日志数据</TableCell></TableRow>
+                            ) : (
+                              logs.map((log) => (
+                                <TableRow key={log.id} className="hover:bg-muted/50">
+                                  <TableCell className="text-xs font-mono whitespace-nowrap text-muted-foreground">
+                                    {formatDateTime(log.created_at)}
+                                  </TableCell>
+                                  <TableCell className="text-xs font-mono max-w-[180px] truncate" title={log.endpoint}>
+                                    {log.endpoint}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Badge variant="outline" className="text-[10px] px-1 font-bold">{log.method}</Badge>
+                                  </TableCell>
+                                  <TableCell className="text-xs text-muted-foreground">{log.ip_address}</TableCell>
+                                  <TableCell className="text-center">
+                                    <Badge 
+                                      variant={log.status_code < 300 ? 'outline' : 'destructive'} 
+                                      className={`text-[10px] ${log.status_code < 300 ? 'text-green-600 border-green-200 bg-green-50' : ''}`}
+                                    >
+                                      {log.status_code}
+                                    </Badge>
+                                  </TableCell>
+                                </TableRow>
+                              ))
+                            )}
+                          </TableBody>
+                        </Table>
+                      </div>
                     </div>
-                    {Math.ceil(logsPagination.total / logsPagination.pageSize) > 1 && (
-                      <div className="mt-4">
-                        <Pagination>
+                    
+                    {/* 日志分页：固定在底部，flex-shrink-0 确保不被挤压 */}
+                    {logTotalPages > 0 && (
+                      <div className="px-6 py-3 border-t bg-background flex-shrink-0">
+                         <Pagination>
                           <PaginationContent>
                             <PaginationItem>
                               <PaginationPrevious
@@ -701,28 +642,21 @@ const ApiKeyManagement: React.FC = () => {
                               />
                             </PaginationItem>
                             <PaginationItem>
-                              <PaginationLink
-                                href="#"
-                                isActive
-                              >
-                                {logsPagination.current} / {Math.ceil(logsPagination.total / logsPagination.pageSize)}
-                              </PaginationLink>
+                              <span className="text-xs text-muted-foreground px-4">
+                                页码 {logsPagination.current} / {logTotalPages}
+                              </span>
                             </PaginationItem>
                             <PaginationItem>
                               <PaginationNext
                                 href="#"
                                 onClick={(e) => {
                                   e.preventDefault()
-                                  if (logsPagination.current < Math.ceil(logsPagination.total / logsPagination.pageSize)) {
+                                  if (logsPagination.current < logTotalPages) {
                                     setLogsPagination(prev => ({ ...prev, current: prev.current + 1 }))
                                     loadLogs(selectedApiKey.id)
                                   }
                                 }}
-                                className={
-                                  logsPagination.current >= Math.ceil(logsPagination.total / logsPagination.pageSize)
-                                    ? 'pointer-events-none opacity-50'
-                                    : ''
-                                }
+                                className={logsPagination.current >= logTotalPages ? 'pointer-events-none opacity-50' : ''}
                               />
                             </PaginationItem>
                           </PaginationContent>
@@ -734,20 +668,24 @@ const ApiKeyManagement: React.FC = () => {
               </CardContent>
             </Card>
           ) : (
-            <Card className="rounded-lg shadow-sm border bg-background min-h-[500px] flex items-center justify-center">
-              <CardContent className="text-center">
-                <p className="text-muted-foreground text-base">
-                  请从左侧列表选择一个 API Key 查看详情
+            <Card className="h-full flex items-center justify-center border-dashed bg-muted/10">
+              <div className="text-center space-y-3">
+                <div className="h-16 w-16 bg-muted rounded-full flex items-center justify-center mx-auto">
+                  <Key className="h-8 w-8 text-muted-foreground/50" />
+                </div>
+                <h3 className="font-semibold text-lg text-foreground">未选择 API Key</h3>
+                <p className="text-muted-foreground text-sm max-w-xs mx-auto">
+                  请从左侧列表选择一个 API Key 查看详情、管理权限或查看调用日志
                 </p>
-              </CardContent>
+              </div>
             </Card>
           )}
         </div>
       </div>
 
-      {/* 创建/编辑弹窗 */}
+      {/* 弹窗组件保持原逻辑 */}
       <Dialog open={visible} onOpenChange={setVisible}>
-        <DialogContent className="max-w-[600px]">
+        <DialogContent className="max-w-[500px]">
           <DialogHeader>
             <DialogTitle>{isEditing ? '编辑 API Key' : '创建 API Key'}</DialogTitle>
             <DialogDescription>
@@ -763,7 +701,7 @@ const ApiKeyManagement: React.FC = () => {
                   <FormItem>
                     <FormLabel>名称 <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
-                      <Input {...field} required placeholder="请输入 API Key 名称" />
+                      <Input {...field} required placeholder="例如：开发环境密钥" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -773,21 +711,17 @@ const ApiKeyManagement: React.FC = () => {
                 control={form.control}
                 name="permissions"
                 render={({ field }) => {
-                  // 直接使用字符串，不再解析 JSON
                   const selectedPermission = typeof field.value === 'string' ? field.value : ''
-
                   const handlePermissionChange = (value: string) => {
-                    // 直接使用字符串，不再使用 JSON
                     field.onChange(value || null)
                   }
-
                   return (
                     <FormItem>
                       <FormLabel>权限</FormLabel>
                       <Select value={selectedPermission} onValueChange={handlePermissionChange}>
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="请选择权限" />
+                            <SelectValue placeholder="请选择权限范围" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
@@ -807,9 +741,10 @@ const ApiKeyManagement: React.FC = () => {
                 control={form.control}
                 name="is_active"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 bg-muted/20">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">启用状态</FormLabel>
+                      <FormLabel className="text-sm font-semibold">启用状态</FormLabel>
+                      <div className="text-xs text-muted-foreground">禁用后该 Key 将无法调用任何接口</div>
                     </div>
                     <FormControl>
                       <Switch checked={field.value} onCheckedChange={field.onChange} />
@@ -817,74 +752,79 @@ const ApiKeyManagement: React.FC = () => {
                   </FormItem>
                 )}
               />
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setVisible(false)}>
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button type="button" variant="ghost" onClick={() => setVisible(false)}>
                   取消
                 </Button>
-                <Button type="submit">保存</Button>
+                <Button type="submit">保存更改</Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
 
-      {/* 新 API Key 显示弹窗 */}
       <Dialog open={!!newApiKey} onOpenChange={() => {
         setNewApiKey(null)
         setNewApiKeyId(null)
-        // 关闭对话框后，如果新创建的 API Key 被选中，更新 selectedApiKey
         if (newApiKeyId && selectedApiKey?.id === newApiKeyId) {
           setSelectedApiKey(prev => prev ? { ...prev, key: newApiKey || undefined } : null)
         }
       }}>
-        <DialogContent className="max-w-[600px]">
+        <DialogContent className="max-w-[500px]">
           <DialogHeader>
-            <DialogTitle>{newApiKeyId && selectedApiKey?.id === newApiKeyId ? 'API Key 重新生成成功' : 'API Key 创建成功'}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2 text-green-600">
+              <span className="h-2 w-2 rounded-full bg-green-600" />
+              API Key 生成成功
+            </DialogTitle>
             <DialogDescription>
-              请立即保存此 API Key，创建后无法再次查看完整内容
+              请立即复制并妥善保管此 Key。出于安全考虑，关闭此窗口后将无法再次查看完整密钥。
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="p-4 bg-muted rounded-lg">
-              <code className="text-sm font-mono break-all">{newApiKey}</code>
+          <div className="space-y-4 py-2">
+            <div className="p-4 bg-muted/50 rounded-lg border flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-muted-foreground">API KEY</span>
+                <span className="text-xs text-muted-foreground">点击下方按钮复制</span>
+              </div>
+              <code className="text-sm font-mono break-all bg-background p-2 rounded border">
+                {newApiKey}
+              </code>
             </div>
             <Button
               className="w-full"
+              size="lg"
               onClick={() => {
-                if (newApiKey) {
-                  handleCopy(newApiKey)
-                }
+                if (newApiKey) handleCopy(newApiKey)
               }}
             >
               <Copy className="h-4 w-4 mr-2" />
-              复制到剪贴板
+              一键复制密钥
             </Button>
           </div>
           <DialogFooter>
-            <Button onClick={() => {
+            <Button variant="outline" onClick={() => {
               setNewApiKey(null)
               setNewApiKeyId(null)
-              // 关闭对话框后，如果新创建的 API Key 被选中，更新 selectedApiKey
               if (newApiKeyId && selectedApiKey?.id === newApiKeyId) {
                 setSelectedApiKey(prev => prev ? { ...prev, key: newApiKey || undefined } : null)
               }
-            }}>已保存</Button>
+            }}>我已保存</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* 删除确认对话框 */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogTitle className="text-destructive">确认删除此 API Key？</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除这个 API Key 吗？此操作不可恢复。
+              此操作将永久删除该 API Key。任何使用此 Key 的应用将立即无法访问接口。此操作无法撤销。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>取消</AlertDialogCancel>
             <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90"
               onClick={() => {
                 if (deleteTargetId) {
                   handleDelete(deleteTargetId)
@@ -893,19 +833,18 @@ const ApiKeyManagement: React.FC = () => {
                 }
               }}
             >
-              确认
+              确认删除
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* 重新生成确认对话框 */}
       <AlertDialog open={regenerateDialogOpen} onOpenChange={setRegenerateDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认重新生成</AlertDialogTitle>
+            <AlertDialogTitle>确认重新生成密钥？</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要重新生成这个 API Key 吗？旧的 API Key 将立即失效，请确保已更新所有使用该 Key 的应用。
+              重新生成后，<strong className="text-destructive">旧的密钥将立即失效</strong>。您需要更新所有使用旧密钥的应用程序。
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -917,7 +856,7 @@ const ApiKeyManagement: React.FC = () => {
                 }
               }}
             >
-              确认
+              确认重置
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -927,4 +866,3 @@ const ApiKeyManagement: React.FC = () => {
 }
 
 export default ApiKeyManagement
-

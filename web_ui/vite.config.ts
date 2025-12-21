@@ -76,7 +76,11 @@ export default defineConfig(({ command, mode }) => {
     
     server: {
       host: "0.0.0.0",
-      port: 3000,
+      port: 5173,
+      // 确保 SPA 路由正确回退到 index.html
+      fs: {
+        strict: false,
+      },
       proxy: {
         "/static": createProxyTarget(env),
         "/files": createProxyTarget(env),
@@ -85,11 +89,15 @@ export default defineConfig(({ command, mode }) => {
         "/api": createProxyTarget(env),
         "/assets": createProxyTarget(env),
         "/test-results": {
-          target: "http://localhost:3000",
+          target: "http://localhost:8001",
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/test-results/, '/test-results'),
         },
       },
+    },
+    // 确保预览模式也正确处理 SPA 路由
+    preview: {
+      port: 5173,
     },
   };
 });

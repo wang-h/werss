@@ -41,25 +41,32 @@ class ApiKeyLoggingMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """处理请求并记录 API Key 使用日志"""
-        # 提取 API Key
+        # 提取 API Key（用于后续验证）
         api_key = self._extract_api_key(request)
         api_key_id = None
         
-        # 如果存在 API Key，验证并获取 ID
+        # 如果存在 API Key，尝试获取 ID
         if api_key:
             api_key_id = await self._get_api_key_id(api_key)
-            # 将 API Key ID 存储到 request.state，供后续使用
-            request.state.api_key_id = api_key_id
         
         # 处理请求
         response = await call_next(request)
         
-        # 如果使用了 API Key，记录日志（异步，不阻塞响应）
-        if api_key_id:
+        # 如果响应成功且使用了 API Key，记录日志
+        # 注意：即使中间件没有获取到 api_key_id，也可能通过认证系统获取到
+        # 所以我们从 request.state 中获取（如果认证系统设置了的话）
+        final_api_key_id = api_key_id or getattr(request.state, 'api_key_id', None)
+        
+        # 如果仍然没有，尝试从认证结果中获取（如果请求通过了认证）
+        if not final_api_key_id and api_key:
+            # 再次尝试查询（可能认证系统已经验证过了）
+            final_api_key_id = await self._get_api_key_id(api_key)
+        
+        if final_api_key_id:
             # 使用线程池异步执行日志记录，不阻塞响应
             _log_executor.submit(
                 self._log_api_key_usage,
-                api_key_id=api_key_id,
+                api_key_id=final_api_key_id,
                 endpoint=request.url.path,
                 method=request.method,
                 ip_address=get_client_ip(request),
@@ -69,7 +76,7 @@ class ApiKeyLoggingMiddleware(BaseHTTPMiddleware):
         
         return response
     
-    def _extract_api_key(self, request: Request) -> str:
+    def _extract_api_key(self, request: Request) -> str | None:
         """从请求头中提取 API Key"""
         # 方式1: 从 X-API-Key 头获取
         api_key = request.headers.get("X-API-Key")
@@ -86,7 +93,7 @@ class ApiKeyLoggingMiddleware(BaseHTTPMiddleware):
         
         return None
     
-    async def _get_api_key_id(self, api_key: str) -> str:
+    async def _get_api_key_id(self, api_key: str) -> str | None:
         """获取 API Key ID（如果有效）"""
         if not api_key:
             return None
@@ -132,11 +139,15 @@ class ApiKeyLoggingMiddleware(BaseHTTPMiddleware):
             )
             session.add(log_entry)
             session.commit()
+            from core.print import print_warning
+            print_warning(f"✅ API Key 日志记录成功: {api_key_id[:8]}... {method} {endpoint} {status_code}")
         except Exception as e:
             session.rollback()
             # 日志记录失败不影响响应，只记录错误
             from core.print import print_error
-            print_error(f"API Key 日志记录失败: {str(e)}")
+            import traceback
+            print_error(f"❌ API Key 日志记录失败: {str(e)}")
+            print_error(f"   错误详情: {traceback.format_exc()}")
         finally:
             session.close()
 

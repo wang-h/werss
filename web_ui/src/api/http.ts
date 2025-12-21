@@ -50,6 +50,11 @@ http.interceptors.response.use(
      if(error.status==401 || error?.response?.status === 401){
       window.location.href = "/login"
     } 
+    // #region agent log
+    if (error?.response?.status === 404) {
+      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api/http.ts:49','message':'HTTP 404 错误',data:{url:error?.config?.url,method:error?.config?.method,status:error?.response?.status,statusText:error?.response?.statusText,data:error?.response?.data},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'F'})}).catch(()=>{});
+    }
+    // #endregion
     // console.log(error)
     // 统一错误处理
     // 对于 404 错误，返回原始 error 对象，让调用方可以检查 status

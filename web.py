@@ -52,6 +52,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# API Key 使用日志记录中间件
+from core.middleware import ApiKeyLoggingMiddleware
+app.add_middleware(ApiKeyLoggingMiddleware)
+
 @app.middleware("http")
 async def add_custom_header(request: Request, call_next):
     response = await call_next(request)
