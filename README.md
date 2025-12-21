@@ -99,7 +99,9 @@ WeRSS 是一个前后端分离的微信公众号热度分析系统，可以帮�
 - ✅ 自动标签提取（TextRank/KeyBERT/AI）
   - **TextRank**：基于图算法的本地关键词提取，无需外部依赖
   - **KeyBERT**：基于 BERT 的语义关键词提取，支持多语言模型
-  - **AI (DeepSeek)**：使用 DeepSeek API 进行智能标签提取，准确度最高
+  - **AI (OpenAI 兼容)**：使用 OpenAI 兼容 API（DeepSeek、Qwen3 等）进行智能标签提取，准确度最高
+    - 优先提取公司名称、产品名称、技术名称等重要实体
+    - 支持 Qwen3 模型（自动禁用思考功能）
 - ✅ 基于公众号的自动标签关联
 - ✅ 标签统计和分析
 - ✅ 智能标签自动创建
@@ -424,23 +426,29 @@ article_tag:
     auto_create: True  # 是否自动创建不存在的标签
 ```
 
-#### DeepSeek AI 配置
+#### OpenAI 兼容 API 配置（AI 标签提取）
 
-系统支持使用 DeepSeek API 进行智能标签提取，这是最准确的提取方式：
+系统支持使用 OpenAI 兼容的 API 进行智能标签提取，支持 DeepSeek、Qwen3、OpenAI 等多种服务：
 
 ```yaml
-deepseek:
-  api_key: sk-xxx  # DeepSeek API Key（必填，用于 AI 标签提取）
-  base_url: https://api.deepseek.com  # API 地址（默认）
+openai:
+  api_key: sk-xxx  # API Key（必填，用于 AI 标签提取）
+  base_url: https://api.deepseek.com  # API 地址（DeepSeek 默认）
+  # 或使用其他服务：
+  # base_url: https://api.openai.com/v1  # OpenAI
+  # base_url: https://dashscope.aliyuncs.com/compatible-mode/v1  # Qwen3
   model: deepseek-chat  # 模型名称（默认）
+  # 或使用其他模型：
+  # model: gpt-4o  # OpenAI
+  # model: qwen-plus  # Qwen3
 ```
 
 **环境变量配置：**
 ```bash
-# DeepSeek API 配置
-export DEEPSEEK_API_KEY=sk-xxx
-export DEEPSEEK_BASE_URL=https://api.deepseek.com
-export DEEPSEEK_MODEL=deepseek-chat
+# OpenAI 兼容 API 配置
+export OPENAI_API_KEY=sk-xxx
+export OPENAI_BASE_URL=https://api.deepseek.com
+export OPENAI_MODEL=deepseek-chat
 
 # 标签提取配置
 export ARTICLE_TAG_AUTO_EXTRACT=True
@@ -449,29 +457,43 @@ export ARTICLE_TAG_MAX_TAGS=5
 export ARTICLE_TAG_AI_AUTO_CREATE=True
 ```
 
-**获取 DeepSeek API Key：**
-1. 访问 [DeepSeek 官网](https://www.deepseek.com/)
-2. 注册账号并登录
-3. 进入 API 管理页面
-4. 创建 API Key
-5. 将 API Key 配置到环境变量或 `config.yaml` 中
+**支持的 API 服务：**
+- **DeepSeek**：https://api.deepseek.com（推荐，性价比高）
+- **OpenAI**：https://api.openai.com/v1
+- **Qwen3**：https://dashscope.aliyuncs.com/compatible-mode/v1（自动禁用思考功能）
+- 其他 OpenAI 兼容的 API 服务
+
+**AI 标签提取特性：**
+- ✅ 优先提取公司名称、产品名称、技术名称等重要实体
+- ✅ 智能理解文章上下文，提取最相关的标签
+- ✅ 自动过滤通用词汇（如"AI"、"技术"等）
+- ✅ 支持 Qwen3 模型（自动禁用思考功能，直接返回结果）
+- ✅ 每个标签 2-15 个字，按重要性排序
+
+**获取 API Key：**
+- **DeepSeek**：访问 [DeepSeek 官网](https://www.deepseek.com/) 注册并创建 API Key
+- **OpenAI**：访问 [OpenAI 官网](https://platform.openai.com/) 注册并创建 API Key
+- **Qwen3**：访问 [阿里云 DashScope](https://dashscope.aliyun.com/) 注册并创建 API Key
 
 **三种提取方式对比：**
 
-| 特性 | TextRank | KeyBERT | AI (DeepSeek) |
-|------|----------|---------|---------------|
+| 特性 | TextRank | KeyBERT | AI (OpenAI 兼容) |
+|------|----------|---------|------------------|
 | **准确度** | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
 | **速度** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
 | **依赖** | 无（内置） | 需要下载模型 | 需要 API Key |
 | **成本** | 免费 | 免费 | 按 API 调用计费 |
 | **多语言支持** | ✅ 中文 | ✅ 多语言 | ✅ 多语言 |
 | **上下文理解** | ❌ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **实体识别** | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐（优先提取公司名称等） |
 | **推荐场景** | 快速提取、离线环境 | 平衡准确度和速度 | 高质量标签提取 |
 
 **使用建议：**
 - **开发/测试环境**：使用 TextRank，无需配置，速度快
 - **生产环境（中等规模）**：使用 KeyBERT，准确度和速度平衡
-- **生产环境（高质量要求）**：使用 AI (DeepSeek)，准确度最高，适合对标签质量要求高的场景
+- **生产环境（高质量要求）**：使用 AI（OpenAI 兼容），准确度最高，适合对标签质量要求高的场景
+  - 推荐使用 DeepSeek（性价比高）或 Qwen3（自动禁用思考功能）
+  - AI 提取会优先提取公司名称、产品名称等重要实体
 
 #### MinIO配置（可选）
 
@@ -531,34 +553,43 @@ article_tag:
 - `minishlab/potion-multilingual-128M`：轻量级多语言模型，CPU 友好
 - `all-MiniLM-L6-v2`：英文文档专用，更轻量级
 
-**3. AI (DeepSeek) 提取（智能理解）**
-- **原理**：使用 DeepSeek 大语言模型理解文章内容，智能提取标签
-- **优点**：准确度最高、理解上下文、支持复杂语义
+**3. AI (OpenAI 兼容) 提取（智能理解）**
+- **原理**：使用 OpenAI 兼容的大语言模型理解文章内容，智能提取标签
+- **优点**：准确度最高、理解上下文、支持复杂语义、优先提取公司名称等重要实体
 - **缺点**：需要 API Key、有调用成本、需要网络连接
 - **适用场景**：高质量标签提取、对准确度要求极高的场景
+- **支持的服务**：DeepSeek、OpenAI、Qwen3 等 OpenAI 兼容的 API
 
 **配置示例：**
 ```yaml
 article_tag:
   auto_extract: True
   extract_method: ai
-  max_tags: 5
+  max_tags: 5  # 最大标签数量（默认 5）
   ai:
     auto_create: True  # 自动创建不存在的标签
 
-deepseek:
+openai:
   api_key: sk-xxx  # 必填
-  base_url: https://api.deepseek.com
-  model: deepseek-chat
+  base_url: https://api.deepseek.com  # 或使用其他 OpenAI 兼容服务
+  model: deepseek-chat  # 或使用其他模型（如 gpt-4o、qwen-plus 等）
 ```
 
 **AI 提取工作流程：**
 1. 系统读取文章标题、描述和内容
-2. 将内容发送到 DeepSeek API
-3. AI 分析文章主题和关键信息
-4. 返回 3-5 个最相关的标签关键词
+2. 将内容发送到 OpenAI 兼容的 API
+3. AI 分析文章主题和关键信息，优先提取：
+   - 公司名称（如：字节跳动、腾讯、OpenAI 等）
+   - 产品/服务名称（如：ChatGPT、豆包、微信等）
+   - 技术/工具名称（如：React、TensorFlow 等）
+   - 人物名称、特定事件、特定领域等
+4. 返回最相关的标签关键词（默认最多 5 个）
 5. 系统自动创建标签（如果 `auto_create: True`）
 6. 将标签关联到文章
+
+**Qwen3 模型特殊支持：**
+- 使用 Qwen3 模型时，系统会自动禁用思考功能
+- 确保直接返回 JSON 格式的标签数组，无需额外处理思考过程
 
 **性能优化建议：**
 - 对于大量文章，建议使用 KeyBERT 或 TextRank
@@ -753,7 +784,7 @@ chmod 755 data
 - **BeautifulSoup4**: HTML解析
 - **jieba**: 中文分词
 - **KeyBERT**: 关键词提取（可选，用于 KeyBERT 标签提取）
-- **openai**: OpenAI 兼容客户端（可选，用于 DeepSeek AI 标签提取）
+- **openai**: OpenAI 兼容客户端（可选，用于 AI 标签提取，支持 DeepSeek、Qwen3、OpenAI 等）
 
 ### 可选依赖
 
