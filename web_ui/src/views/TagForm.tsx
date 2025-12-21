@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -17,6 +18,7 @@ import MpMultiSelect from '@/components/MpMultiSelect'
 import { Image, Edit, ArrowLeft } from 'lucide-react'
 
 const TagForm: React.FC = () => {
+  const { t } = useTranslation()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const isEdit = !!id
@@ -50,7 +52,7 @@ const TagForm: React.FC = () => {
         mps_id: JSON.parse(data.mps_id || '[]')
       })
     } catch (error) {
-      Message.error('获取标签详情失败')
+      Message.error(t('tags.messages.fetchDetailFailed'))
     } finally {
       setLoading(false)
     }
@@ -60,12 +62,12 @@ const TagForm: React.FC = () => {
     const file = fileList[0]?.originFile || fileList[0]?.file
 
     if (!file?.type?.startsWith('image/')) {
-      Message.error('请选择图片文件 (JPEG/PNG)')
+      Message.error(t('tags.messages.invalidImageFile'))
       return
     }
 
     if (file.size > 2 * 1024 * 1024) {
-      Message.error('图片大小不能超过2MB')
+      Message.error(t('tags.messages.imageSizeExceeded'))
       return
     }
 
@@ -76,7 +78,7 @@ const TagForm: React.FC = () => {
       form.setValue('cover', data.url)
     } catch (error: any) {
       console.error('上传错误:', error)
-      Message.error(`上传失败: ${error.response?.data?.message || error.message || '服务器错误'}`)
+      Message.error(`${t('tags.messages.uploadFailed')}: ${error.response?.data?.message || error.message || t('common.errors.serverError')}`)
     }
     return
   }
@@ -96,14 +98,14 @@ const TagForm: React.FC = () => {
 
       if (isEdit) {
         await updateTag(id!, submitData)
-        Message.success('更新成功')
+        Message.success(t('tags.messages.updateSuccess'))
       } else {
         await createTag(submitData)
-        Message.success('创建成功')
+        Message.success(t('tags.messages.createSuccess'))
       }
       navigate('/tags')
     } catch (error) {
-      Message.error(isEdit ? '更新失败' : '创建失败')
+      Message.error(isEdit ? t('tags.messages.updateFailed') : t('tags.messages.createFailed'))
     } finally {
       setFormLoading(false)
     }

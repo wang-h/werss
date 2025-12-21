@@ -1,11 +1,10 @@
-import React, { useState, useImperativeHandle, forwardRef } from 'react'
+import { useState, useImperativeHandle, forwardRef } from 'react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2 } from 'lucide-react'
 import { QRCode, checkQRCodeStatus } from '@/api/auth'
-import { Message } from '@/utils/message'
 
 interface WechatAuthQrcodeProps {
   onSuccess?: (data: any) => void

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, ErrorInfo, Component } from 'react'
+import { useTranslation } from 'react-i18next'
 import { getDashboardStats, type DashboardData, type SourceStats, type KeywordStats, type TrendData, type KeywordTrendData } from '@/api/dashboard'
 import { getArticles, type Article } from '@/api/article'
 import { getSubscriptions, type Subscription } from '@/api/subscription'
@@ -20,14 +21,17 @@ const VChart = lazy(() =>
     console.error('VChart 加载失败:', error)
     // 返回一个占位组件
     return {
-      default: ({ style }: any) => (
-        <div style={style} className="flex items-center justify-center text-muted-foreground">
-          <div className="text-center">
-            <div className="mb-2">图表加载失败</div>
-            <div className="text-sm">请刷新页面重试</div>
+      default: ({ style }: any) => {
+        // 这里不能直接使用 hook，使用默认文本
+        return (
+          <div style={style} className="flex items-center justify-center text-muted-foreground">
+            <div className="text-center">
+              <div className="mb-2">图表加载失败</div>
+              <div className="text-sm">请刷新页面重试</div>
+            </div>
           </div>
-        </div>
-      )
+        )
+      }
     } as any
   })
 )
@@ -67,6 +71,7 @@ class ChartErrorBoundary extends Component<
 }
 
 const Dashboard: React.FC = () => {
+  const { t } = useTranslation()
   const { theme } = useTheme()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -121,7 +126,7 @@ const Dashboard: React.FC = () => {
       await calculateStatsFromAPIs()
     } catch (err: any) {
       console.error('获取统计数据失败:', err)
-      setError(`获取统计数据失败: ${err?.message || '未知错误'}`)
+      setError(t('dashboard.errors.fetchFailed', { message: err?.message || t('dashboard.errors.unknownError') }))
     } finally {
       setLoading(false)
     }
@@ -148,7 +153,7 @@ const Dashboard: React.FC = () => {
       // 来源统计
       const sourceMap = new Map<string, { mp_id: string; mp_name: string; count: number }>()
       articles.forEach(article => {
-        const key = article.mp_name || '未知来源'
+        const key = article.mp_name || t('common.unknownError')
         const existing = sourceMap.get(key) || { mp_id: article.mp_name || '', mp_name: key, count: 0 }
         existing.count++
         sourceMap.set(key, existing)
@@ -304,7 +309,7 @@ const Dashboard: React.FC = () => {
           const publishDate = new Date(timestamp)
           if (!isNaN(publishDate.getTime())) {
             const dateKey = publishDate.toISOString().split('T')[0]
-            const mpName = article.mp_name || '未知来源'
+            const mpName = article.mp_name || t('common.unknownError')
             allMpNames.add(mpName)
             const dayMap = trendMap.get(dateKey) || new Map()
             dayMap.set(mpName, (dayMap.get(mpName) || 0) + 1)
@@ -377,7 +382,7 @@ const Dashboard: React.FC = () => {
       valueField: 'value',
       outerRadius: 0.8,
       label: { visible: true, style: { fontSize: 12, fill: dark ? '#E5E7EB' : '#374151' } },
-      tooltip: { mark: { content: [{ key: (d: any) => d.name, value: (d: any) => `${d.value} 篇` }] } },
+      tooltip: { mark: { content: [{ key: (d: any) => d.name, value: (d: any) => `${d.value} ${t('dashboard.tooltips.articles')}` }] } },
       color: getColorPalette(sourceStats.length)
     }
   }
@@ -432,9 +437,9 @@ const Dashboard: React.FC = () => {
       tooltip: {
         mark: {
           content: [
-            { key: () => '日期', value: (d: any) => d.date },
-            { key: () => '公众号', value: (d: any) => d.mp_name },
-            { key: () => '文章数', value: (d: any) => `${d.count} 篇` }
+            { key: () => t('dashboard.tooltips.date'), value: (d: any) => d.date },
+            { key: () => t('dashboard.tooltips.source'), value: (d: any) => d.mp_name },
+            { key: () => t('dashboard.tooltips.articleCount'), value: (d: any) => `${d.count} ${t('dashboard.tooltips.articles')}` }
           ]
         }
       }
@@ -494,9 +499,9 @@ const Dashboard: React.FC = () => {
       tooltip: {
         mark: {
           content: [
-            { key: () => '日期', value: (d: any) => d.date },
-            { key: () => '关键词', value: (d: any) => d.keyword },
-            { key: () => '出现次数', value: (d: any) => `${d.count} 次` }
+            { key: () => t('dashboard.tooltips.date'), value: (d: any) => d.date },
+            { key: () => t('dashboard.tooltips.keyword'), value: (d: any) => d.keyword },
+            { key: () => t('dashboard.tooltips.occurrenceCount'), value: (d: any) => `${d.count} ${t('dashboard.tooltips.times')}` }
           ]
         }
       },
@@ -591,9 +596,9 @@ const Dashboard: React.FC = () => {
       tooltip: {
         mark: {
           content: [
-            { key: () => '日期', value: (d: any) => d.date },
-            { key: () => '关键词', value: (d: any) => d.keyword },
-            { key: () => '出现次数', value: (d: any) => `${d.count} 次` }
+            { key: () => t('dashboard.tooltips.date'), value: (d: any) => d.date },
+            { key: () => t('dashboard.tooltips.keyword'), value: (d: any) => d.keyword },
+            { key: () => t('dashboard.tooltips.occurrenceCount'), value: (d: any) => `${d.count} ${t('dashboard.tooltips.times')}` }
           ]
         }
       },
@@ -681,29 +686,29 @@ const Dashboard: React.FC = () => {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold mb-2 text-foreground">数据概览</h1>
-        <p className="text-muted-foreground text-sm">查看您的订阅数据和统计信息</p>
+        <h1 className="text-3xl font-bold mb-2 text-foreground">{t('dashboard.title')}</h1>
+        <p className="text-muted-foreground text-sm">{t('dashboard.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-4 gap-4 mb-6">
         <Card>
           <CardContent className="p-6">
-            <Statistic title="总文章数" value={stats.totalArticles} prefix={<FileText className="h-5 w-5 text-primary" />} />
+            <Statistic title={t('dashboard.stats.totalArticles')} value={stats.totalArticles} prefix={<FileText className="h-5 w-5 text-primary" />} />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <Statistic title="来源数量" value={stats.totalSources} prefix={<User className="h-5 w-5 text-primary" />} />
+            <Statistic title={t('dashboard.stats.totalSources')} value={stats.totalSources} prefix={<User className="h-5 w-5 text-primary" />} />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <Statistic title="今日新增" value={stats.todayArticles} prefix={<Calendar className="h-5 w-5 text-primary" />} />
+            <Statistic title={t('dashboard.stats.todayArticles')} value={stats.todayArticles} prefix={<Calendar className="h-5 w-5 text-primary" />} />
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-6">
-            <Statistic title="本周新增" value={stats.weekArticles} prefix={<Flame className="h-5 w-5 text-primary" />} />
+            <Statistic title={t('dashboard.stats.weekArticles')} value={stats.weekArticles} prefix={<Flame className="h-5 w-5 text-primary" />} />
           </CardContent>
         </Card>
       </div>
@@ -711,7 +716,7 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-2 gap-4 mb-6">
         <Card className="h-[400px]">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">来源分布</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('dashboard.charts.sourceDistribution')}</CardTitle>
           </CardHeader>
           <CardContent>
             {sourceStats.length > 0 ? (
@@ -719,14 +724,14 @@ const Dashboard: React.FC = () => {
                 <VChart spec={getSourceChartSpec(sourceStats)} style={{ height: '320px' }} />
               </Suspense>
             ) : (
-              <div className="flex justify-center items-center h-[320px] text-muted-foreground">暂无数据</div>
+              <div className="flex justify-center items-center h-[320px] text-muted-foreground">{t('dashboard.charts.noData')}</div>
             )}
           </CardContent>
         </Card>
 
         <Card className="h-[400px]">
           <CardHeader>
-            <CardTitle className="text-base font-semibold">抓取趋势</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('dashboard.charts.fetchTrend')}</CardTitle>
           </CardHeader>
           <CardContent>
             {trendData.length > 0 && trendData.some(item => Object.values(item.sources).some(c => c > 0)) ? (
@@ -734,7 +739,7 @@ const Dashboard: React.FC = () => {
                 <VChart spec={getTrendChartSpec(trendData)} style={{ height: '320px' }} />
               </Suspense>
             ) : (
-              <div className="flex justify-center items-center h-[320px] text-muted-foreground">暂无数据</div>
+              <div className="flex justify-center items-center h-[320px] text-muted-foreground">{t('dashboard.charts.noData')}</div>
             )}
           </CardContent>
         </Card>
@@ -744,7 +749,7 @@ const Dashboard: React.FC = () => {
         <Card>
           <CardHeader>
             <div className="flex justify-between items-center w-full">
-              <CardTitle className="text-base font-semibold">热门关键词</CardTitle>
+              <CardTitle className="text-base font-semibold">{t('dashboard.charts.hotKeywords')}</CardTitle>
               <div className="flex gap-3 items-center">
                 <ButtonGroup
                   value={keywordDateRange.toString()}
@@ -756,8 +761,8 @@ const Dashboard: React.FC = () => {
                     setKeywordDateRange(newRange);
                   }}
                   options={[
-                    { value: "7", label: "一周" },
-                    { value: "30", label: "三十天" }
+                    { value: "7", label: t('dashboard.controls.dateRange.7days') },
+                    { value: "30", label: t('dashboard.controls.dateRange.30days') }
                   ]}
                   size="sm"
                 />
@@ -766,8 +771,8 @@ const Dashboard: React.FC = () => {
                     value={keywordChartType}
                     onValueChange={(v: string) => setKeywordChartType(v as any)}
                     options={[
-                      { value: "stack", label: "堆叠柱状图" },
-                      { value: "line", label: "折线图" }
+                      { value: "stack", label: t('dashboard.controls.chartType.stack') },
+                      { value: "line", label: t('dashboard.controls.chartType.line') }
                     ]}
                     size="sm"
                   />
@@ -818,8 +823,8 @@ const Dashboard: React.FC = () => {
                         // #endregion
                         return (
                           <div className="text-center text-muted-foreground py-10">
-                            <div>暂无趋势数据，关键词在过去30天内没有出现</div>
-                            <div className="text-sm mt-2">请等待数据采集完成后查看</div>
+                            <div>{t('dashboard.charts.noTrendData')}</div>
+                            <div className="text-sm mt-2">{t('dashboard.charts.waitForData')}</div>
                           </div>
                         )
                       }
@@ -838,7 +843,7 @@ const Dashboard: React.FC = () => {
                         // #endregion
                         return (
                           <div className="text-center text-muted-foreground py-10">
-                            <div>图表配置生成失败，请检查数据</div>
+                            <div>{t('dashboard.charts.chartConfigFailed')}</div>
                             <div className="text-sm mt-2">数据: {keywordTrendData.length} 天, {topKeywords.length} 个关键词</div>
                           </div>
                         )
@@ -872,11 +877,11 @@ const Dashboard: React.FC = () => {
                       return (
                         <div className="text-center text-muted-foreground py-10">
                           {!topKeywords || topKeywords.length === 0 ? (
-                            <div>暂无热门关键词数据，无法显示趋势图表</div>
+                            <div>{t('dashboard.charts.noKeywordData')}</div>
                           ) : !keywordTrendData || keywordTrendData.length === 0 ? (
-                            <div>暂无趋势数据，请等待数据采集完成后查看</div>
+                            <div>{t('dashboard.charts.waitForData')}</div>
                           ) : (
-                            <div>数据加载中...</div>
+                            <div>{t('dashboard.charts.dataLoading')}</div>
                           )}
                         </div>
                       );
@@ -885,7 +890,7 @@ const Dashboard: React.FC = () => {
                 )}
               </>
             ) : (
-              <div className="text-center text-muted-foreground py-10">暂无数据</div>
+              <div className="text-center text-muted-foreground py-10">{t('dashboard.charts.noData')}</div>
             )}
           </CardContent>
         </Card>

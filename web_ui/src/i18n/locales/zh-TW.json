@@ -12,7 +12,24 @@
     "error": "錯誤",
     "success": "成功",
     "warning": "警告",
-    "info": "信息"
+    "info": "信息",
+    "noData": "暫無數據",
+    "unknownError": "未知錯誤",
+    "refreshPage": "請刷新頁面重試",
+    "previousPage": "上一頁",
+    "nextPage": "下一頁",
+    "page": "第 {{current}} / {{total}} 頁，共 {{count}} 條",
+    "selected": "已選擇 {{count}} 項",
+    "clear": "清除",
+    "upload": "上傳",
+    "download": "下載",
+    "copy": "複製",
+    "add": "添加",
+    "update": "更新",
+    "create": "創建",
+    "enabled": "已啟用",
+    "disabled": "已禁用",
+    "neverUsed": "從未使用"
   },
   "layout": {
     "home": "首頁",
@@ -66,6 +83,317 @@
     "exportSuccess": "導出成功",
     "exportFailed": "導出失敗",
     "selectFormat": "請至少選擇一個導出格式"
+  },
+  "dashboard": {
+    "title": "數據概覽",
+    "subtitle": "查看您的訂閱數據和統計信息",
+    "stats": {
+      "totalArticles": "總文章數",
+      "totalSources": "來源數量",
+      "todayArticles": "今日新增",
+      "weekArticles": "本週新增"
+    },
+    "charts": {
+      "sourceDistribution": "來源分佈",
+      "fetchTrend": "抓取趨勢",
+      "hotKeywords": "熱門關鍵詞",
+      "chartLoadFailed": "圖表加載失敗",
+      "chartRenderFailed": "圖表渲染失敗",
+      "noData": "暫無數據",
+      "noTrendData": "暫無趨勢數據，關鍵詞在過去30天內沒有出現",
+      "waitForData": "請等待數據採集完成後查看",
+      "chartConfigFailed": "圖表配置生成失敗，請檢查數據",
+      "noKeywordData": "暫無熱門關鍵詞數據，無法顯示趨勢圖表",
+      "dataLoading": "數據加載中..."
+    },
+    "tooltips": {
+      "date": "日期",
+      "source": "公眾號",
+      "articleCount": "文章數",
+      "keyword": "關鍵詞",
+      "occurrenceCount": "出現次數",
+      "articles": "篇",
+      "times": "次"
+    },
+    "controls": {
+      "dateRange": {
+        "7days": "一週",
+        "30days": "三十天"
+      },
+      "chartType": {
+        "stack": "堆疊柱狀圖",
+        "line": "折線圖"
+      }
+    },
+    "errors": {
+      "fetchFailed": "獲取統計數據失敗: {{message}}",
+      "unknownError": "未知錯誤"
+    }
+  },
+  "subscriptions": {
+    "title": "訂閱管理",
+    "subtitle": "管理和查看您的公眾號訂閱",
+    "addSubscription": "添加訂閱",
+    "addSubscriptionTitle": "添加訂閱",
+    "addSubscriptionSubtitle": "添加新的公眾號訂閱",
+    "subscriptionInfo": "訂閱信息",
+    "searchPlaceholder": "搜索訂閱名稱...",
+    "refresh": "刷新",
+    "edit": "編輯",
+    "delete": "刪除",
+    "getFromArticle": "通過公眾號文章獲取",
+    "exportSubscriptions": "導出訂閱",
+    "importSubscriptions": "導入訂閱",
+    "articleLinkPlaceholder": "請輸入一個公眾號文章鏈接地址",
+    "getInfo": "獲取",
+    "getting": "獲取中...",
+    "mpName": "公眾號名稱",
+    "mpNamePlaceholder": "請輸入公眾號名稱或搜索",
+    "mpNameRequired": "請輸入公眾號名稱",
+    "mpNameLength": "公眾號名稱長度應在2-30個字符之間",
+    "avatar": "頭像",
+    "avatarRequired": "請選擇公眾號頭像",
+    "avatarInvalid": "請選擇有效的頭像URL",
+    "mpId": "公眾號ID",
+    "mpIdRequired": "請輸入公眾號ID",
+    "mpIdPattern": "公眾號ID只能包含字母、數字、下劃線、橫線和等號",
+    "mpIdPlaceholder": "請輸入公眾號ID",
+    "description": "描述",
+    "descriptionPlaceholder": "請輸入公眾號描述",
+    "descriptionMaxLength": "描述不能超過200個字符",
+    "descriptionMaxChars": "最多200個字符",
+    "addButton": "添加訂閱",
+    "adding": "添加中...",
+    "reset": "重置",
+    "columns": {
+      "name": "名稱",
+      "articleCount": "文章數",
+      "status": "狀態"
+    },
+    "details": {
+      "title": "訂閱詳情",
+      "description": "描述",
+      "rssUrl": "RSS 鏈接",
+      "articleCount": "文章數",
+      "lastSync": "最後同步",
+      "status": "狀態",
+      "minPublishTime": "最早發佈時間",
+      "maxPublishTime": "最新發佈時間"
+    },
+    "messages": {
+      "selectFirst": "請先選擇一個訂閱",
+      "refreshSuccess": "刷新成功，正在更新文章...",
+      "refreshFailed": "刷新失敗",
+      "refreshLimit": "請不要頻繁更新操作，還需等待 {{seconds}} 秒",
+      "deleteSuccess": "刪除成功",
+      "deleteFailed": "刪除失敗",
+      "saveSuccess": "保存成功",
+      "saveFailed": "保存失敗",
+      "fetchFailed": "獲取訂閱列表失敗",
+      "addSuccess": "訂閱添加成功",
+      "addFailed": "訂閱添加失敗，請稍後重試",
+      "getMpInfoFailed": "獲取公眾號信息失敗",
+      "articleLinkRequired": "請提供一個公眾號文章鏈接",
+      "exportSuccess": "導出成功",
+      "exportFailed": "導出失敗，請稍後重試",
+      "importSuccess": "導入成功",
+      "importFailed": "導入失敗，請檢查CSV文件格式",
+      "importFailedRetry": "導入失敗，請稍後重試"
+    },
+    "form": {
+      "name": "名稱",
+      "description": "描述",
+      "status": "狀態",
+      "editDesc": "修改訂閱的基本信息",
+      "deleteConfirm": "確定要刪除這個訂閱嗎？"
+    }
+  },
+  "articles": {
+    "title": "文章列表",
+    "refresh": "刷新",
+    "refreshSettings": "刷新設置",
+    "refreshSettingsDesc": "設置要刷新的文章頁面範圍",
+    "startPage": "起始頁",
+    "endPage": "結束頁",
+    "delete": "刪除",
+    "batchDelete": "批量刪除",
+    "export": "導出",
+    "import": "導入",
+    "clear": "清理",
+    "clearDuplicates": "清理重複",
+    "copyMpId": "複製 MP ID",
+    "messages": {
+      "fetchFailed": "獲取文章列表失敗",
+      "fetchDetailFailed": "獲取文章詳情失敗",
+      "deleteSuccess": "刪除成功",
+      "deleteFailed": "刪除失敗",
+      "batchDeleteSuccess": "成功刪除{{count}}篇文章",
+      "batchDeleteFailed": "刪除部分文章失敗",
+      "refreshSuccess": "刷新成功",
+      "refreshFailed": "刷新失敗",
+      "exportOpmlFailed": "導出OPML失敗",
+      "exportMpFailed": "導出公眾號失敗",
+      "importSuccess": "導入成功",
+      "importFailed": "導入公眾號失敗",
+      "clearSuccess": "清理成功",
+      "clearDuplicatesSuccess": "清理成功",
+      "copySuccess": "MP ID 已複製到剪貼板",
+      "copyFailed": "複製失敗，請手動複製",
+      "deleteMpSuccess": "訂閱號刪除成功",
+      "deleteMpFailed": "刪除失敗"
+    }
+  },
+  "tags": {
+    "title": "標籤管理",
+    "subtitle": "管理文章標籤",
+    "listTitle": "標籤列表",
+    "listDesc": "管理文章標籤和分類",
+    "addTag": "添加標籤",
+    "exportTags": "導出標籤",
+    "importTags": "導入標籤",
+    "batchDelete": "批量刪除",
+    "searchPlaceholder": "搜索標籤名稱...",
+    "columns": {
+      "name": "標籤名稱",
+      "status": "狀態",
+      "articleCount": "文章數量",
+      "createdAt": "創建時間",
+      "actions": "操作"
+    },
+    "messages": {
+      "fetchFailed": "獲取標籤列表失敗",
+      "deleteSuccess": "刪除成功",
+      "deleteFailed": "刪除失敗",
+      "selectFirst": "請先選擇要刪除的標籤",
+      "batchDeleteSuccess": "成功刪除 {{count}} 個標籤",
+      "batchDeleteFailed": "批量刪除失敗",
+      "exportGenerating": "正在生成導出文件，請稍候...",
+      "exportSuccess": "文件導出成功！",
+      "exportFailed": "導出標籤失敗，請檢查網絡或聯繫管理員",
+      "importGenerating": "正在導入文件，請稍候...",
+      "importSuccess": "導入成功",
+      "importFailed": "導入失敗，請檢查文件格式或聯繫管理員",
+      "filePickerFailed": "無法打開文件選擇器"
+    }
+  },
+  "apiKeys": {
+    "title": "API 管理",
+    "subtitle": "管理 API Key 和訪問權限",
+    "addApiKey": "創建 API Key",
+    "searchPlaceholder": "搜索 API Key 名稱...",
+    "columns": {
+      "name": "名稱",
+      "permissions": "權限",
+      "status": "狀態",
+      "lastUsed": "最後使用",
+      "createdAt": "創建時間",
+      "actions": "操作"
+    },
+    "permissions": {
+      "read": "讀",
+      "readWrite": "讀寫",
+      "noLimit": "無特定權限限制"
+    },
+    "details": {
+      "title": "詳情",
+      "logs": "使用日誌",
+      "apiKey": "API Key",
+      "status": "狀態",
+      "permissions": "權限",
+      "lastUsedAt": "最後使用時間",
+      "createdAt": "創建時間"
+    },
+    "logs": {
+      "columns": {
+        "time": "時間",
+        "endpoint": "接口",
+        "method": "方法",
+        "ip": "IP",
+        "statusCode": "狀態碼"
+      },
+      "noLogs": "暫無日誌"
+    },
+    "messages": {
+      "fetchFailed": "獲取 API Key 列表失敗",
+      "fetchLogsFailed": "獲取使用日誌失敗",
+      "updateSuccess": "更新成功",
+      "createSuccess": "創建成功，請保存 API Key",
+      "createSuccessSimple": "創建成功",
+      "saveFailed": "保存失敗",
+      "deleteSuccess": "刪除成功",
+      "deleteFailed": "刪除失敗",
+      "regenerateSuccess": "重新生成成功，請保存新的 API Key",
+      "regenerateSuccessSimple": "重新生成成功",
+      "regenerateFailed": "重新生成失敗",
+      "copySuccess": "已複製到剪貼板",
+      "copyFailed": "複製失敗"
+    },
+    "form": {
+      "name": "名稱",
+      "permissions": "權限",
+      "status": "狀態"
+    }
+  },
+  "wechatMp": {
+    "title": "公眾號管理",
+    "subtitle": "管理微信公眾號信息",
+    "listTitle": "公眾號列表",
+    "addMp": "添加公眾號",
+    "editMp": "編輯公眾號",
+    "columns": {
+      "mpId": "公眾號ID",
+      "name": "名稱",
+      "status": "狀態",
+      "lastSync": "最後同步",
+      "actions": "操作"
+    },
+    "form": {
+      "mpId": "公眾號ID",
+      "mpIdPlaceholder": "請輸入公眾號ID",
+      "mpIdError": "公眾號ID只能包含字母、數字、下劃線、橫線和等號",
+      "mpName": "公眾號名稱",
+      "mpNamePlaceholder": "請輸入公眾號名稱",
+      "cover": "封面圖",
+      "coverPlaceholder": "圖片URL",
+      "uploadImage": "上傳圖片",
+      "intro": "簡介",
+      "introPlaceholder": "請輸入簡介",
+      "status": "狀態",
+      "addDesc": "添加一個新的公眾號",
+      "editDesc": "修改公眾號的基本信息"
+    },
+    "messages": {
+      "fetchFailed": "獲取公眾號列表失敗",
+      "addSuccess": "添加成功",
+      "updateSuccess": "更新成功",
+      "saveFailed": "保存失敗",
+      "deleteConfirm": "確認刪除",
+      "deleteConfirmContent": "確定要刪除這個公眾號嗎？",
+      "deleteSuccess": "刪除成功",
+      "deleteFailed": "刪除失敗",
+      "uploadSuccess": "上傳成功",
+      "uploadFailed": "上傳失敗"
+    }
+  },
+  "messages": {
+    "success": "成功",
+    "error": "錯誤",
+    "warning": "警告",
+    "info": "信息",
+    "confirm": "確認",
+    "cancel": "取消",
+    "delete": "刪除",
+    "save": "保存",
+    "update": "更新",
+    "create": "創建",
+    "refresh": "刷新",
+    "loading": "載入中...",
+    "noData": "暫無數據",
+    "unknownError": "未知錯誤",
+    "operationFailed": "操作失敗",
+    "operationSuccess": "操作成功",
+    "pleaseWait": "請稍候...",
+    "fileGenerating": "正在生成文件，請稍候...",
+    "fileImporting": "正在導入文件，請稍候..."
   }
 }
-

@@ -43,9 +43,14 @@ class TagExtractor:
         # 检查是否配置了 AI
         if AI_AVAILABLE:
             # 提供默认值 None，silent=True 避免输出警告（如果配置文件中没有这些项，会从环境变量读取）
-            api_key = cfg.get("openai.api_key", None, silent=True) or os.getenv("OPENAI_API_KEY", "")
-            base_url = cfg.get("openai.base_url", None, silent=True) or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-            model = cfg.get("openai.model", None, silent=True) or os.getenv("OPENAI_MODEL", "gpt-4o")
+            api_key_raw = cfg.get("openai.api_key", None, silent=True) or os.getenv("OPENAI_API_KEY", "")
+            base_url_raw = cfg.get("openai.base_url", None, silent=True) or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+            model_raw = cfg.get("openai.model", None, silent=True) or os.getenv("OPENAI_MODEL", "gpt-4o")
+            
+            # 确保类型为字符串
+            api_key = str(api_key_raw) if api_key_raw else ""
+            base_url = str(base_url_raw) if base_url_raw else "https://api.openai.com/v1"
+            model = str(model_raw) if model_raw else "gpt-4o"
             
             if api_key:
                 self.ai_client = AsyncOpenAI(
@@ -146,19 +151,25 @@ class TagExtractor:
                 script.decompose()
             
             # 移除所有元素的内联样式属性和 class 属性，避免提取到 CSS 样式信息
+            from bs4 import Tag
             for tag in soup.find_all(True):
-                if 'style' in tag.attrs:
-                    del tag.attrs['style']
-                if 'class' in tag.attrs:
-                    del tag.attrs['class']
+                # 类型检查：确保是 Tag 对象而不是 NavigableString
+                if isinstance(tag, Tag):
+                    if 'style' in tag.attrs:
+                        del tag.attrs['style']
+                    if 'class' in tag.attrs:
+                        del tag.attrs['class']
             
             if to_markdown:
                 # 转换为 Markdown
                 try:
                     from markdownify import markdownify as md
                     # 先清理 HTML，移除不必要的标签
+                    from bs4 import Tag
                     for tag in soup.find_all(['span', 'font']):
-                        tag.unwrap()
+                        # 类型检查：确保是 Tag 对象而不是 NavigableString
+                        if isinstance(tag, Tag):
+                            tag.unwrap()
                     # 转换 HTML 到 Markdown
                     text = md(str(soup), heading_style="ATX", bullets='-*+')
                     # 清理多余的空白字符
@@ -390,6 +401,7 @@ class TagExtractor:
             # ========== 第二步：使用 TF-IDF 和 TextRank 提取其他关键词 ==========
             # 使用 TF-IDF 作为备选（通常质量更好）
             try:
+                import jieba.analyse
                 keywords_tfidf = jieba.analyse.tfidf(
                     text,
                     topK=topK * 2,  # 多提取一些，然后过滤
@@ -399,6 +411,7 @@ class TagExtractor:
                 keywords_tfidf = []
             
             # 使用 TextRank
+            import jieba.analyse
             keywords_textrank = jieba.analyse.textrank(
                 text,
                 topK=topK * 2,  # 多提取一些，然后过滤
@@ -504,7 +517,8 @@ class TagExtractor:
                     # 优先使用 sentence-transformers（KeyBERT 官方推荐方式）
                     # 根据 KeyBERT 官方文档，直接使用 SentenceTransformer 模型
                     from sentence_transformers import SentenceTransformer
-                    model = SentenceTransformer(self.keybert_model_name)
+                    model_name = str(self.keybert_model_name) if self.keybert_model_name else "paraphrase-multilingual-MiniLM-L12-v2"
+                    model = SentenceTransformer(model_name)
                     
                     # 如果启用量化，尝试使用 float16（可以减少约50%内存）
                     if use_quantization:
@@ -520,14 +534,15 @@ class TagExtractor:
                             logger.debug(f"量化失败（继续使用 float32）: {e}")
                     
                     # 使用 KeyBERT 官方推荐的方式初始化
-                    self.keybert_model = KeyBERT(model=model)
+                    self.keybert_model = KeyBERT(model=model)  # type: ignore
                     logger.info(f"已加载 KeyBERT 模型（sentence-transformers）: {self.keybert_model_name}")
                 except ImportError:
                     # 如果 sentence-transformers 未安装，尝试使用 Model2Vec 作为备选
                     try:
-                        from model2vec import Model2Vec
-                        model = Model2Vec(self.keybert_model_name)
-                        self.keybert_model = KeyBERT(model=model)
+                        from model2vec import Model2Vec  # type: ignore
+                        model_name = str(self.keybert_model_name) if self.keybert_model_name else "paraphrase-multilingual-MiniLM-L12-v2"
+                        model = Model2Vec(model_name)
+                        self.keybert_model = KeyBERT(model=model)  # type: ignore
                         logger.info(f"已加载 KeyBERT 模型（Model2Vec 备选方案）: {self.keybert_model_name}")
                         logger.warning("💡 建议安装 sentence-transformers 以获得更好的多语言支持")
                     except ImportError:
@@ -614,10 +629,16 @@ class TagExtractor:
             
             logger.debug(f"KeyBERT 标准方案返回候选: {[kw for kw, _ in keywords]}")
             
-            for kw, score in keywords:
+            for item in keywords:
+                # 处理 KeyBERT 返回的元组
+                if isinstance(item, tuple) and len(item) >= 2:
+                    kw, score = item[0], item[1]
+                else:
+                    kw, score = item, 0.0
+                
                 if not kw:
                     continue
-                kw = kw.strip()
+                kw = str(kw).strip()
                 
                 # 去除空格（分词产生的）
                 kw = kw.replace(' ', '')
@@ -737,7 +758,8 @@ class TagExtractor:
                 try:
                     # 优先使用 sentence-transformers（KeyBERT 官方推荐方式）
                     from sentence_transformers import SentenceTransformer
-                    model = SentenceTransformer(self.keybert_model_name)
+                    model_name = str(self.keybert_model_name) if self.keybert_model_name else "paraphrase-multilingual-MiniLM-L12-v2"
+                    model = SentenceTransformer(model_name)
                     
                     # 如果启用量化，尝试使用 float16
                     if use_quantization:
@@ -748,14 +770,15 @@ class TagExtractor:
                         except Exception as e:
                             logger.debug(f"量化失败: {e}")
                     
-                    self.keybert_model = KeyBERT(model=model)
+                    self.keybert_model = KeyBERT(model=model)  # type: ignore
                     logger.info(f"已加载 KeyBERT 模型（sentence-transformers）: {self.keybert_model_name}")
                 except ImportError:
                     # 如果 sentence-transformers 未安装，尝试使用 Model2Vec 作为备选
                     try:
-                        from model2vec import Model2Vec
-                        model = Model2Vec(self.keybert_model_name)
-                        self.keybert_model = KeyBERT(model=model)
+                        from model2vec import Model2Vec  # type: ignore
+                        model_name = str(self.keybert_model_name) if self.keybert_model_name else "paraphrase-multilingual-MiniLM-L12-v2"
+                        model = Model2Vec(model_name)
+                        self.keybert_model = KeyBERT(model=model)  # type: ignore
                         logger.info(f"已加载 KeyBERT 模型（Model2Vec 备选方案）: {self.keybert_model_name}")
                         logger.warning("💡 建议安装 sentence-transformers 以获得更好的多语言支持")
                     except ImportError:
@@ -873,10 +896,16 @@ class TagExtractor:
             
             logger.debug(f"KeyBERT 返回候选关键词: {[kw for kw, _ in keywords_with_scores]}")
             
-            for kw, score in keywords_with_scores:
+            for item in keywords_with_scores:
+                # 处理 KeyBERT 返回的元组
+                if isinstance(item, tuple) and len(item) >= 2:
+                    kw, score = item[0], item[1]
+                else:
+                    kw, score = item, 0.0
+                
                 if not kw:
                     continue
-                kw = kw.strip()
+                kw = str(kw).strip()
                 
                 # 去除空格（分词产生的）
                 kw = kw.replace(' ', '')
@@ -984,13 +1013,16 @@ class TagExtractor:
                     for script in soup(["script", "style"]):
                         script.decompose()
                     # 移除所有元素的内联样式属性，避免提取到 font-family 等样式信息
+                    from bs4 import Tag
                     for tag in soup.find_all(True):
-                        # 移除 style 属性（可能包含 font-family: Helvetica 等）
-                        if 'style' in tag.attrs:
-                            del tag.attrs['style']
-                        # 移除 class 属性（可能包含字体相关的类名）
-                        if 'class' in tag.attrs:
-                            del tag.attrs['class']
+                        # 类型检查：确保是 Tag 对象而不是 NavigableString
+                        if isinstance(tag, Tag):
+                            # 移除 style 属性（可能包含 font-family: Helvetica 等）
+                            if 'style' in tag.attrs:
+                                del tag.attrs['style']
+                            # 移除 class 属性（可能包含字体相关的类名）
+                            if 'class' in tag.attrs:
+                                del tag.attrs['class']
                     # 获取纯文本
                     text = soup.get_text(separator=' ', strip=True)
                     # 清理多余的空白字符
@@ -1197,13 +1229,16 @@ class TagExtractor:
                     for script in soup(["script", "style"]):
                         script.decompose()
                     # 移除所有元素的内联样式属性，避免提取到 font-family 等样式信息
+                    from bs4 import Tag
                     for tag in soup.find_all(True):
-                        # 移除 style 属性（可能包含 font-family: Helvetica 等）
-                        if 'style' in tag.attrs:
-                            del tag.attrs['style']
-                        # 移除 class 属性（可能包含字体相关的类名）
-                        if 'class' in tag.attrs:
-                            del tag.attrs['class']
+                        # 类型检查：确保是 Tag 对象而不是 NavigableString
+                        if isinstance(tag, Tag):
+                            # 移除 style 属性（可能包含 font-family: Helvetica 等）
+                            if 'style' in tag.attrs:
+                                del tag.attrs['style']
+                            # 移除 class 属性（可能包含字体相关的类名）
+                            if 'class' in tag.attrs:
+                                del tag.attrs['class']
                     # 获取纯文本
                     text = soup.get_text(separator=' ', strip=True)
                     # 清理多余的空白字符
@@ -1239,14 +1274,17 @@ class TagExtractor:
         
         if method == "textrank":
             # 获取配置
-            topK = cfg.get("article_tag.max_tags", 5)
-            allow_pos_str = cfg.get("article_tag.textrank.allow_pos", "n,nz")
+            topK_raw = cfg.get("article_tag.max_tags", 5)
+            topK = int(topK_raw) if isinstance(topK_raw, (int, float, str)) else 5
+            allow_pos_str_raw = cfg.get("article_tag.textrank.allow_pos", "n,nz")
+            allow_pos_str = str(allow_pos_str_raw) if allow_pos_str_raw else "n,nz"
             allow_pos = tuple(pos.strip() for pos in allow_pos_str.split(","))
             
             return self.extract_with_textrank(text, topK=topK, allowPOS=allow_pos)
         elif method == "keybert":
             # KeyBERT 提取
-            topK = cfg.get("article_tag.max_tags", 5)
+            topK_raw = cfg.get("article_tag.max_tags", 5)
+            topK = int(topK_raw) if isinstance(topK_raw, (int, float, str)) else 5
             # 检查是否使用混合方案（结合 TextRank 实体提取）
             use_hybrid = cfg.get("article_tag.keybert.hybrid", False)
             if use_hybrid:
@@ -1288,10 +1326,14 @@ def get_tag_extractor() -> TagExtractor:
         if AI_AVAILABLE and _global_extractor.ai_client is None:
             load_dev_env_if_needed()
             # 提供默认值 None，silent=True 避免输出警告（如果配置文件中没有这些项，会从环境变量读取）
-            api_key = cfg.get("openai.api_key", None, silent=True) or os.getenv("OPENAI_API_KEY", "")
-            if api_key:
-                base_url = cfg.get("openai.base_url", None, silent=True) or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
-                model = cfg.get("openai.model", None, silent=True) or os.getenv("OPENAI_MODEL", "gpt-4o")
+            api_key_raw = cfg.get("openai.api_key", None, silent=True) or os.getenv("OPENAI_API_KEY", "")
+            if api_key_raw:
+                base_url_raw = cfg.get("openai.base_url", None, silent=True) or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+                model_raw = cfg.get("openai.model", None, silent=True) or os.getenv("OPENAI_MODEL", "gpt-4o")
+                # 确保类型为字符串
+                api_key = str(api_key_raw) if api_key_raw else ""
+                base_url = str(base_url_raw) if base_url_raw else "https://api.openai.com/v1"
+                model = str(model_raw) if model_raw else "gpt-4o"
                 _global_extractor.ai_client = AsyncOpenAI(
                     api_key=api_key,
                     base_url=base_url,

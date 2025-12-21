@@ -1,8 +1,8 @@
 from sqlalchemy import create_engine, Engine,Text,event,inspect,text
-from sqlalchemy.orm import sessionmaker, declarative_base,scoped_session
+from sqlalchemy.orm import sessionmaker, declarative_base,scoped_session, Session
 from sqlalchemy import Column, Integer, String, DateTime
 from sqlalchemy.exc import SQLAlchemyError
-from typing import Optional, List
+from typing import Optional, List, Union, Any
 from .models import Feed, Article
 from .config import cfg
 from core.models.base import Base  
@@ -16,16 +16,23 @@ import os
 # Base = declarative_base()
 
 class Db:
-    connection_str: str=None
+    connection_str: Optional[str] = None
+    Session: Optional[Any] = None
+    engine: Optional[Engine] = None
+    session_factory: Optional[Any] = None
+    
     def __init__(self,tag:str="默认",User_In_Thread=True):
-        self.Session= None
+        self.Session = None
         self.engine = None
         self.User_In_Thread=User_In_Thread
         self.tag=tag
         print_success(f"[{tag}]连接初始化")
         # 获取数据库连接字符串，如果为 None 则使用默认值
         db_config = cfg.get("db") or "sqlite:///data/db.db"
-        self.init(db_config)
+        if isinstance(db_config, str):
+            self.init(db_config)
+        else:
+            self.init("sqlite:///data/db.db")
     def get_engine(self) -> Engine:
         """Return the SQLAlchemy engine for this database connection."""
         if self.engine is None:
@@ -115,6 +122,9 @@ class Db:
         from core.models.base import Base as B
         from sqlalchemy import inspect as sql_inspect
         
+        if self.engine is None:
+            raise ValueError("Engine is not initialized")
+        
         try:
             # 测试数据库连接
             with self.engine.connect() as conn:
@@ -175,6 +185,9 @@ class Db:
         from core.models.base import Base as B
         from sqlalchemy import inspect as sql_inspect
         
+        if self.engine is None:
+            raise ValueError("Engine is not initialized")
+        
         try:
             inspector = sql_inspect(self.engine)
             
@@ -220,8 +233,16 @@ class Db:
                 
                 # 处理默认值
                 if column.default is not None:
-                    if hasattr(column.default, 'arg'):
-                        default_val = column.default.arg
+                    default_val = None
+                    try:
+                        if hasattr(column.default, 'arg'):
+                            default_val = getattr(column.default, 'arg', None)
+                        elif hasattr(column.default, 'value'):
+                            default_val = getattr(column.default, 'value', None)
+                    except (AttributeError, TypeError):
+                        pass
+                    
+                    if default_val is not None:
                         if isinstance(default_val, bool):
                             default = f" DEFAULT {str(default_val).upper()}"
                         elif isinstance(default_val, (int, float)):
@@ -240,8 +261,16 @@ class Db:
                 default = ""
                 
                 if column.default is not None:
-                    if hasattr(column.default, 'arg'):
-                        default_val = column.default.arg
+                    default_val = None
+                    try:
+                        if hasattr(column.default, 'arg'):
+                            default_val = getattr(column.default, 'arg', None)
+                        elif hasattr(column.default, 'value'):
+                            default_val = getattr(column.default, 'value', None)
+                    except (AttributeError, TypeError):
+                        pass
+                    
+                    if default_val is not None:
                         if isinstance(default_val, bool):
                             default = f" DEFAULT {1 if default_val else 0}"
                         elif isinstance(default_val, (int, float)):
@@ -252,6 +281,9 @@ class Db:
                 alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {column_name} {col_type} {nullable}{default}"
             
             # 执行 ALTER TABLE
+            if self.engine is None:
+                raise ValueError("Engine is not initialized")
+            
             with self.engine.begin() as conn:
                 conn.execute(text(alter_sql))
             
@@ -277,9 +309,11 @@ class Db:
         
     def close(self) -> None:
         """Close the database connection"""
-        if self.SESSION:
-            self.SESSION.close()
-            self.SESSION.remove()
+        if self.Session:
+            if hasattr(self.Session, 'close'):
+                self.Session.close()
+            if hasattr(self.Session, 'remove'):
+                self.Session.remove()
             
     def __enter__(self):
         return self
@@ -289,10 +323,13 @@ class Db:
     def delete_article(self,article_data:dict)->bool:
         try:
             art = Article(**article_data)
-            if art.id:
-               art.id=f"{str(art.mp_id)}-{art.id}".replace("MP_WXS_","")
+            article_id = getattr(art, 'id', None)
+            if article_id:
+                article_id = f"{str(getattr(art, 'mp_id', ''))}-{article_id}".replace("MP_WXS_","")
+            else:
+                return False
             session=DB.get_session()
-            article = session.query(Article).filter(Article.id == art.id).first()
+            article = session.query(Article).filter(Article.id == article_id).first()
             if article is not None:
                 session.delete(article)
                 session.commit()
@@ -307,11 +344,14 @@ class Db:
             session=self.get_session()
             from datetime import datetime, date
             art = Article(**article_data)
-            if art.id:
-               art.id=f"{str(art.mp_id)}-{art.id}".replace("MP_WXS_","")
+            article_id = getattr(art, 'id', None)
+            if article_id:
+                article_id = f"{str(getattr(art, 'mp_id', ''))}-{article_id}".replace("MP_WXS_","")
+                setattr(art, 'id', article_id)
             
             # 检查文章的发布时间是否早于配置的采集起始时间
-            if art.publish_time:
+            publish_time = getattr(art, 'publish_time', None)
+            if publish_time:
                 try:
                     # 从配置中获取采集起始时间
                     from core.models.config_management import ConfigManagement
@@ -323,19 +363,20 @@ class Db:
                         try:
                             start_date = datetime.strptime(config.config_value, '%Y-%m-%d').date()
                             # 将 publish_time 转换为日期进行比较
-                            if isinstance(art.publish_time, (int, float)):
+                            if isinstance(publish_time, (int, float)):
                                 # 如果是时间戳，转换为日期
-                                publish_timestamp = int(art.publish_time)
+                                publish_timestamp = int(publish_time)
                                 if publish_timestamp < 10000000000:  # 秒级时间戳
                                     publish_timestamp *= 1000
                                 publish_date = datetime.fromtimestamp(publish_timestamp / 1000).date()
                             else:
                                 # 如果是 datetime 对象，直接获取日期
-                                publish_date = art.publish_time.date() if hasattr(art.publish_time, 'date') else art.publish_time
+                                publish_date = publish_time.date() if hasattr(publish_time, 'date') else publish_time
                             
                             # 如果文章发布时间早于起始时间，跳过保存
+                            article_title = getattr(art, 'title', '') or ''
                             if publish_date < start_date:
-                                print_info(f"文章发布时间 {publish_date} 早于采集起始时间 {start_date}，跳过保存: {art.title[:50]}")
+                                print_info(f"文章发布时间 {publish_date} 早于采集起始时间 {start_date}，跳过保存: {article_title[:50]}")
                                 return False
                         except (ValueError, TypeError, AttributeError) as e:
                             # 日期解析失败，记录警告但继续保存
@@ -345,26 +386,37 @@ class Db:
                     print_warning(f"读取采集起始时间配置失败: {e}")
             
             # 始终检查文章是否已存在（基于ID）
-            existing_article = session.query(Article).filter(Article.id == art.id).first()
+            if not article_id:
+                return False
+            existing_article = session.query(Article).filter(Article.id == article_id).first()
             if existing_article is not None:
                 if check_exist:
-                    print_warning(f"Article already exists: {art.id}")
+                    print_warning(f"Article already exists: {article_id}")
                     return False
                 else:
                     # 如果已存在但不要求检查，可以选择更新或跳过
                     # 这里选择跳过，避免重复插入
-                    print_info(f"Article already exists, skipping: {art.id}")
+                    print_info(f"Article already exists, skipping: {article_id}")
                     return False
                 
-            if art.created_at is None:
-                art.created_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            if art.updated_at is None:
-                art.updated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            art.created_at=datetime.strptime(art.created_at ,'%Y-%m-%d %H:%M:%S')
-            art.updated_at=datetime.strptime(art.updated_at,'%Y-%m-%d %H:%M:%S')
-            art.content=art.content
+            created_at = getattr(art, 'created_at', None)
+            updated_at = getattr(art, 'updated_at', None)
+            
+            if created_at is None:
+                created_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            if updated_at is None:
+                updated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            
+            if isinstance(created_at, str):
+                created_at = datetime.strptime(created_at, '%Y-%m-%d %H:%M:%S')
+            if isinstance(updated_at, str):
+                updated_at = datetime.strptime(updated_at, '%Y-%m-%d %H:%M:%S')
+            
+            setattr(art, 'created_at', created_at)
+            setattr(art, 'updated_at', updated_at)
+            
             from core.models.base import DATA_STATUS
-            art.status=DATA_STATUS.ACTIVE
+            setattr(art, 'status', DATA_STATUS.ACTIVE)
             session.add(art)
             session.flush()  # 先 flush 获取 article.id
             
@@ -375,14 +427,16 @@ class Db:
                 print_info(f"🔍 标签提取配置: auto_extract={auto_extract_enabled}")
                 
                 if auto_extract_enabled:
-                    content_length = len(art.content or "")
-                    print_info(f"📝 文章内容长度: {content_length}, 标题: {art.title[:50]}")
+                    article_content = getattr(art, 'content', '') or ''
+                    content_length = len(article_content)
+                    article_title = getattr(art, 'title', '') or ''
+                    print_info(f"📝 文章内容长度: {content_length}, 标题: {article_title[:50]}")
                     self._assign_tags_by_extraction(
                         session, 
-                        art.id, 
-                        art.title, 
-                        art.description or "", 
-                        art.content or ""
+                        article_id, 
+                        article_title, 
+                        getattr(art, 'description', '') or '', 
+                        article_content
                     )
                 else:
                     print_warning("⚠️  标签自动提取已禁用")
@@ -398,8 +452,9 @@ class Db:
         except Exception as e:
             # 处理各种数据库的唯一约束错误
             error_str = str(e)
+            article_id_str = article_id if article_id else "unknown"
             if "UNIQUE" in error_str or "Duplicate entry" in error_str or "UniqueViolation" in error_str or "duplicate key" in error_str.lower():
-                print_warning(f"Article already exists (duplicate key): {art.id}")
+                print_warning(f"Article already exists (duplicate key): {article_id_str}")
                 # 尝试回滚，避免事务问题
                 try:
                     session.rollback()
@@ -417,13 +472,16 @@ class Db:
                 return False
         return True    
         
-    def get_articles(self, id:str=None, limit:int=30, offset:int=0) -> List[Article]:
+    def get_articles(self, id:Optional[str]=None, limit:int=30, offset:int=0) -> List[Article]:
         try:
-            data = self.get_session().query(Article).limit(limit).offset(offset)
+            query = self.get_session().query(Article)
+            if id:
+                query = query.filter(Article.id == id)
+            data = query.limit(limit).offset(offset).all()
             return data
         except Exception as e:
-            print(f"Failed to fetch Feed: {e}")
-            return e    
+            print(f"Failed to fetch Articles: {e}")
+            return []    
              
     def get_all_mps(self) -> List[Feed]:
         """Get all Feed records"""
@@ -431,7 +489,7 @@ class Db:
             return self.get_session().query(Feed).all()
         except Exception as e:
             print(f"Failed to fetch Feed: {e}")
-            return e
+            return []
             
     def get_mps_list(self, mp_ids:str) -> List[Feed]:
         try:
@@ -440,19 +498,20 @@ class Db:
             return data
         except Exception as e:
             print(f"Failed to fetch Feed: {e}")
-            return e
+            return []
     def get_mps(self, mp_id:str) -> Optional[Feed]:
         try:
-            ids=mp_id.split(',')
             data =  self.get_session().query(Feed).filter_by(id= mp_id).first()
             return data
         except Exception as e:
             print(f"Failed to fetch Feed: {e}")
-            return e
+            return None
 
     def get_faker_id(self, mp_id:str):
         data = self.get_mps(mp_id)
-        return data.faker_id
+        if data is None:
+            return None
+        return getattr(data, 'faker_id', None)
     def expire_all(self):
         if self.Session:
             self.Session.expire_all()    
@@ -478,6 +537,8 @@ class Db:
         """获取新的数据库会话"""
         UseInThread=self.User_In_Thread
         def _session():
+            if self.session_factory is None:
+                raise ValueError("Session factory is not initialized")
             if UseInThread:
                 self.Session=scoped_session(self.session_factory)
                 # self.Session=self.session_factory
@@ -490,6 +551,9 @@ class Db:
         if self.Session is None:
             _session()
         
+        if self.Session is None:
+            raise ValueError("Session factory is not initialized")
+        
         session = self.Session()
         # session.expire_all()
         # session.expire_on_commit = True  # 确保每次提交后对象过期
@@ -498,6 +562,8 @@ class Db:
             from core.print import print_info
             print_info(f"[{self.tag}] Session is already closed.")
             _session()
+            if self.Session is None:
+                raise ValueError("Session factory is not initialized")
             return self.Session()
         # 检查数据库连接是否已断开
         try:
@@ -507,8 +573,11 @@ class Db:
         except Exception as e:
             from core.print import print_warning
             print_warning(f"[{self.tag}] Database connection lost: {e}. Reconnecting...")
-            self.init(self.connection_str)
+            if self.connection_str:
+                self.init(self.connection_str)
             _session()
+            if self.Session is None:
+                raise ValueError("Session factory is not initialized")
             return self.Session()
         return session
     def auto_refresh(self):
@@ -585,8 +654,9 @@ class Db:
             else:
                 # TextRank 或 KeyBERT 提取（同步）
                 try:
-                    topics = extractor.extract(title, description, content, method=extract_method)
-                    print_info(f"🔍 {extract_method} 提取到 {len(topics)} 个关键词: {topics}")
+                    method_str = str(extract_method) if extract_method else "textrank"
+                    topics = extractor.extract(title, description, content, method=method_str)
+                    print_info(f"🔍 {method_str} 提取到 {len(topics)} 个关键词: {topics}")
                 except Exception as extract_error:
                     print_warning(f"⚠️  {extract_method} 提取失败: {extract_error}")
                     # 提取失败时尝试使用 TextRank 作为后备

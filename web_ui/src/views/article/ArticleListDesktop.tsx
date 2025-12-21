@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -64,6 +65,7 @@ interface MpItem {
 }
 
 const ArticleListDesktop: React.FC = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const exportModalRef = useRef<any>(null)
   const [fullLoading, setFullLoading] = useState(false)
@@ -266,7 +268,7 @@ const ArticleListDesktop: React.FC = () => {
       setPagination(prev => ({ ...prev, total: res.total || 0 }))
     } catch (error: any) {
       console.error('获取文章列表错误:', error)
-      Message.error(error?.message || '获取文章列表失败')
+      Message.error(error?.message || t('articles.messages.fetchFailed'))
     } finally {
       setLoading(false)
     }
@@ -326,7 +328,7 @@ const ArticleListDesktop: React.FC = () => {
       window.location.hash = '#topreader'
     } catch (error: any) {
       console.error('获取文章详情错误:', error)
-      Message.error(error?.message || '获取文章详情失败')
+      Message.error(error?.message || t('articles.messages.fetchDetailFailed'))
     } finally {
       setLoading(false)
     }
@@ -335,7 +337,7 @@ const ArticleListDesktop: React.FC = () => {
   const deleteArticle = async (id: number) => {
     try {
       await deleteArticleApi(id)
-      Message.success('删除成功')
+      Message.success(t('articles.messages.deleteSuccess'))
       fetchArticles()
     } catch (error: any) {
       Message.error(error?.message || '删除失败')
@@ -345,11 +347,11 @@ const ArticleListDesktop: React.FC = () => {
   const handleBatchDelete = async () => {
     try {
       await Promise.all(selectedRowKeys.map(id => deleteArticleApi(id)))
-      Message.success(`成功删除${selectedRowKeys.length}篇文章`)
+      Message.success(t('articles.messages.batchDeleteSuccess', { count: selectedRowKeys.length }))
       setSelectedRowKeys([])
       fetchArticles()
     } catch (error) {
-      Message.error('删除部分文章失败')
+      Message.error(t('articles.messages.batchDeleteFailed'))
     }
   }
 
@@ -375,7 +377,7 @@ const ArticleListDesktop: React.FC = () => {
       document.body.removeChild(a)
     } catch (error: any) {
       console.error('导出OPML失败:', error)
-      Message.error(error?.message || '导出OPML失败')
+      Message.error(error?.message || t('articles.messages.exportOpmlFailed'))
     }
   }
 
@@ -393,7 +395,7 @@ const ArticleListDesktop: React.FC = () => {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
     } catch (error: any) {
-      Message.error(error?.message || '导出公众号失败')
+      Message.error(error?.message || t('articles.messages.exportMpFailed'))
     }
   }
 
@@ -408,12 +410,12 @@ const ArticleListDesktop: React.FC = () => {
         const formData = new FormData()
         formData.append('file', file)
         const response = await ImportMPS(formData) as unknown as { code: number; message?: string }
-        Message.info(response?.message || '导入成功')
+        Message.info(response?.message || t('articles.messages.importSuccess'))
         fetchMpList()
       }
       input.click()
     } catch (error: any) {
-      Message.error(error?.message || '导入公众号失败')
+      Message.error(error?.message || t('articles.messages.importFailed'))
     }
   }
 
@@ -442,7 +444,7 @@ const ArticleListDesktop: React.FC = () => {
         start_page: values.startPage,
         end_page: values.endPage
       })
-      Message.success('刷新成功')
+      Message.success(t('articles.messages.refreshSuccess'))
       setRefreshModalVisible(false)
       fetchArticles()
     } catch (error: any) {
@@ -459,7 +461,7 @@ const ArticleListDesktop: React.FC = () => {
     setFullLoading(true)
     try {
       const res = await ClearArticle(0) as unknown as { code: number; message?: string }
-      Message.success(res?.message || '清理成功')
+      Message.success(res?.message || t('articles.messages.clearSuccess'))
       fetchArticles()
     } finally {
       setFullLoading(false)
@@ -470,7 +472,7 @@ const ArticleListDesktop: React.FC = () => {
     setFullLoading(true)
     try {
       const res = await ClearDuplicateArticle(0) as unknown as { code: number; message?: string }
-      Message.success(res?.message || '清理成功')
+      Message.success(res?.message || t('articles.messages.clearSuccess'))
       fetchArticles()
     } finally {
       setFullLoading(false)
@@ -480,7 +482,7 @@ const ArticleListDesktop: React.FC = () => {
   const copyMpId = async (mpId: string) => {
     try {
       await navigator.clipboard.writeText(mpId)
-      Message.success('MP ID 已复制到剪贴板')
+      Message.success(t('articles.messages.copySuccess'))
     } catch (error) {
       const textArea = document.createElement('textarea')
       textArea.value = mpId
@@ -492,9 +494,9 @@ const ArticleListDesktop: React.FC = () => {
       textArea.select()
       try {
         document.execCommand('copy')
-        Message.success('MP ID 已复制到剪贴板')
+        Message.success(t('articles.messages.copySuccess'))
       } catch (err) {
-        Message.error('复制失败，请手动复制')
+        Message.error(t('articles.messages.copyFailed'))
       }
       document.body.removeChild(textArea)
     }
@@ -503,7 +505,7 @@ const ArticleListDesktop: React.FC = () => {
   const deleteMp = async (mpId: string) => {
     try {
       await deleteMpApi(mpId)
-      Message.success('订阅号删除成功')
+      Message.success(t('articles.messages.deleteMpSuccess'))
       fetchMpList()
     } catch (error: any) {
       Message.error(error?.message || '删除失败')

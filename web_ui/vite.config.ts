@@ -7,6 +7,7 @@ export default defineConfig(({ command, mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
 
   return {
+    appType: 'spa', // 明确指定为 SPA 应用，确保所有路由都回退到 index.html
     plugins: [
       react({
         jsxRuntime: 'automatic',

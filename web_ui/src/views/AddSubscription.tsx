@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -23,6 +24,7 @@ interface FormValues {
 }
 
 const AddSubscription: React.FC = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -64,8 +66,8 @@ const AddSubscription: React.FC = () => {
     if (!articleLink) {
       toast({
         variant: "destructive",
-        title: "错误",
-        description: "请提供一个公众号文章链接"
+        title: t('common.error'),
+        description: t('subscriptions.messages.articleLinkRequired')
       })
       return false
     }
@@ -84,8 +86,8 @@ const AddSubscription: React.FC = () => {
       console.error('获取公众号信息失败:', error)
       toast({
         variant: "destructive",
-        title: "错误",
-        description: "获取公众号信息失败"
+        title: t('common.error'),
+        description: t('subscriptions.messages.getMpInfoFailed')
       })
       return false
     } finally {
@@ -114,16 +116,16 @@ const AddSubscription: React.FC = () => {
       })
 
       toast({
-        title: "成功",
-        description: "订阅添加成功"
+        title: t('common.success'),
+        description: t('subscriptions.messages.addSuccess')
       })
       navigate('/')
     } catch (error: any) {
       console.error('订阅添加失败:', error)
       toast({
         variant: "destructive",
-        title: "错误",
-        description: error.message || '订阅添加失败，请稍后重试'
+        title: t('common.error'),
+        description: error.message || t('subscriptions.messages.addFailed')
       })
     } finally {
       setLoading(false)
@@ -158,15 +160,15 @@ const AddSubscription: React.FC = () => {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
       toast({
-        title: "成功",
-        description: "导出成功"
+        title: t('common.success'),
+        description: t('subscriptions.messages.exportSuccess')
       })
     } catch (error: any) {
       console.error('导出失败:', error)
       toast({
         variant: "destructive",
-        title: "错误",
-        description: error?.message || '导出失败，请稍后重试'
+        title: t('common.error'),
+        description: error?.message || t('subscriptions.messages.exportFailed')
       })
     }
   }
@@ -192,12 +194,12 @@ const AddSubscription: React.FC = () => {
           
           if (stats) {
             toast({
-              title: "成功",
+              title: t('common.success'),
               description: `${message}，新增: ${stats.imported}，更新: ${stats.updated}，跳过: ${stats.skipped}`
             })
           } else {
             toast({
-              title: "成功",
+              title: t('common.success'),
               description: message
             })
           }
@@ -210,8 +212,8 @@ const AddSubscription: React.FC = () => {
           console.error('导入失败:', error)
           toast({
             variant: "destructive",
-            title: "错误",
-            description: error?.message || '导入失败，请检查CSV文件格式'
+            title: t('common.error'),
+            description: error?.message || t('subscriptions.messages.importFailed')
           })
         } finally {
           setLoading(false)
@@ -222,8 +224,8 @@ const AddSubscription: React.FC = () => {
       console.error('导入失败:', error)
       toast({
         variant: "destructive",
-        title: "错误",
-        description: error?.message || '导入失败，请稍后重试'
+        title: t('common.error'),
+        description: error?.message || t('subscriptions.messages.importFailedRetry')
       })
     }
   }
@@ -233,28 +235,28 @@ const AddSubscription: React.FC = () => {
   return (
     <div className="p-5 max-w-[1200px] mx-auto">
       <PageHeader
-        title="添加订阅"
-        subTitle="添加新的公众号订阅"
+        title={t('subscriptions.addSubscriptionTitle')}
+        subTitle={t('subscriptions.addSubscriptionSubtitle')}
         onBack={goBack}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>订阅信息</CardTitle>
+          <CardTitle>{t('subscriptions.subscriptionInfo')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 mb-6">
             <div className="flex gap-2">
               <Button onClick={openDialog} variant="outline">
-                通过公众号文章获取
+                {t('subscriptions.getFromArticle')}
               </Button>
               <Button onClick={handleExport} variant="outline">
                 <Download className="h-4 w-4 mr-2" />
-                导出订阅
+                {t('subscriptions.exportSubscriptions')}
               </Button>
               <Button onClick={handleImport} variant="outline" disabled={loading}>
                 <Upload className="h-4 w-4 mr-2" />
-                导入订阅
+                {t('subscriptions.importSubscriptions')}
               </Button>
             </div>
           </div>
@@ -264,11 +266,11 @@ const AddSubscription: React.FC = () => {
               <Input
                 value={articleLink}
                 onChange={(e) => setArticleLink(e.target.value)}
-                placeholder="请输入一个公众号文章链接地址"
+                placeholder={t('subscriptions.articleLinkPlaceholder')}
                 className="max-w-[500px]"
               />
               <Button onClick={handleGetMpInfo} disabled={isFetching}>
-                {isFetching ? '获取中...' : '获取'}
+                {isFetching ? t('subscriptions.getting') : t('subscriptions.getInfo')}
               </Button>
             </div>
           )}
@@ -279,17 +281,17 @@ const AddSubscription: React.FC = () => {
                 control={form.control}
                 name="name"
                 rules={{
-                  required: '请输入公众号名称',
-                  minLength: { value: 2, message: '公众号名称长度应在2-30个字符之间' },
-                  maxLength: { value: 30, message: '公众号名称长度应在2-30个字符之间' }
+                  required: t('subscriptions.mpNameRequired'),
+                  minLength: { value: 2, message: t('subscriptions.mpNameLength') },
+                  maxLength: { value: 30, message: t('subscriptions.mpNameLength') }
                 }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>公众号名称</FormLabel>
+                    <FormLabel>{t('subscriptions.mpName')}</FormLabel>
                     <FormControl>
                       <AutoComplete
                         {...field}
-                        placeholder="请输入公众号名称或搜索"
+                        placeholder={t('subscriptions.mpNamePlaceholder')}
                         data={searchResults.map((item) => ({
                           value: item.nickname,
                           name: item.nickname
@@ -313,21 +315,21 @@ const AddSubscription: React.FC = () => {
                 control={form.control}
                 name="avatar"
                 rules={{
-                  required: '请选择公众号头像',
+                  required: t('subscriptions.avatarRequired'),
                   validate: (value) => {
                     if (!value || !value.startsWith('http')) {
-                      return '请选择有效的头像URL'
+                      return t('subscriptions.avatarInvalid')
                     }
                     return true
                   }
                 }}
                 render={() => (
                   <FormItem>
-                    <FormLabel>头像</FormLabel>
+                    <FormLabel>{t('subscriptions.avatar')}</FormLabel>
                     <FormControl>
                       <Avatar className="h-20 w-20">
                         <AvatarImage src={avatarUrl} alt="avatar" />
-                        <AvatarFallback>头像</AvatarFallback>
+                        <AvatarFallback>{t('subscriptions.avatar')}</AvatarFallback>
                       </Avatar>
                     </FormControl>
                     <FormMessage />
@@ -339,22 +341,22 @@ const AddSubscription: React.FC = () => {
                 control={form.control}
                 name="wx_id"
                 rules={{
-                  required: '请输入公众号ID',
+                  required: t('subscriptions.mpIdRequired'),
                   pattern: {
                     value: /^[a-zA-Z0-9_=-]+$/,
-                    message: '公众号ID只能包含字母、数字、下划线、横线和等号'
+                    message: t('subscriptions.mpIdPattern')
                   }
                 }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>公众号ID</FormLabel>
+                    <FormLabel>{t('subscriptions.mpId')}</FormLabel>
                     <FormControl>
                       <div className="relative max-w-[500px]">
                         <User className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
                           {...field}
                           readOnly
-                          placeholder="请输入公众号ID"
+                          placeholder={t('subscriptions.mpIdPlaceholder')}
                           className="pl-10"
                         />
                       </div>
@@ -368,20 +370,20 @@ const AddSubscription: React.FC = () => {
                 control={form.control}
                 name="description"
                 rules={{
-                  maxLength: { value: 200, message: '描述不能超过200个字符' }
+                  maxLength: { value: 200, message: t('subscriptions.descriptionMaxLength') }
                 }}
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>描述</FormLabel>
+                    <FormLabel>{t('subscriptions.description')}</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder="请输入公众号描述"
+                        placeholder={t('subscriptions.descriptionPlaceholder')}
                         rows={3}
                         className="max-w-[700px]"
                       />
                     </FormControl>
-                    <FormDescription>最多200个字符</FormDescription>
+                    <FormDescription>{t('subscriptions.descriptionMaxChars')}</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -389,10 +391,10 @@ const AddSubscription: React.FC = () => {
 
               <div className="flex gap-2">
                 <Button type="submit" disabled={loading}>
-                  {loading ? '添加中...' : '添加订阅'}
+                  {loading ? t('subscriptions.adding') : t('subscriptions.addButton')}
                 </Button>
                 <Button type="button" variant="outline" onClick={resetForm}>
-                  重置
+                  {t('subscriptions.reset')}
                 </Button>
               </div>
             </form>

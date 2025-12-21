@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -29,6 +30,7 @@ import { Avatar as AvatarUtil } from '@/utils/constants'
 import dayjs from 'dayjs'
 
 const SubscriptionManagement: React.FC = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { id } = useParams<{ id?: string }>()
   const [loading, setLoading] = useState(false)
@@ -83,7 +85,7 @@ const SubscriptionManagement: React.FC = () => {
       }
     } catch (error: any) {
       console.error('获取订阅列表失败:', error)
-      Message.error(error.message || '获取订阅列表失败')
+      Message.error(error.message || t('subscriptions.messages.fetchFailed'))
     } finally {
       setLoading(false)
     }
@@ -102,7 +104,7 @@ const SubscriptionManagement: React.FC = () => {
   // 刷新订阅（更新文章）
   const handleRefresh = async () => {
     if (!selectedSubscription) {
-      Message.warning('请先选择一个订阅')
+      Message.warning(t('subscriptions.messages.selectFirst'))
       return
     }
     setRefreshing(true)
@@ -113,7 +115,7 @@ const SubscriptionManagement: React.FC = () => {
       })
       
       // 成功情况：显示成功消息
-      Message.success('刷新成功，正在更新文章...')
+      Message.success(t('subscriptions.messages.refreshSuccess'))
       
       // 等待2秒后刷新订阅详情
       setTimeout(() => {
@@ -128,7 +130,7 @@ const SubscriptionManagement: React.FC = () => {
       // 如果 error 是字符串（拦截器 reject 的字符串）
       if (typeof error === 'string') {
         console.error('刷新错误（字符串）:', error)
-        Message.error(error || '刷新失败')
+        Message.error(error || t('subscriptions.messages.refreshFailed'))
         return
       }
       
@@ -147,10 +149,10 @@ const SubscriptionManagement: React.FC = () => {
         const timeSpan = errorData?.data?.time_span || 0
         const syncInterval = 60 // 默认60秒
         const remaining = Math.max(0, syncInterval - timeSpan)
-        Message.warning(`请不要频繁更新操作，还需等待 ${remaining} 秒`)
+        Message.warning(t('subscriptions.messages.refreshLimit', { seconds: remaining }))
       } else {
         // 其他错误显示错误消息
-        const errorMsg = errorData?.message || error?.message || '刷新失败'
+        const errorMsg = errorData?.message || error?.message || t('subscriptions.messages.refreshFailed')
         Message.error(errorMsg)
       }
     } finally {
@@ -213,7 +215,7 @@ const SubscriptionManagement: React.FC = () => {
     render?: (value: any, record: Subscription) => React.ReactNode
   }> = [
     {
-      title: '名称',
+      title: t('subscriptions.columns.name'),
       dataIndex: 'mp_name',
       ellipsis: true,
       render: (text: string, record: Subscription) => (
@@ -228,7 +230,7 @@ const SubscriptionManagement: React.FC = () => {
       )
     },
     {
-      title: '文章数',
+      title: t('subscriptions.columns.articleCount'),
       dataIndex: 'article_count',
       width: 100,
       align: 'center',
@@ -237,13 +239,13 @@ const SubscriptionManagement: React.FC = () => {
       )
     },
     {
-      title: '状态',
+      title: t('subscriptions.columns.status'),
       dataIndex: 'status',
       width: 100,
       align: 'center',
       render: (status: number) => (
         <Badge variant={status === 1 ? 'default' : 'destructive'} className="rounded">
-          <span className="dark:text-dark">{status === 1 ? '已启用' : '已禁用'}</span>
+          <span className="dark:text-dark">{status === 1 ? t('common.enabled') : t('common.disabled')}</span>
         </Badge>
       )
     }
@@ -283,10 +285,10 @@ const SubscriptionManagement: React.FC = () => {
       {/* 页面标题 */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold mb-2 text-foreground">
-          订阅管理
+          {t('subscriptions.title')}
         </h1>
         <p className="text-muted-foreground text-sm">
-          管理和查看您的公众号订阅
+          {t('subscriptions.subtitle')}
         </p>
       </div>
       
@@ -299,7 +301,7 @@ const SubscriptionManagement: React.FC = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="搜索订阅名称..."
+                  placeholder={t('subscriptions.searchPlaceholder')}
                   value={searchText}
                   onChange={(e) => {
                     setSearchText(e.target.value)
@@ -314,7 +316,7 @@ const SubscriptionManagement: React.FC = () => {
               onClick={() => navigate('/add-subscription')}
             >
               <Plus className="h-4 w-4 mr-2" />
-              添加订阅
+              {t('subscriptions.addSubscription')}
             </Button>
           </div>
           
@@ -345,7 +347,7 @@ const SubscriptionManagement: React.FC = () => {
                   ) : subscriptions.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={subscriptionColumns.length} className="h-24 text-center text-muted-foreground">
-                        暂无数据
+                        {t('common.noData')}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -421,14 +423,14 @@ const SubscriptionManagement: React.FC = () => {
                     ) : (
                       <RefreshCw className="h-4 w-4 mr-2" />
                     )}
-                    刷新
+                    {t('subscriptions.refresh')}
                   </Button>
                   <Button
                     variant="outline"
                     onClick={() => handleEdit(selectedSubscription)}
                   >
                     <Edit className="h-4 w-4 mr-2" />
-                    编辑
+                    {t('subscriptions.edit')}
                   </Button>
                   <Button
                     variant="destructive"
@@ -438,7 +440,7 @@ const SubscriptionManagement: React.FC = () => {
                     }}
                   >
                     <Trash2 className="h-4 w-4 mr-2" />
-                    删除
+                    {t('subscriptions.delete')}
                   </Button>
                 </div>
                 </div>
@@ -448,14 +450,14 @@ const SubscriptionManagement: React.FC = () => {
                   {/* 状态卡片 */}
                   <div className="p-5 bg-muted/50 rounded-lg border">
                     <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                      状态
+                      {t('subscriptions.details.status')}
                     </div>
                     <div>
                       <Badge 
                         variant={selectedSubscription.status === 1 ? 'default' : 'destructive'}
                         className="text-sm px-4 py-1.5 rounded-md font-medium"
                       >
-                        <span className="dark:text-foreground">{selectedSubscription.status === 1 ? '已启用' : '已禁用'}</span>
+                        <span className="dark:text-foreground">{selectedSubscription.status === 1 ? t('common.enabled') : t('common.disabled')}</span>
                       </Badge>
                     </div>
                   </div>
@@ -463,7 +465,7 @@ const SubscriptionManagement: React.FC = () => {
                   {/* 文章数量卡片 */}
                   <div className="p-5 bg-muted/50 rounded-lg border">
                     <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                      文章数量
+                      {t('subscriptions.details.articleCount')}
                     </div>
                     <div className="text-3xl font-bold text-foreground leading-none">
                       {selectedSubscription.article_count || 0}
@@ -473,11 +475,11 @@ const SubscriptionManagement: React.FC = () => {
                   {/* 最后同步卡片 */}
                   <div className="p-5 bg-muted/50 rounded-lg border">
                     <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                      最后同步
+                      {t('subscriptions.details.lastSync')}
                     </div>
                     <div className="text-sm text-foreground font-medium">
                       {(() => {
-                        if (!selectedSubscription.sync_time) return '从未同步'
+                        if (!selectedSubscription.sync_time) return t('common.neverUsed')
                         // 如果是数字类型，使用 formatTimestamp
                         if (typeof selectedSubscription.sync_time === 'number') {
                           // 验证时间戳是否合理（1970年之后，2100年之前）
@@ -489,7 +491,7 @@ const SubscriptionManagement: React.FC = () => {
                           if (date.isValid() && date.year() >= 1970 && date.year() < 2100) {
                             return formatTimestamp(timestamp)
                           }
-                          return '从未同步'
+                          return t('common.neverUsed')
                         }
                         // 如果是字符串类型，使用 formatDateTime
                         return formatDateTime(selectedSubscription.sync_time)
@@ -501,12 +503,12 @@ const SubscriptionManagement: React.FC = () => {
                   {selectedSubscription.min_publish_time && selectedSubscription.max_publish_time && (
                     <div className="p-5 bg-muted/50 rounded-lg border">
                       <div className="text-muted-foreground text-xs mb-3 font-semibold">
-                        日期范围
+                        {t('subscriptions.details.minPublishTime')} ~ {t('subscriptions.details.maxPublishTime')}
                       </div>
                       <div className="text-sm text-foreground font-medium">
                         {(() => {
                           const formatDate = (timestamp: number) => {
-                            if (!timestamp) return '无效日期'
+                            if (!timestamp) return t('common.unknownError')
                             const timestampLength = timestamp.toString().length
                             const adjustedTimestamp = timestampLength <= 10 ? timestamp * 1000 : timestamp
                             const date = dayjs(adjustedTimestamp)
@@ -514,13 +516,13 @@ const SubscriptionManagement: React.FC = () => {
                             if (date.isValid() && date.year() >= 1970 && date.year() < 2100) {
                               return date.format('YYYY-MM-DD')
                             }
-                            return '无效日期'
+                            return t('common.unknownError')
                           }
                           const startDate = formatDate(selectedSubscription.min_publish_time!)
                           const endDate = formatDate(selectedSubscription.max_publish_time!)
                           // 如果日期无效，不显示日期范围
-                          if (startDate === '无效日期' || endDate === '无效日期') {
-                            return '暂无数据'
+                          if (startDate === t('common.unknownError') || endDate === t('common.unknownError')) {
+                            return t('common.noData')
                           }
                           return `${startDate} ~ ${endDate}`
                         })()}
@@ -531,10 +533,10 @@ const SubscriptionManagement: React.FC = () => {
                   {/* 简介卡片 */}
                   <div className="col-span-full p-6 bg-muted/50 rounded-lg border">
                     <div className="text-foreground text-base mb-4 font-semibold">
-                      简介
+                      {t('subscriptions.details.description')}
                     </div>
                     <div className="text-base text-foreground/80 leading-relaxed whitespace-pre-wrap">
-                      {selectedSubscription.mp_intro || '暂无简介'}
+                      {selectedSubscription.mp_intro || t('common.noData')}
                     </div>
                   </div>
 
@@ -542,7 +544,7 @@ const SubscriptionManagement: React.FC = () => {
                   {selectedSubscription.rss_url && (
                     <div className="col-span-full p-6 bg-muted/50 rounded-lg border">
                       <div className="text-foreground text-base mb-4 font-semibold">
-                        RSS地址
+                        {t('subscriptions.details.rssUrl')}
                       </div>
                       <div className="text-sm text-foreground break-all leading-relaxed">
                         <a 
@@ -577,8 +579,8 @@ const SubscriptionManagement: React.FC = () => {
       <Dialog open={visible} onOpenChange={setVisible}>
         <DialogContent className="max-w-[600px]">
           <DialogHeader>
-            <DialogTitle>编辑订阅</DialogTitle>
-            <DialogDescription>修改订阅的基本信息</DialogDescription>
+            <DialogTitle>{t('subscriptions.edit')}</DialogTitle>
+            <DialogDescription>{t('subscriptions.form.editDesc')}</DialogDescription>
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(handleSave)} className="space-y-4">
@@ -587,7 +589,7 @@ const SubscriptionManagement: React.FC = () => {
                 name="mp_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>订阅ID</FormLabel>
+                    <FormLabel>{t('subscriptions.form.name')}</FormLabel>
                     <FormControl>
                       <Input disabled {...field} />
                     </FormControl>
@@ -600,7 +602,7 @@ const SubscriptionManagement: React.FC = () => {
                 name="mp_name"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>名称 <span className="text-destructive">*</span></FormLabel>
+                    <FormLabel>{t('subscriptions.form.name')} <span className="text-destructive">*</span></FormLabel>
                     <FormControl>
                       <Input {...field} required />
                     </FormControl>
@@ -613,7 +615,7 @@ const SubscriptionManagement: React.FC = () => {
                 name="mp_intro"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>简介</FormLabel>
+                    <FormLabel>{t('subscriptions.form.description')}</FormLabel>
                     <FormControl>
                       <Textarea rows={4} {...field} />
                     </FormControl>
@@ -627,7 +629,7 @@ const SubscriptionManagement: React.FC = () => {
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">状态</FormLabel>
+                      <FormLabel className="text-base">{t('subscriptions.form.status')}</FormLabel>
                     </div>
                     <FormControl>
                       <Switch
@@ -639,8 +641,8 @@ const SubscriptionManagement: React.FC = () => {
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setVisible(false)}>取消</Button>
-                <Button type="submit">保存</Button>
+                <Button type="button" variant="outline" onClick={() => setVisible(false)}>{t('common.cancel')}</Button>
+                <Button type="submit">{t('common.save')}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -651,13 +653,13 @@ const SubscriptionManagement: React.FC = () => {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>确认删除</AlertDialogTitle>
+            <AlertDialogTitle>{t('common.confirm')}</AlertDialogTitle>
             <AlertDialogDescription>
-              确定要删除这个订阅吗？
+              {t('subscriptions.form.deleteConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
                 if (deleteTargetId) {
@@ -667,7 +669,7 @@ const SubscriptionManagement: React.FC = () => {
                 }
               }}
             >
-              确认
+              {t('common.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

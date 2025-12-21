@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input'
 import { formatDateTime } from '@/utils/date'
 
 const TagList: React.FC = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [tags, setTags] = useState<TagType[]>([])
@@ -61,8 +62,8 @@ const TagList: React.FC = () => {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "错误",
-        description: "获取标签列表失败"
+        title: t('tags.messages.fetchFailed'),
+        description: t('tags.messages.fetchFailed')
       })
     } finally {
       setLoading(false)
@@ -102,15 +103,15 @@ const TagList: React.FC = () => {
       setDeleteDialogOpen(false)
       setDeleteTargetId(null)
       toast({
-        title: "成功",
-        description: "删除成功"
+        title: t('tags.messages.deleteSuccess'),
+        description: t('tags.messages.deleteSuccess')
       })
       fetchTags()
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "错误",
-        description: "删除失败"
+        title: t('tags.messages.deleteFailed'),
+        description: t('tags.messages.deleteFailed')
       })
     }
   }
@@ -119,8 +120,8 @@ const TagList: React.FC = () => {
     if (selectedRowKeys.length === 0) {
       toast({
         variant: "destructive",
-        title: "警告",
-        description: "请先选择要删除的标签"
+        title: t('tags.messages.selectFirst'),
+        description: t('tags.messages.selectFirst')
       })
       return
     }
@@ -131,8 +132,8 @@ const TagList: React.FC = () => {
     try {
       await batchDeleteTags(selectedRowKeys)
       toast({
-        title: "成功",
-        description: `成功删除 ${selectedRowKeys.length} 个标签`
+        title: t('tags.messages.batchDeleteSuccess', { count: selectedRowKeys.length }),
+        description: t('tags.messages.batchDeleteSuccess', { count: selectedRowKeys.length })
       })
       setSelectedRowKeys([])
       setBatchDeleteDialogOpen(false)
@@ -140,16 +141,16 @@ const TagList: React.FC = () => {
     } catch (error) {
       toast({
         variant: "destructive",
-        title: "错误",
-        description: "批量删除失败"
+        title: t('tags.messages.batchDeleteFailed'),
+        description: t('tags.messages.batchDeleteFailed')
       })
     }
   }
 
   const exportTags = async () => {
     toast({
-      title: "提示",
-      description: "正在生成导出文件，请稍候..."
+      title: t('tags.messages.exportGenerating'),
+      description: t('tags.messages.exportGenerating')
     })
     try {
       const res = await ExportTags()
@@ -168,15 +169,15 @@ const TagList: React.FC = () => {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
       toast({
-        title: "成功",
-        description: "文件导出成功！"
+        title: t('tags.messages.exportSuccess'),
+        description: t('tags.messages.exportSuccess')
       })
     } catch (error: any) {
       console.error('导出标签失败:', error)
-      const errorMessage = error?.message || '导出标签失败，请检查网络或联系管理员'
+      const errorMessage = error?.message || t('tags.messages.exportFailed')
       toast({
         variant: "destructive",
-        title: "错误",
+        title: t('tags.messages.exportFailed'),
         description: errorMessage
       })
     }
@@ -196,23 +197,23 @@ const TagList: React.FC = () => {
         formData.append('file', file)
 
         toast({
-          title: "提示",
-          description: "正在导入文件，请稍候..."
+          title: t('tags.messages.importGenerating'),
+          description: t('tags.messages.importGenerating')
         })
         try {
           const res = await ImportTags(formData)
           const data = (res as any).data ?? res
           toast({
-            title: "成功",
-            description: data?.message || '导入成功'
+            title: t('tags.messages.importSuccess'),
+            description: data?.message || t('tags.messages.importSuccess')
           })
           fetchTags()
         } catch (importError: any) {
           const detail = importError.response?.data?.detail
-          const errorMessage = (typeof detail === 'object' && detail.message) ? detail.message : (detail || '导入失败，请检查文件格式或联系管理员')
+          const errorMessage = (typeof detail === 'object' && detail.message) ? detail.message : (detail || t('tags.messages.importFailed'))
           toast({
             variant: "destructive",
-            title: "错误",
+            title: t('tags.messages.importFailed'),
             description: errorMessage
           })
           console.error('导入标签时发生错误:', importError)
@@ -223,8 +224,8 @@ const TagList: React.FC = () => {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "错误",
-        description: error?.message || '无法打开文件选择器'
+        title: t('tags.messages.filePickerFailed'),
+        description: error?.message || t('tags.messages.filePickerFailed')
       })
     }
   }

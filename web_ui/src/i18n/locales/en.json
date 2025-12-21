@@ -12,7 +12,24 @@
     "error": "Error",
     "success": "Success",
     "warning": "Warning",
-    "info": "Info"
+    "info": "Info",
+    "noData": "No data",
+    "unknownError": "Unknown error",
+    "refreshPage": "Please refresh the page and try again",
+    "previousPage": "Previous",
+    "nextPage": "Next",
+    "page": "Page {{current}} / {{total}}, Total {{count}} items",
+    "selected": "{{count}} items selected",
+    "clear": "Clear",
+    "upload": "Upload",
+    "download": "Download",
+    "copy": "Copy",
+    "add": "Add",
+    "update": "Update",
+    "create": "Create",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "neverUsed": "Never used"
   },
   "layout": {
     "home": "Home",
@@ -66,6 +83,317 @@
     "exportSuccess": "Export successful",
     "exportFailed": "Export failed",
     "selectFormat": "Please select at least one export format"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "View your subscription data and statistics",
+    "stats": {
+      "totalArticles": "Total Articles",
+      "totalSources": "Sources",
+      "todayArticles": "Today",
+      "weekArticles": "This Week"
+    },
+    "charts": {
+      "sourceDistribution": "Source Distribution",
+      "fetchTrend": "Fetch Trend",
+      "hotKeywords": "Hot Keywords",
+      "chartLoadFailed": "Chart load failed",
+      "chartRenderFailed": "Chart render failed",
+      "noData": "No data",
+      "noTrendData": "No trend data, keywords have not appeared in the past 30 days",
+      "waitForData": "Please wait for data collection to complete",
+      "chartConfigFailed": "Chart configuration generation failed, please check data",
+      "noKeywordData": "No hot keyword data, unable to display trend chart",
+      "dataLoading": "Loading data..."
+    },
+    "tooltips": {
+      "date": "Date",
+      "source": "Account",
+      "articleCount": "Articles",
+      "keyword": "Keyword",
+      "occurrenceCount": "Occurrences",
+      "articles": " articles",
+      "times": " times"
+    },
+    "controls": {
+      "dateRange": {
+        "7days": "7 Days",
+        "30days": "30 Days"
+      },
+      "chartType": {
+        "stack": "Stacked Bar",
+        "line": "Line Chart"
+      }
+    },
+    "errors": {
+      "fetchFailed": "Failed to fetch statistics: {{message}}",
+      "unknownError": "Unknown error"
+    }
+  },
+  "subscriptions": {
+    "title": "Subscription Management",
+    "subtitle": "Manage and view your WeChat account subscriptions",
+    "addSubscription": "Add Subscription",
+    "addSubscriptionTitle": "Add Subscription",
+    "addSubscriptionSubtitle": "Add a new WeChat account subscription",
+    "subscriptionInfo": "Subscription Information",
+    "searchPlaceholder": "Search subscription name...",
+    "refresh": "Refresh",
+    "edit": "Edit",
+    "delete": "Delete",
+    "getFromArticle": "Get from Article",
+    "exportSubscriptions": "Export Subscriptions",
+    "importSubscriptions": "Import Subscriptions",
+    "articleLinkPlaceholder": "Please enter a WeChat article link",
+    "getInfo": "Get",
+    "getting": "Getting...",
+    "mpName": "Account Name",
+    "mpNamePlaceholder": "Please enter account name or search",
+    "mpNameRequired": "Please enter account name",
+    "mpNameLength": "Account name should be between 2-30 characters",
+    "avatar": "Avatar",
+    "avatarRequired": "Please select account avatar",
+    "avatarInvalid": "Please select a valid avatar URL",
+    "mpId": "Account ID",
+    "mpIdRequired": "Please enter account ID",
+    "mpIdPattern": "Account ID can only contain letters, numbers, underscores, hyphens and equals signs",
+    "mpIdPlaceholder": "Please enter account ID",
+    "description": "Description",
+    "descriptionPlaceholder": "Please enter account description",
+    "descriptionMaxLength": "Description cannot exceed 200 characters",
+    "descriptionMaxChars": "Maximum 200 characters",
+    "addButton": "Add Subscription",
+    "adding": "Adding...",
+    "reset": "Reset",
+    "columns": {
+      "name": "Name",
+      "articleCount": "Articles",
+      "status": "Status"
+    },
+    "details": {
+      "title": "Subscription Details",
+      "description": "Description",
+      "rssUrl": "RSS Link",
+      "articleCount": "Articles",
+      "lastSync": "Last Sync",
+      "status": "Status",
+      "minPublishTime": "Earliest Publish Time",
+      "maxPublishTime": "Latest Publish Time"
+    },
+    "messages": {
+      "selectFirst": "Please select a subscription first",
+      "refreshSuccess": "Refresh successful, updating articles...",
+      "refreshFailed": "Refresh failed",
+      "refreshLimit": "Please do not update too frequently, wait {{seconds}} more seconds",
+      "deleteSuccess": "Delete successful",
+      "deleteFailed": "Delete failed",
+      "saveSuccess": "Save successful",
+      "saveFailed": "Save failed",
+      "fetchFailed": "Failed to fetch subscription list",
+      "addSuccess": "Subscription added successfully",
+      "addFailed": "Failed to add subscription, please try again later",
+      "getMpInfoFailed": "Failed to get account information",
+      "articleLinkRequired": "Please provide a WeChat article link",
+      "exportSuccess": "Export successful",
+      "exportFailed": "Export failed, please try again later",
+      "importSuccess": "Import successful",
+      "importFailed": "Import failed, please check CSV file format",
+      "importFailedRetry": "Import failed, please try again later"
+    },
+    "form": {
+      "name": "Name",
+      "description": "Description",
+      "status": "Status",
+      "editDesc": "Modify subscription basic information",
+      "deleteConfirm": "Are you sure you want to delete this subscription?"
+    }
+  },
+  "articles": {
+    "title": "Article List",
+    "refresh": "Refresh",
+    "refreshSettings": "Refresh Settings",
+    "refreshSettingsDesc": "Set the page range to refresh",
+    "startPage": "Start Page",
+    "endPage": "End Page",
+    "delete": "Delete",
+    "batchDelete": "Batch Delete",
+    "export": "Export",
+    "import": "Import",
+    "clear": "Clear",
+    "clearDuplicates": "Clear Duplicates",
+    "copyMpId": "Copy MP ID",
+    "messages": {
+      "fetchFailed": "Failed to fetch article list",
+      "fetchDetailFailed": "Failed to fetch article details",
+      "deleteSuccess": "Delete successful",
+      "deleteFailed": "Delete failed",
+      "batchDeleteSuccess": "Successfully deleted {{count}} articles",
+      "batchDeleteFailed": "Failed to delete some articles",
+      "refreshSuccess": "Refresh successful",
+      "refreshFailed": "Refresh failed",
+      "exportOpmlFailed": "Failed to export OPML",
+      "exportMpFailed": "Failed to export account",
+      "importSuccess": "Import successful",
+      "importFailed": "Failed to import account",
+      "clearSuccess": "Clear successful",
+      "clearDuplicatesSuccess": "Clear successful",
+      "copySuccess": "MP ID copied to clipboard",
+      "copyFailed": "Copy failed, please copy manually",
+      "deleteMpSuccess": "Account deleted successfully",
+      "deleteMpFailed": "Delete failed"
+    }
+  },
+  "tags": {
+    "title": "Tag Management",
+    "subtitle": "Manage article tags",
+    "listTitle": "Tag List",
+    "listDesc": "Manage article tags and categories",
+    "addTag": "Add Tag",
+    "exportTags": "Export Tags",
+    "importTags": "Import Tags",
+    "batchDelete": "Batch Delete",
+    "searchPlaceholder": "Search tag name...",
+    "columns": {
+      "name": "Tag Name",
+      "status": "Status",
+      "articleCount": "Article Count",
+      "createdAt": "Created At",
+      "actions": "Actions"
+    },
+    "messages": {
+      "fetchFailed": "Failed to fetch tag list",
+      "deleteSuccess": "Delete successful",
+      "deleteFailed": "Delete failed",
+      "selectFirst": "Please select tags to delete first",
+      "batchDeleteSuccess": "Successfully deleted {{count}} tags",
+      "batchDeleteFailed": "Batch delete failed",
+      "exportGenerating": "Generating export file, please wait...",
+      "exportSuccess": "File exported successfully!",
+      "exportFailed": "Failed to export tags, please check network or contact administrator",
+      "importGenerating": "Importing file, please wait...",
+      "importSuccess": "Import successful",
+      "importFailed": "Import failed, please check file format or contact administrator",
+      "filePickerFailed": "Unable to open file picker"
+    }
+  },
+  "apiKeys": {
+    "title": "API Management",
+    "subtitle": "Manage API Keys and access permissions",
+    "addApiKey": "Create API Key",
+    "searchPlaceholder": "Search API Key name...",
+    "columns": {
+      "name": "Name",
+      "permissions": "Permissions",
+      "status": "Status",
+      "lastUsed": "Last Used",
+      "createdAt": "Created At",
+      "actions": "Actions"
+    },
+    "permissions": {
+      "read": "Read",
+      "readWrite": "Read/Write",
+      "noLimit": "No specific permission restrictions"
+    },
+    "details": {
+      "title": "Details",
+      "logs": "Usage Logs",
+      "apiKey": "API Key",
+      "status": "Status",
+      "permissions": "Permissions",
+      "lastUsedAt": "Last Used At",
+      "createdAt": "Created At"
+    },
+    "logs": {
+      "columns": {
+        "time": "Time",
+        "endpoint": "Endpoint",
+        "method": "Method",
+        "ip": "IP",
+        "statusCode": "Status Code"
+      },
+      "noLogs": "No logs"
+    },
+    "messages": {
+      "fetchFailed": "Failed to fetch API Key list",
+      "fetchLogsFailed": "Failed to fetch usage logs",
+      "updateSuccess": "Update successful",
+      "createSuccess": "Create successful, please save the API Key",
+      "createSuccessSimple": "Create successful",
+      "saveFailed": "Save failed",
+      "deleteSuccess": "Delete successful",
+      "deleteFailed": "Delete failed",
+      "regenerateSuccess": "Regenerate successful, please save the new API Key",
+      "regenerateSuccessSimple": "Regenerate successful",
+      "regenerateFailed": "Regenerate failed",
+      "copySuccess": "Copied to clipboard",
+      "copyFailed": "Copy failed"
+    },
+    "form": {
+      "name": "Name",
+      "permissions": "Permissions",
+      "status": "Status"
+    }
+  },
+  "wechatMp": {
+    "title": "WeChat Account Management",
+    "subtitle": "Manage WeChat account information",
+    "listTitle": "Account List",
+    "addMp": "Add Account",
+    "editMp": "Edit Account",
+    "columns": {
+      "mpId": "Account ID",
+      "name": "Name",
+      "status": "Status",
+      "lastSync": "Last Sync",
+      "actions": "Actions"
+    },
+    "form": {
+      "mpId": "Account ID",
+      "mpIdPlaceholder": "Please enter account ID",
+      "mpIdError": "Account ID can only contain letters, numbers, underscores, hyphens and equals signs",
+      "mpName": "Account Name",
+      "mpNamePlaceholder": "Please enter account name",
+      "cover": "Cover Image",
+      "coverPlaceholder": "Image URL",
+      "uploadImage": "Upload Image",
+      "intro": "Introduction",
+      "introPlaceholder": "Please enter introduction",
+      "status": "Status",
+      "addDesc": "Add a new account",
+      "editDesc": "Modify account basic information"
+    },
+    "messages": {
+      "fetchFailed": "Failed to fetch account list",
+      "addSuccess": "Add successful",
+      "updateSuccess": "Update successful",
+      "saveFailed": "Save failed",
+      "deleteConfirm": "Confirm Delete",
+      "deleteConfirmContent": "Are you sure you want to delete this account?",
+      "deleteSuccess": "Delete successful",
+      "deleteFailed": "Delete failed",
+      "uploadSuccess": "Upload successful",
+      "uploadFailed": "Upload failed"
+    }
+  },
+  "messages": {
+    "success": "Success",
+    "error": "Error",
+    "warning": "Warning",
+    "info": "Info",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "save": "Save",
+    "update": "Update",
+    "create": "Create",
+    "refresh": "Refresh",
+    "loading": "Loading...",
+    "noData": "No data",
+    "unknownError": "Unknown error",
+    "operationFailed": "Operation failed",
+    "operationSuccess": "Operation successful",
+    "pleaseWait": "Please wait...",
+    "fileGenerating": "Generating file, please wait...",
+    "fileImporting": "Importing file, please wait..."
   }
 }
-

@@ -47,6 +47,7 @@ import {
   PaginationPrevious,
 } from '@/components/ui/pagination'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useTranslation } from 'react-i18next'
 
 // 权限选项列表
 const PERMISSION_OPTIONS = [
@@ -55,6 +56,7 @@ const PERMISSION_OPTIONS = [
 ]
 
 const ApiKeyManagement: React.FC = () => {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])
   const [selectedApiKey, setSelectedApiKey] = useState<ApiKey | null>(null)
@@ -109,7 +111,7 @@ const ApiKeyManagement: React.FC = () => {
       setPagination(prev => ({ ...prev, total: searchText ? filteredList.length : total }))
     } catch (error: any) {
       console.error('获取 API Key 列表失败:', error)
-      Message.error(error.message || '获取 API Key 列表失败')
+      Message.error(error.message || t('apiKeys.messages.fetchFailed'))
     } finally {
       setLoading(false)
     }
@@ -148,7 +150,7 @@ const ApiKeyManagement: React.FC = () => {
       setLogsPagination(prev => ({ ...prev, total }))
     } catch (error: any) {
       console.error('获取使用日志失败:', error)
-      Message.error(error.message || '获取使用日志失败')
+      Message.error(error.message || t('apiKeys.messages.fetchLogsFailed'))
     } finally {
       setLogsLoading(false)
     }
@@ -196,15 +198,15 @@ const ApiKeyManagement: React.FC = () => {
       
       if (isEditing && selectedApiKey) {
         await updateApiKey(selectedApiKey.id, submitData)
-        Message.success('更新成功')
+        Message.success(t('apiKeys.messages.updateSuccess'))
       } else {
         const res = await createApiKey(submitData)
         const newKey = (res as any)?.data?.key || (res as any)?.key
         if (newKey) {
           setNewApiKey(newKey)
-          Message.success('创建成功，请保存 API Key')
+          Message.success(t('apiKeys.messages.createSuccess'))
         } else {
-          Message.success('创建成功')
+          Message.success(t('apiKeys.messages.createSuccessSimple'))
         }
       }
       setVisible(false)
@@ -230,14 +232,14 @@ const ApiKeyManagement: React.FC = () => {
   const handleDelete = async (id: string) => {
     try {
       await deleteApiKey(id)
-      Message.success('删除成功')
+      Message.success(t('apiKeys.messages.deleteSuccess'))
       if (selectedApiKey?.id === id) {
         setSelectedApiKey(null)
         setLogs([])
       }
       loadApiKeys()
     } catch (error: any) {
-      Message.error(error.message || '删除失败')
+      Message.error(error.message || t('apiKeys.messages.deleteFailed'))
     }
   }
 
@@ -248,15 +250,15 @@ const ApiKeyManagement: React.FC = () => {
       const newKey = (res as any)?.data?.key || (res as any)?.key
       if (newKey) {
         setNewApiKey(newKey)
-        Message.success('重新生成成功，请保存新的 API Key')
+        Message.success(t('apiKeys.messages.regenerateSuccess'))
       } else {
-        Message.success('重新生成成功')
+        Message.success(t('apiKeys.messages.regenerateSuccessSimple'))
       }
       setRegenerateDialogOpen(false)
       setRegenerateTargetId(null)
       loadApiKeys()
     } catch (error: any) {
-      Message.error(error.message || '重新生成失败')
+      Message.error(error.message || t('apiKeys.messages.regenerateFailed'))
     }
   }
 
@@ -264,9 +266,9 @@ const ApiKeyManagement: React.FC = () => {
   const handleCopy = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
-      Message.success('已复制到剪贴板')
+      Message.success(t('apiKeys.messages.copySuccess'))
     } catch (error) {
-      Message.error('复制失败')
+      Message.error(t('apiKeys.messages.copyFailed'))
     }
   }
 

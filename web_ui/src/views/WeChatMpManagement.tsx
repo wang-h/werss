@@ -54,6 +54,7 @@ interface Subscription {
 }
 
 const WeChatMpManagement: React.FC = () => {
+  const { t } = useTranslation()
   const [mpList, setMpList] = useState<Subscription[]>([])
   const [pagination, setPagination] = useState({
     current: 1,
@@ -89,7 +90,7 @@ const WeChatMpManagement: React.FC = () => {
       setPagination(prev => ({ ...prev, total }))
     } catch (error: any) {
       console.error('获取公众号列表错误:', error)
-      Message.error(error.message || '获取公众号列表失败')
+      Message.error(error.message || t('wechatMp.messages.fetchFailed'))
     }
   }
 
@@ -135,7 +136,7 @@ const WeChatMpManagement: React.FC = () => {
           mp_intro: values.mp_intro || '',
         }
         await addSubscription(submitData)
-        Message.success('添加成功')
+        Message.success(t('wechatMp.messages.addSuccess'))
       } else {
         // 更新时使用原有格式
         const submitData = {
@@ -143,13 +144,13 @@ const WeChatMpManagement: React.FC = () => {
           status: values.status ? 1 : 0
         }
         await updateSubscription(values.mp_id!, submitData)
-        Message.success('更新成功')
+        Message.success(t('wechatMp.messages.updateSuccess'))
       }
       setVisible(false)
       loadData()
     } catch (error: any) {
       console.error('保存失败:', error)
-      Message.error(error.message || '保存失败')
+      Message.error(error.message || t('wechatMp.messages.saveFailed'))
     }
   }
 
@@ -160,11 +161,11 @@ const WeChatMpManagement: React.FC = () => {
       onOk: async () => {
         try {
           await deleteSubscription(id)
-          Message.success('删除成功')
+          Message.success(t('wechatMp.messages.deleteSuccess'))
           loadData()
         } catch (error: any) {
           console.error('删除失败:', error)
-          Message.error(error.message || '删除失败')
+          Message.error(error.message || t('wechatMp.messages.deleteFailed'))
         }
       }
     })
@@ -193,10 +194,10 @@ const WeChatMpManagement: React.FC = () => {
       const url = result?.data?.url || result?.url || result?.url
       if (url) {
         form.setValue('mp_cover', url)
-        Message.success('上传成功')
+        Message.success(t('wechatMp.messages.uploadSuccess'))
       }
     } catch (error) {
-      Message.error('上传失败')
+      Message.error(t('wechatMp.messages.uploadFailed'))
     }
   }
 
