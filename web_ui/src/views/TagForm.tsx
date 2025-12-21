@@ -123,23 +123,23 @@ const TagForm: React.FC = () => {
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          返回
+          {t('common.back')}
         </Button>
         <h1 className="text-2xl font-semibold mb-1">
-          {isEdit ? '编辑标签' : '添加标签'}
+          {isEdit ? t('tags.editTitle') : t('tags.addTitle')}
         </h1>
-        <p className="text-sm text-muted-foreground">标签信息</p>
+        <p className="text-sm text-muted-foreground">{t('tags.tagInfo')}</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>{isEdit ? '编辑标签' : '添加标签'}</CardTitle>
-          <CardDescription>填写标签的基本信息</CardDescription>
+          <CardTitle>{isEdit ? t('tags.editTitle') : t('tags.addTitle')}</CardTitle>
+          <CardDescription>{t('tags.formDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-8">
-              <div className="text-muted-foreground">加载中...</div>
+              <div className="text-muted-foreground">{t('common.loading')}</div>
             </div>
           ) : (
             <Form {...form}>
@@ -149,9 +149,9 @@ const TagForm: React.FC = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>标签名称</FormLabel>
+                      <FormLabel>{t('tags.name')}</FormLabel>
                       <FormControl>
-                        <Input placeholder="请输入标签名称" {...field} />
+                        <Input placeholder={t('tags.namePlaceholder')} {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -163,7 +163,7 @@ const TagForm: React.FC = () => {
                   name="cover"
                   render={() => (
                     <FormItem>
-                      <FormLabel>封面图</FormLabel>
+                      <FormLabel>{t('tags.cover')}</FormLabel>
                       <FormControl>
                         <Upload
                           customRequest={handleUploadChange}
@@ -200,10 +200,10 @@ const TagForm: React.FC = () => {
                   name="intro"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>简介</FormLabel>
+                      <FormLabel>{t('tags.intro')}</FormLabel>
                       <FormControl>
                         <Textarea
-                          placeholder="请输入标签简介"
+                          placeholder={t('tags.introPlaceholder')}
                           rows={3}
                           {...field}
                           value={field.value || ''}
@@ -219,20 +219,20 @@ const TagForm: React.FC = () => {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>状态</FormLabel>
+                      <FormLabel>{t('tags.status')}</FormLabel>
                       <Select
                         value={field.value?.toString()}
                         onValueChange={(value) => field.onChange(parseInt(value))}
                       >
                         <FormControl>
                           <SelectTrigger>
-                            <SelectValue placeholder="请选择标签状态" />
+                            <SelectValue placeholder={t('tags.statusPlaceholder')} />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="1">启用</SelectItem>
-                          <SelectItem value="0">禁用</SelectItem>
-                          <SelectItem value="2">屏蔽</SelectItem>
+                          <SelectItem value="1">{t('tags.statusEnabled')}</SelectItem>
+                          <SelectItem value="0">{t('tags.statusDisabled')}</SelectItem>
+                          <SelectItem value="2">{t('tags.statusBlocked')}</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -245,11 +245,11 @@ const TagForm: React.FC = () => {
                   name="mps_id"
                   render={() => (
                     <FormItem>
-                      <FormLabel>公众号</FormLabel>
+                      <FormLabel>{t('tags.mps')}</FormLabel>
                       <div className="flex gap-2">
                         <Input
                           value={mpsId.map((mp: any) => mp.id?.toString() || '').join(',')}
-                          placeholder="请选择公众号"
+                          placeholder={t('tags.mpsPlaceholder')}
                           readOnly
                           className="flex-1 max-w-[300px]"
                         />
@@ -257,7 +257,7 @@ const TagForm: React.FC = () => {
                           type="button"
                           onClick={() => setShowMpSelector(true)}
                         >
-                          选择
+                          {t('tags.select')}
                         </Button>
                       </div>
                       <FormMessage />
@@ -267,10 +267,10 @@ const TagForm: React.FC = () => {
 
                 <div className="flex gap-2">
                   <Button type="submit" disabled={formLoading}>
-                    {formLoading ? '提交中...' : '提交'}
+                    {formLoading ? t('tags.submitting') : t('tags.submit')}
                   </Button>
                   <Button type="button" variant="outline" onClick={() => navigate(-1)}>
-                    取消
+                    {t('common.cancel')}
                   </Button>
                 </div>
               </form>
@@ -282,8 +282,8 @@ const TagForm: React.FC = () => {
       <Dialog open={showMpSelector} onOpenChange={setShowMpSelector}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>选择公众号</DialogTitle>
-            <DialogDescription>选择要关联的公众号</DialogDescription>
+            <DialogTitle>{t('tags.selectMps')}</DialogTitle>
+            <DialogDescription>{t('tags.selectMpsDescription')}</DialogDescription>
           </DialogHeader>
           <MpMultiSelect
             value={mpsId}
@@ -291,7 +291,7 @@ const TagForm: React.FC = () => {
           />
           <div className="flex justify-end mt-4">
             <Button onClick={() => setShowMpSelector(false)}>
-              确定
+              {t('common.confirm')}
             </Button>
           </div>
         </DialogContent>

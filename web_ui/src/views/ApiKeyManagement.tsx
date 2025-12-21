@@ -486,7 +486,7 @@ const ApiKeyManagement: React.FC = () => {
                       </div>
                       <div className="flex items-center gap-2">
                         <code className="flex-1 px-3 py-2 bg-background rounded text-sm font-mono break-all">
-                          {showApiKey[selectedApiKey.id] ? selectedApiKey.key : '•'.repeat(32)}
+                          {showApiKey[selectedApiKey.id] ? (selectedApiKey.key || '密钥不可用（仅在创建/重新生成时显示）') : '•'.repeat(32)}
                         </code>
                         <Button
                           variant="outline"

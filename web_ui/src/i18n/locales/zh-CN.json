@@ -2,6 +2,7 @@
   "common": {
     "confirm": "确认",
     "cancel": "取消",
+    "back": "返回",
     "delete": "删除",
     "edit": "编辑",
     "save": "保存",
@@ -126,6 +127,7 @@
       }
     },
     "errors": {
+      "serverError": "服务器错误",
       "fetchFailed": "获取统计数据失败: {{message}}",
       "unknownError": "未知错误"
     }
@@ -225,6 +227,11 @@
       "fetchDetailFailed": "获取文章详情失败",
       "deleteSuccess": "删除成功",
       "deleteFailed": "删除失败",
+      "updateSuccess": "文章更新成功",
+      "updateFailed": "更新失败",
+      "selectFirst": "请选择要删除的文章",
+      "fetchContentSuccess": "正在重新获取内容，请稍后刷新查看",
+      "fetchContentFailed": "获取内容失败",
       "batchDeleteSuccess": "成功删除{{count}}篇文章",
       "batchDeleteFailed": "删除部分文章失败",
       "refreshSuccess": "刷新成功",
@@ -247,6 +254,27 @@
     "listTitle": "标签列表",
     "listDesc": "管理文章标签和分类",
     "addTag": "添加标签",
+    "addTitle": "添加标签",
+    "editTitle": "编辑标签",
+    "tagInfo": "标签信息",
+    "formDescription": "填写标签的基本信息",
+    "name": "标签名称",
+    "namePlaceholder": "请输入标签名称",
+    "cover": "封面图",
+    "intro": "简介",
+    "introPlaceholder": "请输入标签简介",
+    "status": "状态",
+    "statusPlaceholder": "请选择标签状态",
+    "statusEnabled": "启用",
+    "statusDisabled": "禁用",
+    "statusBlocked": "屏蔽",
+    "mps": "公众号",
+    "mpsPlaceholder": "请选择公众号",
+    "select": "选择",
+    "selectMps": "选择公众号",
+    "selectMpsDescription": "选择要关联的公众号",
+    "submit": "提交",
+    "submitting": "提交中...",
     "exportTags": "导出标签",
     "importTags": "导入标签",
     "batchDelete": "批量删除",
@@ -260,6 +288,7 @@
     },
     "messages": {
       "fetchFailed": "获取标签列表失败",
+      "fetchDetailFailed": "获取标签详情失败",
       "deleteSuccess": "删除成功",
       "deleteFailed": "删除失败",
       "selectFirst": "请先选择要删除的标签",
@@ -271,7 +300,14 @@
       "importGenerating": "正在导入文件，请稍候...",
       "importSuccess": "导入成功",
       "importFailed": "导入失败，请检查文件格式或联系管理员",
-      "filePickerFailed": "无法打开文件选择器"
+      "filePickerFailed": "无法打开文件选择器",
+      "updateSuccess": "更新成功",
+      "updateFailed": "更新失败",
+      "createSuccess": "创建成功",
+      "createFailed": "创建失败",
+      "invalidImageFile": "请选择图片文件 (JPEG/PNG)",
+      "imageSizeExceeded": "图片大小不能超过2MB",
+      "uploadFailed": "上传失败"
     }
   },
   "apiKeys": {

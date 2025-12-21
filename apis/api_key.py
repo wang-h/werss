@@ -4,7 +4,6 @@ from pydantic import BaseModel
 from datetime import datetime
 import secrets
 import uuid
-import json
 from core.auth import get_current_user
 from core.db import DB
 from core.models.api_key import ApiKey, ApiKeyLog
@@ -223,14 +222,44 @@ async def get_api_key(
             )
         
         # 权限检查：非管理员只能查看自己的 API Key
-        if current_user["role"] != "admin" and api_key.user_id != current_user["username"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=error_response(
-                    code=40301,
-                    message="无权限访问此 API Key"
+        if current_user["role"] != "admin":
+            # 获取当前用户的 ID
+            current_user_id = None
+            
+            # 优先使用 original_user（如果存在），避免重复查询
+            original_user = current_user.get("original_user")
+            if original_user:
+                # original_user 可能是数据库对象或 Pydantic 模型对象
+                current_user_id = str(getattr(original_user, 'id', None)) if hasattr(original_user, 'id') else None
+            
+            # 如果 original_user 不存在或没有 id，通过 username 查询
+            if not current_user_id:
+                username = current_user.get("username")
+                if username:
+                    user = session.query(DBUser).filter(DBUser.username == username).first()
+                    if user:
+                        current_user_id = str(user.id) if user.id is not None else None
+            
+            if not current_user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无法验证用户身份"
+                    )
                 )
-            )
+            
+            # 确保类型一致：都转换为字符串进行比较
+            api_key_user_id_str = str(api_key.user_id) if api_key.user_id is not None else None
+            
+            if not api_key_user_id_str or current_user_id != api_key_user_id_str:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无权限访问此 API Key"
+                    )
+                )
         
         return success_response(data={
             "id": api_key.id,
@@ -277,14 +306,44 @@ async def update_api_key(
             )
         
         # 权限检查：非管理员只能修改自己的 API Key
-        if current_user["role"] != "admin" and api_key.user_id != current_user["username"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=error_response(
-                    code=40301,
-                    message="无权限修改此 API Key"
+        if current_user["role"] != "admin":
+            # 获取当前用户的 ID
+            current_user_id = None
+            
+            # 优先使用 original_user（如果存在），避免重复查询
+            original_user = current_user.get("original_user")
+            if original_user:
+                # original_user 可能是数据库对象或 Pydantic 模型对象
+                current_user_id = str(getattr(original_user, 'id', None)) if hasattr(original_user, 'id') else None
+            
+            # 如果 original_user 不存在或没有 id，通过 username 查询
+            if not current_user_id:
+                username = current_user.get("username")
+                if username:
+                    user = session.query(DBUser).filter(DBUser.username == username).first()
+                    if user:
+                        current_user_id = str(user.id) if user.id is not None else None
+            
+            if not current_user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无法验证用户身份"
+                    )
                 )
-            )
+            
+            # 确保类型一致：都转换为字符串进行比较
+            api_key_user_id_str = str(api_key.user_id) if api_key.user_id is not None else None
+            
+            if not api_key_user_id_str or current_user_id != api_key_user_id_str:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无权限修改此 API Key"
+                    )
+                )
         
         # 更新字段
         if api_key_data.name is not None:
@@ -344,14 +403,35 @@ async def delete_api_key(
             )
         
         # 权限检查：非管理员只能删除自己的 API Key
-        if current_user["role"] != "admin" and api_key.user_id != current_user["username"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=error_response(
-                    code=40301,
-                    message="无权限删除此 API Key"
+        if current_user["role"] != "admin":
+            # 优先使用 original_user（如果存在），避免重复查询
+            user = current_user.get("original_user")
+            if not user:
+                username = current_user.get("username")
+                if username:
+                    user = session.query(DBUser).filter(DBUser.username == username).first()
+            
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无法验证用户身份"
+                    )
                 )
-            )
+            
+            # 确保类型一致：都转换为字符串进行比较
+            user_id_str = str(user.id) if user.id is not None else None
+            api_key_user_id_str = str(api_key.user_id) if api_key.user_id is not None else None
+            
+            if not user_id_str or not api_key_user_id_str or user_id_str != api_key_user_id_str:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无权限删除此 API Key"
+                    )
+                )
         
         session.delete(api_key)
         session.commit()
@@ -395,14 +475,45 @@ async def get_api_key_logs(
             )
         
         # 权限检查：非管理员只能查看自己的 API Key 日志
-        if current_user["role"] != "admin" and api_key.user_id != current_user["username"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=error_response(
-                    code=40301,
-                    message="无权限查看此 API Key 的日志"
+        if current_user["role"] != "admin":
+            # 获取当前用户的 ID
+            current_user_id = None
+            
+            # 优先使用 original_user（如果存在），避免重复查询
+            original_user = current_user.get("original_user")
+            if original_user:
+                # original_user 可能是数据库对象或 Pydantic 模型对象
+                original_user_id = getattr(original_user, 'id', None)
+                current_user_id = str(original_user_id) if original_user_id is not None else None
+            
+            # 如果 original_user 不存在或没有 id，通过 username 查询
+            if not current_user_id:
+                username = current_user.get("username")
+                if username:
+                    user = session.query(DBUser).filter(DBUser.username == username).first()
+                    if user:
+                        current_user_id = str(user.id) if user.id is not None else None
+            
+            if not current_user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无法验证用户身份"
+                    )
                 )
-            )
+            
+            # 确保类型一致：都转换为字符串进行比较
+            api_key_user_id_str = str(api_key.user_id) if api_key.user_id is not None else None
+            
+            if not api_key_user_id_str or current_user_id != api_key_user_id_str:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无权限查看此 API Key 的日志"
+                    )
+                )
         
         # 查询日志
         query = session.query(ApiKeyLog).filter(ApiKeyLog.api_key_id == api_key_id)
@@ -464,14 +575,35 @@ async def regenerate_api_key(
             )
         
         # 权限检查：非管理员只能重新生成自己的 API Key
-        if current_user["role"] != "admin" and api_key.user_id != current_user["username"]:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=error_response(
-                    code=40301,
-                    message="无权限重新生成此 API Key"
+        if current_user["role"] != "admin":
+            # 优先使用 original_user（如果存在），避免重复查询
+            user = current_user.get("original_user")
+            if not user:
+                username = current_user.get("username")
+                if username:
+                    user = session.query(DBUser).filter(DBUser.username == username).first()
+            
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无法验证用户身份"
+                    )
                 )
-            )
+            
+            # 确保类型一致：都转换为字符串进行比较
+            user_id_str = str(user.id) if user.id is not None else None
+            api_key_user_id_str = str(api_key.user_id) if api_key.user_id is not None else None
+            
+            if not user_id_str or not api_key_user_id_str or user_id_str != api_key_user_id_str:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=error_response(
+                        code=40301,
+                        message="无权限重新生成此 API Key"
+                    )
+                )
         
         # 生成新的 API Key
         new_key = _generate_api_key()

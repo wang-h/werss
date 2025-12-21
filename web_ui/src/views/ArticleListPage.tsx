@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -19,6 +20,7 @@ import ExportModal from '@/components/ExportModal'
 import { Trash2, Download, Wifi, ChevronDown, Loader2, Edit } from 'lucide-react'
 
 const ArticleListPage: React.FC = () => {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [articles, setArticles] = useState<Article[]>([])
   const [selectedRowKeys, setSelectedRowKeys] = useState<string[]>([])
@@ -93,8 +95,8 @@ const ArticleListPage: React.FC = () => {
       console.error('获取文章列表失败:', error)
       toast({
         variant: "destructive",
-        title: "错误",
-        description: error.message || '获取文章列表失败'
+        title: t('common.error'),
+        description: error.message || t('articles.messages.fetchFailed')
       })
     } finally {
       setLoading(false)
@@ -148,8 +150,8 @@ const ArticleListPage: React.FC = () => {
     try {
       await updateArticle(editingArticle.id, editFormData)
       toast({
-        title: "成功",
-        description: "文章更新成功"
+        title: t('common.success'),
+        description: t('articles.messages.updateSuccess')
       })
       setEditDialogOpen(false)
       setEditingArticle(null)
@@ -157,8 +159,8 @@ const ArticleListPage: React.FC = () => {
     } catch (error: any) {
       toast({
         variant: "destructive",
-        title: "错误",
-        description: error.message || '更新失败'
+        title: t('common.error'),
+        description: error.message || t('articles.messages.updateFailed')
       })
     }
   }
@@ -194,8 +196,8 @@ const ArticleListPage: React.FC = () => {
     if (selectedRowKeys.length === 0) {
       toast({
         variant: "destructive",
-        title: "警告",
-        description: "请选择要删除的文章"
+        title: t('common.warning'),
+        description: t('articles.messages.selectFirst')
       })
       return
     }

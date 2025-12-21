@@ -13,6 +13,7 @@ import type { Tag as TagType } from '@/types/tagManagement'
 import { Download, Upload, Plus, Edit, Trash2, Loader2, Rss, Search } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { formatDateTime } from '@/utils/date'
+import { useTranslation } from 'react-i18next'
 
 const TagList: React.FC = () => {
   const { t } = useTranslation()

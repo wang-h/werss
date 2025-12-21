@@ -24,6 +24,7 @@ import { Modal } from '@/utils/modal'
 import { Edit, Trash2, Plus, Upload as UploadIcon } from 'lucide-react'
 import { getSubscriptions, addSubscription, updateSubscription, deleteSubscription, SubscriptionListResult } from '@/api/subscription'
 import { getToken } from '@/utils/auth'
+import { useTranslation } from 'react-i18next'
 
 const formSchema = z.object({
   mp_id: z.string().optional().refine(
