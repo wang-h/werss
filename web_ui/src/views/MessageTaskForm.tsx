@@ -4,11 +4,14 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { RadioGroup, Radio } from '@/components/ui/radio-group-button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/extensions/page-header'
 import { useToast } from '@/hooks/use-toast'
 import { getMessageTask, createMessageTask, updateMessageTask } from '@/api/messageTask'
 import type { MessageTaskCreate } from '@/types/messageTask'
@@ -115,57 +118,77 @@ const MessageTaskForm: React.FC = () => {
 
   if (loading && !form.formState.isDirty) {
     return (
-      <div className="p-5 max-w-[800px] mx-auto">
-        <Skeleton className="h-8 w-48 mb-5" />
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-32 w-full" />
-        </div>
+      <div className="p-6 max-w-[1200px] mx-auto">
+        <Skeleton className="h-8 w-48 mb-6" />
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-10 w-full" />
+              <Skeleton className="h-32 w-full" />
+            </div>
+          </CardContent>
+        </Card>
       </div>
     )
   }
 
   return (
-    <div className="p-5 max-w-[800px] mx-auto">
-      <h2 className="mb-5 text-foreground">{isEditMode ? '编辑消息任务' : '添加消息任务'}</h2>
+    <div className="p-6 max-w-[1200px] mx-auto">
+      <PageHeader
+        title={isEditMode ? '编辑消息任务' : '添加消息任务'}
+        subTitle={isEditMode ? '修改消息任务的配置信息' : '创建新的消息任务，定时发送订阅内容'}
+        onBack={() => navigate(-1)}
+      />
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>任务名称 <span className="text-destructive">*</span></FormLabel>
-                <FormControl>
-                  <Input placeholder="请输入任务名称" {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>{isEditMode ? '编辑消息任务' : '添加消息任务'}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>任务名称 <span className="text-destructive">*</span></FormLabel>
+                    <FormControl>
+                      <Input placeholder="请输入任务名称" {...field} className="max-w-[600px]" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <FormField
-            control={form.control}
-            name="message_type"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>类型</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    value={field.value?.toString()}
-                    onValueChange={(value) => field.onChange(parseInt(value))}
-                    type="button"
-                  >
-                    <Radio value="0" button>Message</Radio>
-                    <Radio value="1" button>WebHook</Radio>
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="message_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>类型</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value?.toString()}
+                        onValueChange={(value) => field.onChange(parseInt(value))}
+                      >
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="选择消息类型" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="0">Message</SelectItem>
+                          <SelectItem value="1">WebHook</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
           <FormField
             control={form.control}
@@ -207,29 +230,29 @@ const MessageTaskForm: React.FC = () => {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="web_hook_url"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>WebHook地址</FormLabel>
-                <FormControl>
-                  <div className="space-y-2">
-                    <Input placeholder="请输入WebHook地址" {...field} />
-                    <a
-                      href="https://open.dingtalk.com/document/orgapp/obtain-the-webhook-address-of-a-custom-robot"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-primary hover:underline"
-                    >
-                      如何获取WebHook
-                    </a>
-                  </div>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="web_hook_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>WebHook地址</FormLabel>
+                    <FormControl>
+                      <div className="space-y-2 max-w-[700px]">
+                        <Input placeholder="请输入WebHook地址" {...field} />
+                        <a
+                          href="https://open.dingtalk.com/document/orgapp/obtain-the-webhook-address-of-a-custom-robot"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline"
+                        >
+                          如何获取WebHook
+                        </a>
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
           <FormField
             control={form.control}
@@ -243,7 +266,7 @@ const MessageTaskForm: React.FC = () => {
                       value={cronExp || ''}
                       placeholder="请输入cron表达式"
                       readOnly
-                      className="w-[300px]"
+                      className="flex-1 max-w-[500px]"
                     />
                     <Button type="button" onClick={() => setShowCronPicker(true)}>选择</Button>
                   </div>
@@ -265,7 +288,7 @@ const MessageTaskForm: React.FC = () => {
                       value={mpsId.map((mp: any) => mp.id?.toString() || '').join(',')}
                       placeholder="请选择公众号，留空则对所有公众号生效"
                       readOnly
-                      className="w-[300px]"
+                      className="flex-1 max-w-[500px]"
                     />
                     <Button type="button" onClick={() => setShowMpSelector(true)}>选择</Button>
                   </div>
@@ -275,47 +298,55 @@ const MessageTaskForm: React.FC = () => {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="status"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>状态</FormLabel>
-                <FormControl>
-                  <RadioGroup
-                    value={field.value?.toString()}
-                    onValueChange={(value) => field.onChange(parseInt(value))}
-                    type="button"
-                  >
-                    <Radio value="1" button>启用</Radio>
-                    <Radio value="0" button>禁用</Radio>
-                  </RadioGroup>
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>状态</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value?.toString()}
+                        onValueChange={(value) => field.onChange(parseInt(value))}
+                      >
+                        <SelectTrigger className="w-[200px]">
+                          <SelectValue placeholder="选择状态" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">启用</SelectItem>
+                          <SelectItem value="0">禁用</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
-          <div className="flex gap-2">
-            <Button type="submit" disabled={loading}>
-              {loading ? '提交中...' : '提交'}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => navigate(-1)}>取消</Button>
-          </div>
-        </form>
-      </Form>
+              <div className="flex gap-2 pt-4">
+                <Button type="submit" disabled={loading}>
+                  {loading ? '提交中...' : '提交'}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => navigate(-1)}>取消</Button>
+              </div>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
 
       <Dialog open={showCronPicker} onOpenChange={setShowCronPicker}>
-        <DialogContent className="max-w-[800px]">
-          <DialogHeader>
+        <DialogContent className="max-w-[800px] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>选择cron表达式</DialogTitle>
             <DialogDescription>选择或自定义任务执行的 cron 表达式</DialogDescription>
           </DialogHeader>
-          <CronExpressionPicker
-            value={cronExp || ''}
-            onChange={(value) => form.setValue('cron_exp', value)}
-          />
-          <DialogFooter>
+          <div className="flex-1 overflow-y-auto min-h-0 px-1">
+            <CronExpressionPicker
+              value={cronExp || ''}
+              onChange={(value) => form.setValue('cron_exp', value)}
+            />
+          </div>
+          <DialogFooter className="flex-shrink-0">
             <Button onClick={() => setShowCronPicker(false)}>确定</Button>
           </DialogFooter>
         </DialogContent>

@@ -16,7 +16,7 @@ import {
   disableBrowserNotification,
   initBrowserNotification
 } from '@/utils/browserNotification'
-import { Bell, Plus, Edit, Trash2, Play, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
+import { Bell, Plus, Edit, Trash2, Play, Loader2, AlertCircle, RefreshCw, FlaskConical } from 'lucide-react'
 
 const MessageTaskList: React.FC = () => {
   const navigate = useNavigate()
@@ -314,32 +314,48 @@ const MessageTaskList: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => handleEdit(task.id)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="sm" onClick={() => handleEdit(task.id)}>
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>编辑任务</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button variant="outline" size="sm" onClick={() => runTask(task.id, true)}>
-                                  <Play className="h-4 w-4" />
+                                  <FlaskConical className="h-4 w-4 mr-1.5" />
+                                  <span className="text-xs">测试</span>
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>点击测试消息任务</TooltipContent>
+                              <TooltipContent>测试消息任务（仅发送消息，不更新文章）</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="outline" size="sm" onClick={() => runTask(task.id)}>
-                                  <Play className="h-4 w-4" />
+                                <Button variant="outline" size="sm" onClick={() => runTask(task.id, false)}>
+                                  <Play className="h-4 w-4 mr-1.5" />
+                                  <span className="text-xs">执行</span>
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent>执行更新任务</TooltipContent>
+                              <TooltipContent>执行更新任务（更新文章并发送消息）</TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)}>
+                                  <Trash2 className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>删除任务</TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </TableCell>
                     </TableRow>

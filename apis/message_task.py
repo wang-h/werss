@@ -138,7 +138,7 @@ async def run_message_task(
         500: 数据库查询异常
     """
     try:
-        from jobs.mps import run
+        from jobs.mps import run, get_feeds
         mps={
             "count":0,
             "list":[]
@@ -148,18 +148,31 @@ async def run_message_task(
         if not tasks:
             raise HTTPException(status_code=404, detail="Message task not found")
         else:
-            import json
+            # 现在使用汇总逻辑，需要统计实际处理的公众号数量
             for task in tasks:
                 try:
-                    ids=json.loads(task.mps_id)
-                    count+=len(ids)
-                    mps['count']=count
-                    mps['list'].append(ids)
+                    # 使用 get_feeds 获取实际处理的公众号列表
+                    feeds = get_feeds(task)
+                    feed_count = len(feeds) if feeds else 0
+                    count += feed_count
+                    
+                    # 为了兼容性，也保留原来的逻辑
+                    import json
+                    try:
+                        ids = json.loads(task.mps_id) if task.mps_id else []
+                        mps['list'].append(ids)
+                    except Exception as e:
+                        print_error(e)
+                        pass
                 except Exception as e:
                     print_error(e)
                     pass
-        if isTest:
-            count=1
+        
+        # 确保 count 至少为 1（如果没有统计到，说明至少处理了 1 个）
+        if count == 0:
+            count = 1
+        
+        mps['count'] = count
         mps["message"]=f"执行成功，共执行更新{count}个订阅号"
         return success_response(data=mps,message=f"执行成功，共执行更新{count}个订阅号")
 

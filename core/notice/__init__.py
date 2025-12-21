@@ -20,8 +20,8 @@ def notice( webhook_url, title, text,notice_type: str=None):
         notice_type = 'wechat'
     elif 'oapi.dingtalk.com' in webhook_url:
         notice_type = 'dingtalk'
-    # 兼容企业本地化部署的飞书，如open.feishu.xxxx.com
-    elif 'open.feishu.' in webhook_url:  
+    # 检测飞书 Webhook URL（标准格式：open.feishu.cn 或企业本地化部署：open.feishu.xxxx.com）
+    elif 'open.feishu.' in webhook_url or 'feishu.cn' in webhook_url:  
         notice_type = 'feishu'
     else:
         notice_type = 'custom'

@@ -426,7 +426,7 @@ const ApiKeyManagement: React.FC = () => {
                     </PaginationItem>
                     <PaginationItem>
                          <span className="text-xs text-muted-foreground px-2">{pagination.current} / {totalPages}</span>
-                    </PaginationItem>
+                        </PaginationItem>
                     <PaginationItem>
                       <PaginationNext
                         href="#"
@@ -499,41 +499,41 @@ const ApiKeyManagement: React.FC = () => {
               <CardContent className="flex-1 overflow-hidden p-0 flex flex-col min-h-0">
                 <Tabs defaultValue="details" className="flex flex-col h-full w-full">
                   <div className="px-6 pt-4 border-b flex-shrink-0">
-                    <TabsList className="w-fit">
+                  <TabsList className="w-fit">
                       <TabsTrigger value="details">详情信息</TabsTrigger>
                       <TabsTrigger value="logs">调用日志</TabsTrigger>
-                    </TabsList>
-                  </div>
+                  </TabsList>
+                      </div>
                   
                   {/* 详情 Tab：允许自身滚动 */}
                   <TabsContent value="details" className="flex-1 overflow-y-auto p-6 space-y-6 m-0">
                       {/* API Key 值 */}
                       <div className="space-y-2 p-4 bg-muted/30 rounded-lg border">
                         <div className="text-sm font-semibold text-muted-foreground">API Key 密钥</div>
-                        <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2">
                           <code className="flex-1 px-3 py-2 bg-background rounded text-sm font-mono break-all border shadow-sm">
-                            {showApiKey[selectedApiKey.id] 
+                          {showApiKey[selectedApiKey.id] 
                               ? (selectedApiKey.key || apiKeyMap[selectedApiKey.id] || '密钥不可用') 
                               : '••••••••••••••••••••••••••••••••'}
-                          </code>
+                        </code>
                           <div className="flex gap-1">
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleShowApiKey(selectedApiKey.id)}>
                               {showApiKey[selectedApiKey.id] ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </Button>
-                            <Button 
+                        </Button>
+                        <Button
                               variant="ghost" 
                               size="icon"
                               className="h-8 w-8"
                               disabled={!selectedApiKey.key && !apiKeyMap[selectedApiKey.id]}
-                              onClick={() => {
+                          onClick={() => {
                                 const k = selectedApiKey.key || apiKeyMap[selectedApiKey.id]
                                 if(k) handleCopy(k)
                               }}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </div>
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
                       </div>
 
                       {/* 状态与权限 */}
@@ -542,31 +542,31 @@ const ApiKeyManagement: React.FC = () => {
                           <div className="text-xs font-semibold text-muted-foreground">当前状态</div>
                           <Badge variant={selectedApiKey.is_active ? 'default' : 'destructive'} className="text-sm px-3 py-1">
                             {selectedApiKey.is_active ? '已启用' : '已禁用'}
-                          </Badge>
-                        </div>
+                        </Badge>
+                      </div>
                         <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
                           <div className="text-xs font-semibold text-muted-foreground">权限范围</div>
                           <div>
                            {selectedApiKey.permissions === 'read' && <Badge variant="secondary">Read Only</Badge>}
                            {selectedApiKey.permissions === 'read_write' && <Badge variant="secondary">Read / Write</Badge>}
                            {!selectedApiKey.permissions && <span className="text-sm text-muted-foreground">-</span>}
-                          </div>
-                        </div>
+                    </div>
                       </div>
-                      
+                    </div>
+
                       {/* 时间信息 */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
                           <div className="text-xs font-semibold text-muted-foreground">创建时间</div>
                           <div className="text-sm font-mono text-foreground">{formatDateTime(selectedApiKey.created_at)}</div>
-                        </div>
+                      </div>
                         <div className="p-4 bg-muted/30 rounded-lg border space-y-2">
                           <div className="text-xs font-semibold text-muted-foreground">最后使用</div>
                           <div className="text-sm font-mono text-foreground">
                             {selectedApiKey.last_used_at ? formatDateTime(selectedApiKey.last_used_at) : '暂无调用记录'}
-                          </div>
-                        </div>
                       </div>
+                      </div>
+                    </div>
                   </TabsContent>
 
                   {/* 日志 Tab：核心修复区域，确保表格区域自适应高度且分页固定底部 */}
@@ -602,7 +602,7 @@ const ApiKeyManagement: React.FC = () => {
                                   </TableCell>
                                   <TableCell className="text-xs text-muted-foreground">{log.ip_address}</TableCell>
                                   <TableCell className="text-center">
-                                    <Badge 
+                                    <Badge
                                       variant={log.status_code < 300 ? 'outline' : 'destructive'} 
                                       className={`text-[10px] ${log.status_code < 300 ? 'text-green-600 border-green-200 bg-green-50' : ''}`}
                                     >
@@ -620,7 +620,7 @@ const ApiKeyManagement: React.FC = () => {
                     {/* 日志分页：固定在底部，flex-shrink-0 确保不被挤压 */}
                     {logTotalPages > 0 && (
                       <div className="px-6 py-3 border-t bg-background flex-shrink-0">
-                         <Pagination>
+                        <Pagination>
                           <PaginationContent>
                             <PaginationItem>
                               <PaginationPrevious

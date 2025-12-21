@@ -180,8 +180,8 @@ const CronExpressionPicker = forwardRef<CronExpressionPickerRef, CronExpressionP
   ]
 
   return (
-    <Card className="max-w-[600px]">
-      <CardHeader>
+    <Card className="w-full">
+      <CardHeader className="flex-shrink-0">
         <CardTitle>Cron 表达式配置</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">

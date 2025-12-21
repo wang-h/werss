@@ -361,7 +361,7 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
     
     # 使用汇总模板
     # 注意：Jinja2 中访问字典字段可以使用点号或方括号
-    # 为了确保正确访问，使用 get 方法或条件判断
+    # 为了确保正确访问，直接使用点号访问（Jinja2 会自动处理字典）
     default_template = """# 每日订阅汇总
 
 {% for item in feeds_with_articles %}
@@ -369,19 +369,12 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
 
 {% if item.articles and item.articles|length > 0 %}
 {% for article in item.articles %}
-{% if article is mapping %}
-{% set title = article['title']|default('无标题') %}
-{% set url = article['url']|default('#') %}
-{% set publish_time = article['publish_time']|default('未知时间') %}
+{% if article.title and article.url %}
+- [**{{ article.title }}**]({{ article.url }}) ({{ article.publish_time|default('未知时间') }})
+{% elif article.get and article.get('title') and article.get('url') %}
+- [**{{ article.get('title') }}**]({{ article.get('url') }}) ({{ article.get('publish_time', '未知时间') }})
 {% else %}
-{% set title = article.title|default('无标题') %}
-{% set url = article.url|default('#') %}
-{% set publish_time = article.publish_time|default('未知时间') %}
-{% endif %}
-{% if title and title != '无标题' and url and url != '#' %}
-- [**{{ title }}**]({{ url }}) ({{ publish_time }})
-{% else %}
-- 文章数据不完整：title={{ title }}, url={{ url }}
+- 文章数据不完整：title={{ article.title|default('空') }}, url={{ article.url|default('空') }}
 {% endif %}
 {% endfor %}
 {% else %}
