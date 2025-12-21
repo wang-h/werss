@@ -46,11 +46,6 @@ const BasicLayout: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
   
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'BasicLayout.tsx:44','message':'BasicLayout 渲染',data:{pathname:location.pathname,search:location.search,hash:location.hash},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  }, [location.pathname]);
-  // #endregion
   const [userInfo, setUserInfo] = useState({ username: '', avatar: '' })
   const [haswxLogined, setHaswxLogined] = useState(true)
   const [hasLogined, setHasLogined] = useState(false)

@@ -42,7 +42,6 @@ import {
   Pagination,
   PaginationContent,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
@@ -56,11 +55,6 @@ const PERMISSION_OPTIONS = [
 ]
 
 const ApiKeyManagement: React.FC = () => {
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ApiKeyManagement.tsx:58','message':'ApiKeyManagement 组件渲染',data:{pathname:window.location.pathname},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-  }, []);
-  // #endregion
   const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([])

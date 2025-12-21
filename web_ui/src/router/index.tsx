@@ -23,10 +23,6 @@ import ApiKeyManagement from '../views/ApiKeyManagement'
 
 // 路由守卫组件
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // #region agent log
-  const currentPath = window.location.pathname;
-  fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.tsx:25','message':'ProtectedRoute 检查',data:{path:currentPath,hasToken:!!localStorage.getItem('token')},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
   const token = localStorage.getItem('token')
   
   if (!token) {
@@ -45,10 +41,6 @@ const PermissionRoute = ({
   children: React.ReactNode
   permissions?: string[] 
 }) => {
-  // #region agent log
-  const currentPath = window.location.pathname;
-  fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'router/index.tsx:37','message':'PermissionRoute 检查',data:{path:currentPath,permissions},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-  // #endregion
   // 这里可以添加权限检查逻辑
   return <>{children}</>
 }

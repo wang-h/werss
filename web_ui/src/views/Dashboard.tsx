@@ -447,9 +447,6 @@ const Dashboard: React.FC = () => {
   }
 
   const getKeywordStackChartSpec = (keywordTrendData: KeywordTrendData[], topKeywords: string[]) => {
-    // #region agent log
-    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:448',message:'getKeywordStackChartSpec - entry',data:{keywordTrendDataLength:keywordTrendData.length,topKeywordsLength:topKeywords.length,topKeywords:topKeywords.slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C,D'})}).catch(()=>{});
-    // #endregion
     const dark = isDarkMode()
     const textColor = dark ? '#E5E7EB' : '#374151'
     const gridColor = dark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'
@@ -458,24 +455,14 @@ const Dashboard: React.FC = () => {
       date: item.date, keyword, count: item.keywords[keyword] || 0
     })))
 
-    // #region agent log
-    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:456',message:'getKeywordStackChartSpec - chartData generated',data:{chartDataLength:chartData.length,sampleData:chartData.slice(0,3),maxCount:Math.max(...chartData.map(d=>d.count),0)},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
-
     // 检查是否有实际数据（至少有一个 count > 0）
     const hasData = chartData.some(item => item.count > 0)
-    // #region agent log
-    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:460',message:'getKeywordStackChartSpec - hasData check',data:{hasData,chartDataLength:chartData.length,nonZeroCounts:chartData.filter(d=>d.count>0).length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
-    // #endregion
     if (!hasData) {
       console.warn('关键词图表数据为空或全为0:', {
         chartDataLength: chartData.length,
         topKeywords,
         sampleData: chartData.slice(0, 5)
       })
-      // #region agent log
-      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:465',message:'getKeywordStackChartSpec - returning null (no data)',data:{chartDataLength:chartData.length,topKeywordsLength:topKeywords.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       return null
     }
     
@@ -550,9 +537,6 @@ const Dashboard: React.FC = () => {
         item: { label: { style: { fill: textColor, fontSize: 12 } } } 
       }
     }
-    // #region agent log
-    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:540',message:'getKeywordStackChartSpec - returning spec',data:{specType:spec.type,hasData:true,chartDataLength:chartData.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run4',hypothesisId:'D'})}).catch(()=>{});
-    // #endregion
     return spec
   }
 
@@ -679,9 +663,6 @@ const Dashboard: React.FC = () => {
   // 根据选择的时间范围过滤趋势数据
   const keywordTrendData = keywordTrendData30.slice(-keywordDateRange)
   
-  // #region agent log
-  fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:648',message:'Dashboard render - data check',data:{hasDashboardData:!!dashboardData,keywordTrendData30Length:keywordTrendData30.length,keywordTrendDataLength:keywordTrendData.length,keywordDateRange,topKeywordsLength:topKeywords.length,topKeywords,keywordStatsLength:keywordStats.length,hasMeta:!!meta,usingFallback:meta?.usingFallback},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'A,B'})}).catch(()=>{});
-  // #endregion
 
   return (
     <div className="p-6">
@@ -755,9 +736,6 @@ const Dashboard: React.FC = () => {
                   value={keywordDateRange.toString()}
                   onValueChange={(v: string) => {
                     const newRange = parseInt(v) as 7 | 30;
-                    // #region agent log
-                    fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:717',message:'Date range changed',data:{oldRange:keywordDateRange,newRange},timestamp:Date.now(),sessionId:'debug-session',runId:'run9',hypothesisId:'G'})}).catch(()=>{});
-                    // #endregion
                     setKeywordDateRange(newRange);
                   }}
                   options={[
@@ -793,12 +771,6 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 {/* 趋势图 - 始终显示 */}
-                {(() => {
-                  // #region agent log
-                  fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:765',message:'Chart section - render check',data:{keywordTrendDataExists:!!keywordTrendData,keywordTrendDataLength:keywordTrendData?.length||0,keywordDateRange,topKeywordsExists:!!topKeywords,topKeywordsLength:topKeywords?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run8',hypothesisId:'F'})}).catch(()=>{});
-                  // #endregion
-                  return null;
-                })()}
                 {(
                   <>
                     {keywordTrendData && keywordTrendData.length > 0 && topKeywords && topKeywords.length > 0 ? (() => {
@@ -811,16 +783,9 @@ const Dashboard: React.FC = () => {
                       const meta = (dashboardData as any)?._meta
                       const usingFallback = meta?.usingFallback || false
                       
-                      // #region agent log
-                      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:730',message:'Chart render - data validation',data:{hasActualData,usingFallback,keywordChartType,willShowChart:hasActualData||usingFallback},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                      // #endregion
-                      
                       // 如果使用了备选关键词且没有实际数据，仍然显示图表（即使数据为0）
                       // 这样用户至少能看到图表结构，知道系统在工作
                       if (!hasActualData && !usingFallback) {
-                        // #region agent log
-                        fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:736',message:'Chart render - early return no data',data:{hasActualData,usingFallback},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                        // #endregion
                         return (
                           <div className="text-center text-muted-foreground py-10">
                             <div>{t('dashboard.charts.noTrendData')}</div>
@@ -833,14 +798,7 @@ const Dashboard: React.FC = () => {
                         ? getKeywordStackChartSpec(keywordTrendData, topKeywords) 
                         : getKeywordLineChartSpec(keywordTrendData, topKeywords)
                       
-                      // #region agent log
-                      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:748',message:'Chart render - spec generation',data:{chartSpecExists:!!chartSpec,keywordChartType,keywordTrendDataLength:keywordTrendData.length,topKeywordsLength:topKeywords.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                      // #endregion
-                      
                       if (!chartSpec) {
-                        // #region agent log
-                        fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:752',message:'Chart render - spec is null',data:{keywordChartType,keywordTrendDataLength:keywordTrendData.length,topKeywordsLength:topKeywords.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                        // #endregion
                         return (
                           <div className="text-center text-muted-foreground py-10">
                             <div>{t('dashboard.charts.chartConfigFailed')}</div>
@@ -849,9 +807,6 @@ const Dashboard: React.FC = () => {
                         )
                       }
                       
-                      // #region agent log
-                      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:760',message:'Chart render - rendering VChart',data:{chartSpecType:chartSpec.type,hasSpec:!!chartSpec},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                      // #endregion
                       return (
                         <div className="mt-6 h-[400px] animate-in fade-in slide-in-from-bottom-2 duration-300">
                           <ChartErrorBoundary>
@@ -860,9 +815,6 @@ const Dashboard: React.FC = () => {
                                 spec={chartSpec} 
                                 style={{ height: '400px', width: '100%' }} 
                                 onError={(error: any) => {
-                                  // #region agent log
-                                  fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:768',message:'VChart render error',data:{error:error?.message||String(error),errorStack:error?.stack},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                                  // #endregion
                                   console.error('VChart 渲染错误:', error)
                                 }}
                               />
@@ -871,9 +823,6 @@ const Dashboard: React.FC = () => {
                         </div>
                       )
                     })() : (() => {
-                      // #region agent log
-                      fetch('http://localhost:7242/ingest/a63cb85f-9060-4d81-989d-e77be314b2f0',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Dashboard.tsx:775',message:'Chart render - condition not met',data:{keywordTrendDataExists:!!keywordTrendData,keywordTrendDataLength:keywordTrendData?.length||0,topKeywordsExists:!!topKeywords,topKeywordsLength:topKeywords?.length||0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A,B'})}).catch(()=>{});
-                      // #endregion
                       return (
                         <div className="text-center text-muted-foreground py-10">
                           {!topKeywords || topKeywords.length === 0 ? (
