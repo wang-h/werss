@@ -112,11 +112,9 @@ const SubscriptionManagement: React.FC = () => {
         end_page: 1
       })
       
-      // 成功情况（响应拦截器已经处理了 code === 0 的情况）
-      // 确保显示成功消息
-      setTimeout(() => {
-        Message.success('刷新成功，正在更新文章...')
-      }, 100)
+      // 成功情况：显示成功消息
+      Message.success('刷新成功，正在更新文章...')
+      
       // 等待2秒后刷新订阅详情
       setTimeout(() => {
         loadSubscriptions()
@@ -130,6 +128,7 @@ const SubscriptionManagement: React.FC = () => {
       // 如果 error 是字符串（拦截器 reject 的字符串）
       if (typeof error === 'string') {
         console.error('刷新错误（字符串）:', error)
+        Message.error(error || '刷新失败')
         return
       }
       
@@ -149,8 +148,11 @@ const SubscriptionManagement: React.FC = () => {
         const syncInterval = 60 // 默认60秒
         const remaining = Math.max(0, syncInterval - timeSpan)
         Message.warning(`请不要频繁更新操作，还需等待 ${remaining} 秒`)
+      } else {
+        // 其他错误显示错误消息
+        const errorMsg = errorData?.message || error?.message || '刷新失败'
+        Message.error(errorMsg)
       }
-      // 其他错误由拦截器处理（40402 除外）
     } finally {
       setRefreshing(false)
     }

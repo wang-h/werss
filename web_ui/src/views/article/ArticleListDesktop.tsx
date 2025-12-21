@@ -445,8 +445,11 @@ const ArticleListDesktop: React.FC = () => {
       Message.success('刷新成功')
       setRefreshModalVisible(false)
       fetchArticles()
-    } catch (error) {
+    } catch (error: any) {
       console.error('刷新失败:', error)
+      // 显示错误消息
+      const errorMsg = error?.message || error?.response?.data?.message || '刷新失败'
+      Message.error(errorMsg)
     } finally {
       setFullLoading(false)
     }
