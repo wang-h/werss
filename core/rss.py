@@ -312,7 +312,7 @@ class RSS:
             return self.generate_by_template(rss_list,template, title=title, link=link, description=description,language=language,image_url=image_url)
         else:
             raise ValueError(f"Unsupported extension: {ext}")
-    def generate_by_template(self,rss_list: dict, template: str, title: str = "Mp-We-Rss",link: str = "https://github.com/rachelos/werss",description: str = "RSS频道",language: str = "zh-CN",image_url:str=""):
+    def generate_by_template(self,rss_list: dict, template: str, title: str = "Mp-We-Rss",link: str = "https://github.com/wang-h/werss",description: str = "RSS频道",language: str = "zh-CN",image_url:str=""):
             from core.lax import TemplateParser
             template = TemplateParser(template)
             return template.render({"articles": rss_list, "title": title,"link":link,"description":description,"language":language,"image_url":image_url})

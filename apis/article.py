@@ -141,10 +141,11 @@ async def get_articles(
         # 1. 批量查询公众号信息
         article_ids = [a.id for a in articles]
         mp_ids = list(set([a.mp_id for a in articles if a.mp_id]))
-        mp_names = {}
+        mp_info = {}
         if mp_ids:
             feeds = session.query(Feed).filter(Feed.id.in_(mp_ids)).all()
-            mp_names = {feed.id: feed.mp_name for feed in feeds}
+            # 批量记录名称和头像
+            mp_info = {feed.id: {"mp_name": feed.mp_name, "mp_cover": feed.mp_cover} for feed in feeds}
         
         # 2. 批量查询所有文章的标签关联
         all_article_tags = session.query(ArticleTag).filter(
@@ -170,7 +171,11 @@ async def get_articles(
         article_list = []
         for article in articles:
             article_dict = article.__dict__.copy()
-            article_dict["mp_name"] = mp_names.get(article.mp_id, "未知公众号")
+            
+            # 填充公众号信息
+            info = mp_info.get(article.mp_id, {})
+            article_dict["mp_name"] = info.get("mp_name", "未知公众号")
+            article_dict["mp_cover"] = info.get("mp_cover", "")
             
             # 从预加载的数据中获取标签
             article_tag_ids = tags_by_article.get(article.id, [])

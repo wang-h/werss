@@ -295,7 +295,42 @@ async def add_mp(
         
         import base64
         mpx_id = base64.b64decode(mp_id).decode("utf-8")
-        local_avatar_path = f"{save_avatar_locally(avatar)}"
+        feed_id = f"MP_WXS_{mpx_id}"
+        
+        # 处理头像：优先上传到MinIO，如果MinIO不可用或上传失败，则使用本地保存
+        avatar_path = None
+        if avatar:
+            try:
+                from core.storage.minio_client import MinIOClient
+                minio_client = MinIOClient()
+                
+                # 如果MinIO可用，优先上传到MinIO
+                if minio_client.is_available():
+                    # 跳过已经是MinIO URL的头像
+                    if 'minio' not in avatar.lower() and (not minio_client.public_url or minio_client.public_url not in avatar):
+                        minio_avatar_url = minio_client.upload_avatar(avatar, feed_id)
+                        if minio_avatar_url:
+                            avatar_path = minio_avatar_url
+                            print_info(f"公众号头像已上传到MinIO: {avatar[:80]}... -> {minio_avatar_url[:80]}...")
+                        else:
+                            # MinIO上传失败，回退到本地保存
+                            local_avatar_path = save_avatar_locally(avatar)
+                            avatar_path = local_avatar_path if local_avatar_path else avatar
+                    else:
+                        # 已经是MinIO URL，直接使用
+                        avatar_path = avatar
+                else:
+                    # MinIO不可用，使用本地保存
+                    local_avatar_path = save_avatar_locally(avatar)
+                    avatar_path = local_avatar_path if local_avatar_path else avatar
+            except Exception as e:
+                # 处理失败，回退到本地保存
+                logger.warning(f"处理公众号头像失败: {e}，回退到本地保存")
+                local_avatar_path = save_avatar_locally(avatar)
+                avatar_path = local_avatar_path if local_avatar_path else avatar
+        else:
+            # 没有提供头像URL，使用mp_cover（如果提供）
+            avatar_path = mp_cover
         
         # 检查公众号是否已存在
         existing_feed = session.query(Feed).filter(Feed.faker_id == mp_id).first()
@@ -303,15 +338,16 @@ async def add_mp(
         if existing_feed:
             # 更新现有记录
             existing_feed.mp_name = mp_name
-            existing_feed.mp_cover = local_avatar_path
+            if avatar_path:
+                existing_feed.mp_cover = avatar_path
             existing_feed.mp_intro = mp_intro
             existing_feed.updated_at = now
         else:
             # 创建新的Feed记录
             new_feed = Feed(
-                id=f"MP_WXS_{mpx_id}",
+                id=feed_id,
                 mp_name=mp_name,
-                mp_cover= local_avatar_path,
+                mp_cover=avatar_path,
                 mp_intro=mp_intro,
                 status=1,  # 默认启用状态
                 created_at=now,

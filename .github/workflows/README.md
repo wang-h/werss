@@ -34,7 +34,7 @@
 - `TOKEN`: GitHub Personal Access Token（需要 `write:packages` 权限）
 
 **输出镜像：**
-- `ghcr.io/rachelos/python38:latest`
+- `ghcr.io/wang-h/python38:latest`
 
 ---
 

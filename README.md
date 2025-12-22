@@ -926,7 +926,7 @@ chmod 755 data
 
 本项目在开发过程中参考和借鉴了以下优秀的开源项目，特此表示感谢：
 
-- **[we-mp-rss](https://github.com/rachelos/we-mp-rss)** - 微信公众号热度分析系统，提供了核心功能实现的参考
+- **[we-mp-rss](https://github.com/wang-h/we-mp-rss)** - 微信公众号热度分析系统，提供了核心功能实现的参考
 - **[wewe-rss](https://github.com/cooderl/wewe-rss)** - 微信公众号RSS订阅工具，提供了架构设计的灵感
 - **[full-stack-fastapi-template](https://github.com/fastapi/full-stack-fastapi-template)** - FastAPI 全栈项目模板，提供了前后端分离架构的最佳实践
 

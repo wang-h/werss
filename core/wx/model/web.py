@@ -42,18 +42,19 @@ class MpsWeb(WxGather):
             r = App.get_article_content(url)
             if r!=None:
                 text = r.get("content","")
+                mp_info = r.get("mp_info", {})  # 获取mp_info
                 text=self.remove_common_html_elements(text)
                 if text is None:
-                    return
+                    return "" if not mp_info else {"content": "", "mp_info": mp_info}
                 if "当前环境异常，完成验证后即可继续访问" in text:
                     print_error("当前环境异常，完成验证后即可继续访问")
-                    return ""
+                    return "" if not mp_info else {"content": "", "mp_info": mp_info}
                 soup = BeautifulSoup(text, 'html.parser')
                 # 找到内容
                 js_content_div = soup
                 # 移除style属性中的visibility: hidden;
                 if js_content_div is None:
-                    return ""
+                    return "" if not mp_info else {"content": "", "mp_info": mp_info}
                 js_content_div.attrs.pop('style', None)
                 # 找到所有的img标签
                 img_tags = js_content_div.find_all('img')
@@ -109,7 +110,11 @@ class MpsWeb(WxGather):
                         # 使用正则表达式替换width属性
                         style = re.sub(r'width\s*:\s*\d+\s*px', 'width: 1080px', style)
                         img_tag['style'] = style  # type: ignore
-                return  js_content_div.prettify()
+                content = js_content_div.prettify()
+                # 如果有mp_info，返回字典；否则返回字符串（保持向后兼容）
+                if mp_info and isinstance(mp_info, dict) and mp_info.get("logo"):
+                    return {"content": content, "mp_info": mp_info}
+                return content
         except Exception as e:
                 logger.error(e)
         return ""
@@ -271,7 +276,15 @@ class MpsWeb(WxGather):
                                     if Gather_Content:
                                         if not super().HasGathered(item["aid"]):
                                                         # 文章不存在或内容不完整，调用 content_extract（会检查并跳过图片上传）
-                                                item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
+                                                content_result = self.content_extract(item['link'], mp_id=Mps_id)
+                                                # content_extract可能返回字符串或字典
+                                                if isinstance(content_result, dict):
+                                                    item["content"] = content_result.get("content", "")
+                                                    # 如果返回了mp_info，添加到item中
+                                                    if "mp_info" in content_result:
+                                                        item["mp_info"] = content_result["mp_info"]
+                                                else:
+                                                    item["content"] = content_result or ""
                                     else:
                                         item["content"] = ""
                                     item["id"] = item["aid"]

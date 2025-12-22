@@ -4,7 +4,7 @@
 
 ## 如何参与？
 
-1. **查看问题列表**：在 [Issues](https://github.com/rachelos/werss/issues) 页面查找适合您的任务。
+1. **查看问题列表**：在 [Issues](https://github.com/wang-h/werss/issues) 页面查找适合您的任务。
 2. **提出新功能或改进**：如果您有新的想法，请先提交一个 Issue 描述您的计划。
 3. **修复已知问题**：选择一个感兴趣的 issue 并尝试解决它。
 
@@ -13,7 +13,7 @@
 1. **克隆仓库**
 ```
 bash
-git clone https://github.com/rachelos/werss.git
+git clone https://github.com/wang-h/werss.git
 cd werss
 ```
 

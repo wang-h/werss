@@ -182,6 +182,100 @@ class MinIOClient:
             print_error(f"图片上传失败 {image_url}: {str(e)}")
             return None
     
+    def upload_avatar(self, avatar_url: str, mp_id: str) -> Optional[str]:
+        """
+        下载公众号头像并上传到MinIO
+        
+        Args:
+            avatar_url: 原始头像URL
+            mp_id: 公众号ID，用于组织存储路径
+            
+        Returns:
+            MinIO中的头像URL，失败返回None
+        """
+        if not self.is_available():
+            return None
+        
+        try:
+            # 下载头像
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'image/webp,image/apng,image/*,*/*;q=0.8',
+                'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8',
+            }
+            response = requests.get(avatar_url, stream=True, timeout=20, headers=headers)
+            response.raise_for_status()
+            
+            # 生成文件名
+            parsed_url = urlparse(avatar_url)
+            file_ext = os.path.splitext(parsed_url.path)[1] or '.jpg'
+            if not file_ext.startswith('.'):
+                file_ext = '.' + file_ext
+            
+            # 使用URL的hash作为文件名，避免重复
+            url_hash = hashlib.md5(avatar_url.encode()).hexdigest()
+            filename = f"{url_hash}{file_ext}"
+            
+            # MinIO中的路径：avatars/{mp_id}/{filename}
+            # 清理mp_id，移除MP_WXS_前缀（如果有）
+            clean_mp_id = str(mp_id).replace("MP_WXS_", "") if mp_id else "unknown"
+            object_name = f"avatars/{clean_mp_id}/{filename}"
+            
+            # 上传到MinIO
+            avatar_data = BytesIO(response.content)
+            content_type = response.headers.get('Content-Type', 'image/jpeg')
+            
+            self.client.put_object(
+                self.bucket_name,
+                object_name,
+                avatar_data,
+                length=len(response.content),
+                content_type=content_type
+            )
+            
+            # 返回MinIO的访问URL
+            minio_url = None
+            
+            # 如果配置了使用 presigned URL，生成临时访问链接（7天有效期）
+            if self.use_presigned_url:
+                try:
+                    from datetime import timedelta
+                    # 生成 presigned URL（7天有效期）
+                    minio_url = self.client.presigned_get_object(
+                        self.bucket_name,
+                        object_name,
+                        expires=timedelta(days=7)
+                    )
+                except Exception as presigned_error:
+                    print_warning(f"生成presigned URL失败，使用直接URL: {presigned_error}")
+                    # 回退到直接URL
+                    minio_url = None
+            
+            # 如果未使用 presigned URL 或生成失败，使用直接访问URL
+            if not minio_url:
+                # 优先使用 public_url，如果没有配置则使用 endpoint
+                if self.public_url:
+                    # 清理 public_url：移除末尾的斜杠
+                    public_url_clean = str(self.public_url).rstrip('/')
+                    # 如果 public_url 以 bucket 名称结尾，说明已经包含 bucket
+                    if public_url_clean.endswith(f'/{self.bucket_name}') or public_url_clean.endswith(self.bucket_name):
+                        # public_url 已经包含 bucket，直接拼接 object_name
+                        minio_url = f"{public_url_clean}/{object_name}"
+                    else:
+                        # public_url 不包含 bucket，需要拼接
+                        minio_url = f"{public_url_clean}/{self.bucket_name}/{object_name}"
+                else:
+                    # 如果没有配置public_url，使用endpoint构建
+                    protocol = "https" if self.secure else "http"
+                    minio_url = f"{protocol}://{self.endpoint}/{self.bucket_name}/{object_name}"
+            
+            print_info(f"头像上传成功: {avatar_url} -> {minio_url}")
+            return minio_url
+            
+        except Exception as e:
+            print_error(f"头像上传失败 {avatar_url}: {str(e)}")
+            return None
+    
     def upload_file(self, file_path: str, object_name: str) -> Optional[str]:
         """上传本地文件到MinIO"""
         if not self.is_available():

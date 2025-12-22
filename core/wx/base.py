@@ -216,6 +216,62 @@ class WxGather:
                     except Exception as e:
                         logger.warning(f"获取已存在文章封面图失败: {e}")
                 
+                # 处理公众号头像上传到MinIO
+                if mp_id:
+                    try:
+                        from core.storage.minio_client import MinIOClient
+                        from core.models.feed import Feed
+                        import core.db as db
+                        minio_client = MinIOClient()
+                        
+                        # 检查data中是否有mp_info和logo
+                        mp_info = data.get('mp_info', {})
+                        logo_url = mp_info.get('logo') if isinstance(mp_info, dict) else None
+                        
+                        # 如果没有从data中获取到logo，检查Ext_Data中是否有
+                        if not logo_url and Ext_Data:
+                            mp_info_from_ext = Ext_Data.get('mp_info', {})
+                            if isinstance(mp_info_from_ext, dict):
+                                logo_url = mp_info_from_ext.get('logo')
+                        
+                        # 如果获取到logo URL且MinIO可用，尝试上传头像
+                        if logo_url and minio_client.is_available():
+                            # 检查Feed表中是否已有MinIO URL的头像
+                            DB = db.Db(tag="头像处理")
+                            session = DB.get_session()
+                            try:
+                                feed = session.query(Feed).filter(Feed.id == mp_id).first()
+                                if feed:
+                                    # 如果已有MinIO URL，跳过上传
+                                    existing_cover = feed.mp_cover or ""
+                                    if 'minio' in existing_cover.lower() or (minio_client.public_url and minio_client.public_url in existing_cover):
+                                        logger.info(f"公众号 {mp_id} 已有MinIO头像，跳过上传")
+                                    else:
+                                        # 如果头像不是MinIO URL，尝试上传
+                                        # 跳过已经是MinIO URL的图片
+                                        if 'minio' not in logo_url.lower() and (not minio_client.public_url or minio_client.public_url not in logo_url):
+                                            minio_avatar_url = minio_client.upload_avatar(logo_url, mp_id)
+                                            if minio_avatar_url:
+                                                # 更新Feed表的mp_cover字段
+                                                feed.mp_cover = minio_avatar_url
+                                                session.commit()
+                                                print_info(f"公众号头像已上传到MinIO: {logo_url[:80]}... -> {minio_avatar_url[:80]}...")
+                                            else:
+                                                logger.warning(f"公众号头像上传到MinIO失败: {logo_url[:80]}...")
+                                else:
+                                    # Feed不存在，尝试上传头像（可能在创建Feed之前）
+                                    if 'minio' not in logo_url.lower() and (not minio_client.public_url or minio_client.public_url not in logo_url):
+                                        minio_avatar_url = minio_client.upload_avatar(logo_url, mp_id)
+                                        if minio_avatar_url:
+                                            print_info(f"公众号头像已上传到MinIO（Feed尚未创建）: {logo_url[:80]}... -> {minio_avatar_url[:80]}...")
+                            except Exception as e:
+                                logger.warning(f"处理公众号头像失败: {e}")
+                            finally:
+                                session.close()
+                    except Exception as e:
+                        logger.warning(f"处理公众号头像时出错: {e}")
+                        # 失败时继续处理，不影响文章处理流程
+                
                 art={
                     "id":str(data['id']),
                     "mp_id":data['mp_id'],
