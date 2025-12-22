@@ -1,5 +1,10 @@
+import logging
 from logging import info
 from fastapi import APIRouter, Depends, HTTPException, status, Query, Body, UploadFile, File
+
+# 设置日志记录器
+logger = logging.getLogger(__name__)
+
 from fastapi.responses import FileResponse
 from fastapi.background import BackgroundTasks
 from core.auth import get_current_user
