@@ -253,8 +253,8 @@ class MpsApi(WxGather):
                         # info = '"{}","{}","{}","{}"'.format(str(item["aid"]), item['title'], item['link'], str(item['create_time']))
                         if Gather_Content:
                             if not super().HasGathered(item["aid"]):
-                                # 文章不存在或内容不完整，调用 content_extract（会检查并跳过图片上传）
-                                item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
+                                            # 文章不存在或内容不完整，调用 content_extract（会检查并跳过图片上传）
+                                    item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
                         else:
                             item["content"] = ""
                         item["id"] = item["aid"]
@@ -269,7 +269,7 @@ class MpsApi(WxGather):
                     # 或者遇到连续已存在文章时，也停止
                     if should_stop_by_date:
                         if found_start_date_article or consecutive_existing_count >= max_consecutive_existing:
-                            break
+                        break
                     print(f"第{i+1}页爬取成功\n")
                 # 翻页
                 i += 1

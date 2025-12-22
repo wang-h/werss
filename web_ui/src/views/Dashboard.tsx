@@ -501,7 +501,7 @@ const Dashboard: React.FC = () => {
           tick: { visible: false },
           label: { 
             visible: true, 
-            style: { fontSize: 10, angle: -45, fill: textColor },
+            style: { fontSize: 9, angle: -45, fill: textColor },
             formatMethod: (v: string, i: number) => {
               // 根据数据点数量动态调整显示策略
               const total = keywordTrendData.length
@@ -512,8 +512,8 @@ const Dashboard: React.FC = () => {
                 // 14天或更少：每2个显示一个
                 return i % 2 === 0 ? v : ''
               } else if (total <= 30) {
-                // 30天或更少：每3个显示一个
-                return i % 3 === 0 ? v : ''
+                // 30天：显示所有日期标签（每天都有）
+                return v
               } else {
                 // 超过30天：每5个显示一个
                 return i % 5 === 0 ? v : ''
@@ -595,7 +595,7 @@ const Dashboard: React.FC = () => {
           tick: { visible: false },
           label: { 
             visible: true, 
-            style: { fontSize: 10, angle: -45, fill: textColor },
+            style: { fontSize: 9, angle: -45, fill: textColor },
             formatMethod: (v: string, i: number) => {
               // 根据数据点数量动态调整显示策略
               const total = keywordTrendData.length
@@ -606,8 +606,8 @@ const Dashboard: React.FC = () => {
                 // 14天或更少：每2个显示一个
                 return i % 2 === 0 ? v : ''
               } else if (total <= 30) {
-                // 30天或更少：每3个显示一个
-                return i % 3 === 0 ? v : ''
+                // 30天：显示所有日期标签（每天都有）
+                return v
               } else {
                 // 超过30天：每5个显示一个
                 return i % 5 === 0 ? v : ''

@@ -256,10 +256,12 @@ class MpsAppMsg(WxGather):
                                                 # 不立即 break，继续处理本页的其他文章，以便找到范围内的文章
                                         except (ValueError, TypeError, OSError) as e:
                                             logger.warning(f"解析文章发布时间失败: {e}")
+                                    # 在处理每篇文章前添加随机延迟，避免请求过快
+                                    time.sleep(random.randint(1,3))
                                     if Gather_Content:
                                         if not super().HasGathered(item["aid"]):
-                                            # 文章不存在或内容不完整，调用 content_extract（会检查并跳过图片上传）
-                                            item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
+                                                        # 文章不存在或内容不完整，调用 content_extract（会检查并跳过图片上传）
+                                                item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
                                     else:
                                         item["content"] = ""
                                     item["id"] = item["aid"]
