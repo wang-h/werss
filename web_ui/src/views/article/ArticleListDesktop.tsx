@@ -843,7 +843,10 @@ const ArticleListDesktop: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>刷新设置</DialogTitle>
-            <DialogDescription>设置要刷新的文章页面范围</DialogDescription>
+            <DialogDescription>
+              设置要刷新的文章页面范围。默认只爬取第1页，如需爬取更多页可手动设置。
+              系统会自动跳过已存在的文章，连续遇到3篇已存在文章时会停止处理当前公众号。
+            </DialogDescription>
           </DialogHeader>
           <Form {...refreshForm}>
             <form onSubmit={refreshForm.handleSubmit(handleRefresh)} className="space-y-4">

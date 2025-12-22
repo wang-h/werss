@@ -144,6 +144,8 @@ class MpsApi(WxGather):
         i = start_page
         should_stop_by_date = False
         found_start_date_article = False  # 标记是否找到了起始日期的文章
+        consecutive_existing_count = 0  # 连续遇到已存在文章的数量
+        max_consecutive_existing = 3  # 连续遇到多少篇已存在文章后停止处理当前公众号
         while True:
             # 如果达到MaxPage但还没找到起始日期的文章，继续抓取
             if i >= MaxPage and found_start_date_article:
@@ -183,7 +185,50 @@ class MpsApi(WxGather):
                     super().Error("错误原因:{}:代码:{}".format(msg['base_resp']['err_msg'],msg['base_resp']['ret']),code="Invalid Session")
                     break    
                 if "app_msg_list" in msg:
-                    for item in msg["app_msg_list"]:
+                    # 从后往前处理文章列表（最新的先处理）
+                    app_msg_list = msg["app_msg_list"]
+                    app_msg_list.reverse()  # 反转列表，最新的在前
+                    should_stop_this_page = False  # 标记是否应该停止处理当前页
+                    for item in app_msg_list:
+                        # 先检查文章是否已存在且有完整内容，如果存在则跳过
+                        article_id = str(item.get("aid", ""))
+                        article_exists = False
+                        if article_id and Mps_id:
+                            full_article_id = f"{str(Mps_id)}-{article_id}".replace("MP_WXS_", "")
+                            try:
+                                from core.models import Article
+                                import core.db as db
+                                DB = db.Db(tag="文章检查")
+                                db_session = DB.get_session()
+                                existing_article = db_session.query(Article).filter(Article.id == full_article_id).first()
+                                if existing_article and existing_article.content and len(existing_article.content.strip()) > 0:
+                                    # 文章已存在且有完整内容，跳过处理
+                                    article_exists = True
+                                    consecutive_existing_count += 1
+                                    print_info(f"文章已存在且有完整内容，跳过处理: {full_article_id} (连续第{consecutive_existing_count}篇)")
+                                    # 如果连续遇到多篇已存在的文章，停止处理当前公众号
+                                    if consecutive_existing_count >= max_consecutive_existing:
+                                        print_info(f"连续遇到{consecutive_existing_count}篇已存在文章，停止处理当前公众号: {Mps_title}")
+                                        should_stop_by_date = True  # 使用这个标志来停止循环
+                                        should_stop_this_page = True  # 标记停止当前页
+                                        break  # 跳出内层循环
+                                else:
+                                    # 遇到新文章，重置计数器
+                                    consecutive_existing_count = 0
+                            except Exception as e:
+                                logger.warning(f"检查文章是否存在时出错: {e}，继续处理")
+                                consecutive_existing_count = 0
+                        else:
+                            consecutive_existing_count = 0
+                        
+                        # 如果文章已存在，跳过处理（不调用 FillBack）
+                        if article_exists:
+                            continue  # 跳过当前文章，继续下一个
+                        
+                        # 如果应该停止当前页（遇到连续已存在文章），跳出循环
+                        if should_stop_this_page:
+                            break
+                        
                         # 检查文章发布时间，如果早于起始日期则停止抓取
                         if 'update_time' in item:
                             try:
@@ -208,39 +253,23 @@ class MpsApi(WxGather):
                         # info = '"{}","{}","{}","{}"'.format(str(item["aid"]), item['title'], item['link'], str(item['create_time']))
                         if Gather_Content:
                             if not super().HasGathered(item["aid"]):
-                                # 先检查文章是否已存在且有完整内容，避免重复处理
-                                article_id = str(item.get("aid", ""))
-                                if article_id and Mps_id:
-                                    full_article_id = f"{str(Mps_id)}-{article_id}".replace("MP_WXS_", "")
-                                    try:
-                                        from core.models import Article
-                                        import core.db as db
-                                        DB = db.Db(tag="文章检查")
-                                        db_session = DB.get_session()
-                                        existing_article = db_session.query(Article).filter(Article.id == full_article_id).first()
-                                        if existing_article and existing_article.content and len(existing_article.content.strip()) > 0:
-                                            # 文章已存在且有完整内容，直接使用，不调用 content_extract
-                                            item["content"] = existing_article.content
-                                            print_info(f"文章已存在且有完整内容，跳过内容提取: {full_article_id}")
-                                        else:
-                                            # 文章不存在或内容不完整，调用 content_extract（会检查并跳过图片上传）
-                                            item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
-                                    except Exception as e:
-                                        logger.warning(f"检查文章是否存在时出错: {e}，继续处理")
-                                        # 检查失败时继续处理
-                                        item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
-                                else:
-                                    # 无法构建完整ID，直接调用 content_extract
-                                    item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
+                                # 文章不存在或内容不完整，调用 content_extract（会检查并跳过图片上传）
+                                item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
                         else:
                             item["content"] = ""
                         item["id"] = item["aid"]
                         item["mp_id"] = Mps_id
                         if CallBack is not None:
                             super().FillBack(CallBack=CallBack,data=item,Ext_Data={"mp_title":Mps_title,"mp_id":Mps_id})
+                        
+                        # 如果应该停止当前页（遇到连续已存在文章），跳出循环
+                        if should_stop_this_page:
+                            break
                     # 只有当找到早于起始日期的文章，并且已经找到过在范围内的文章时，才停止
-                    if should_stop_by_date and found_start_date_article:
-                        break
+                    # 或者遇到连续已存在文章时，也停止
+                    if should_stop_by_date:
+                        if found_start_date_article or consecutive_existing_count >= max_consecutive_existing:
+                            break
                     print(f"第{i+1}页爬取成功\n")
                 # 翻页
                 i += 1

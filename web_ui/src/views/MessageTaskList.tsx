@@ -317,9 +317,9 @@ const MessageTaskList: React.FC = () => {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => handleEdit(task.id)}>
-                                  <Edit className="h-4 w-4" />
-                                </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleEdit(task.id)}>
+                            <Edit className="h-4 w-4" />
+                          </Button>
                               </TooltipTrigger>
                               <TooltipContent>编辑任务</TooltipContent>
                             </Tooltip>
@@ -349,9 +349,9 @@ const MessageTaskList: React.FC = () => {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)}>
-                                  <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
+                          <Button variant="ghost" size="sm" onClick={() => handleDelete(task.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                               </TooltipTrigger>
                               <TooltipContent>删除任务</TooltipContent>
                             </Tooltip>

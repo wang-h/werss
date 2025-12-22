@@ -47,8 +47,8 @@ port: ${PORT:-8001}
 debug: ${DEBUG:-False}
 
 
-#最大页数 第一次添加 采集的页数默认5页
-max_page: ${MAX_PAGE:-5}
+#最大页数 第一次添加 采集的页数默认1页（定时任务默认只爬取1页，如需更多页可手动设置）
+max_page: ${MAX_PAGE:-1}
 
 rss:
   #RSS域名地址：如https://www.xxx.com/

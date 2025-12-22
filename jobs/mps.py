@@ -242,9 +242,9 @@ def do_job(mp=None,task:MessageTask=None,isTest=False):
                 print_info(f"获取到 {len(wx.articles)} 篇已有文章")
             else:
                 # 正常模式：抓取新文章
-                # 计算从月初到现在需要抓取的页数
-                max_pages = calculate_pages_from_month_start()
-                print_info(f"从月初开始抓取，预计抓取 {max_pages} 页")
+                # 使用配置的 max_page（默认1页），而不是计算从月初到现在的页数
+                max_pages = int(cfg.get("max_page", 1))
+                print_info(f"定时任务抓取，使用配置的页数: {max_pages} 页")
                 wx.get_Articles(mp.faker_id,CallBack=UpdateArticle,Mps_id=mp.id,Mps_title=mp.mp_name, MaxPage=max_pages,Over_CallBack=Update_Over,interval=interval)
                 
                 # 抓取完成后，为文章添加标签信息
@@ -369,91 +369,41 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
                     })
                     print_info(f"获取到 {feed.mp_name} 的 {len(articles_list)} 篇已有文章")
             else:
-                # 正常模式：抓取新文章
+                # 正常模式：先抓取新文章，然后从数据库获取当天发布的文章
                 print_info(f"抓取 {feed.mp_name} 的新文章")
                 wx = WxGather().Model()
-                max_pages = calculate_pages_from_month_start()
+                # 使用配置的 max_page（默认1页），而不是计算从月初到现在的页数
+                max_pages = int(cfg.get("max_page", 1))
+                print_info(f"定时任务抓取，使用配置的页数: {max_pages} 页")
                 wx.get_Articles(feed.faker_id, CallBack=UpdateArticle, Mps_id=feed.id, Mps_title=feed.mp_name, MaxPage=max_pages, Over_CallBack=Update_Over, interval=interval)
-                if wx.articles:
-                    # 统一转换为字典格式，并格式化发布时间
+                
+                # 抓取完成后，从数据库获取当天发布的文章（基于 publish_time）
+                print_info(f"从数据库获取 {feed.mp_name} 的当天发布文章（基于 publish_time）")
+                existing_articles = get_today_articles(feed.id)
+                if existing_articles:
+                    # 批量获取标签信息
+                    session = db.DB.get_session()
+                    try:
+                        article_ids = [article.id for article in existing_articles]
+                        tags_by_article = get_article_tags(session, article_ids)
+                    finally:
+                        session.close()
+                    
+                    # 转换为字典格式，并格式化发布时间
                     articles_list = []
-                    print_info(f"开始处理 {feed.mp_name} 的 {len(wx.articles)} 篇文章")
-                    
-                    # 批量获取标签信息（如果文章有ID）
-                    article_ids = []
-                    for idx, article in enumerate(wx.articles):
-                        if isinstance(article, dict):
-                            article_id = str(article.get('id', '')) if article.get('id') is not None else ''
-                            if article_id:
-                                article_ids.append(article_id)
-                        else:
-                            article_id = str(getattr(article, 'id', '')) if getattr(article, 'id', None) else ''
-                            if article_id:
-                                article_ids.append(article_id)
-                    
-                    # 批量查询标签
-                    tags_by_article = {}
-                    if article_ids:
-                        session = db.DB.get_session()
-                        try:
-                            tags_by_article = get_article_tags(session, article_ids)
-                        finally:
-                            session.close()
-                    
-                    for idx, article in enumerate(wx.articles):
-                        # 调试：打印原始文章数据结构
-                        if idx < 2:  # 只打印前2篇
-                            print_info(f"  原始文章 {idx+1} 类型: {type(article)}")
-                            if isinstance(article, dict):
-                                print_info(f"    字典键: {list(article.keys())}")
-                                print_info(f"    title值: {repr(article.get('title', 'NOT_FOUND'))}")
-                                print_info(f"    url值: {repr(article.get('url', 'NOT_FOUND'))}")
-                                print_info(f"    link值: {repr(article.get('link', 'NOT_FOUND'))}")
-                        
-                        # 如果已经是字典，确保字段不为 None
-                        if isinstance(article, dict):
-                            # 直接获取字段值，不进行额外的转换
-                            title = article.get('title', '')
-                            url = article.get('url', '') or article.get('link', '')
-                            article_id = str(article.get('id', '')) if article.get('id') is not None else ''
-                            
-                            # 确保字段是字符串类型，且不为 None
-                            article_dict = {
-                                'id': article_id,
-                                'mp_id': str(article.get('mp_id', '')) if article.get('mp_id') is not None else '',
-                                'title': str(title) if title is not None else '',
-                                'pic_url': str(article.get('pic_url', '')) if article.get('pic_url') is not None else '',
-                                'url': str(url) if url is not None else '',
-                                'description': str(article.get('description', '')) if article.get('description') is not None else '',
-                                'publish_time': article.get('publish_time', ''),
-                                'content': article.get('content', None),
-                                'tags': tags_by_article.get(article_id, []),
-                                'tag_names': tags_by_article.get(article_id, [])
-                            }
-                            
-                            # 如果 title 或 url 为空，打印警告和完整字典内容
-                            if not article_dict['title'] or not article_dict['url']:
-                                print_warning(f"文章数据不完整: id={article_dict['id']}, title={repr(title)}, url={repr(url)}")
-                                print_warning(f"  原始字典完整内容: {article}")
-                            
-                            # 调试：打印转换后的数据
-                            if idx < 2:
-                                print_info(f"    转换后: title='{article_dict['title'][:50] if article_dict['title'] else '(空)'}', url='{article_dict['url'][:50] if article_dict['url'] else '(空)'}'")
-                        else:
-                            article_id = str(getattr(article, 'id', '')) if getattr(article, 'id', None) else ''
-                            article_dict = {
-                                'id': article_id,
-                                'mp_id': str(getattr(article, 'mp_id', '')) if getattr(article, 'mp_id', None) else '',
-                                'title': str(getattr(article, 'title', '')) if getattr(article, 'title', None) else '',
-                                'pic_url': str(getattr(article, 'pic_url', '')) if getattr(article, 'pic_url', None) else '',
-                                'url': str(getattr(article, 'url', '') or getattr(article, 'link', '')) if (getattr(article, 'url', None) or getattr(article, 'link', None)) else '',
-                                'description': str(getattr(article, 'description', '')) if getattr(article, 'description', None) else '',
-                                'publish_time': getattr(article, 'publish_time', ''),
-                                'content': getattr(article, 'content', None),
-                                'tags': tags_by_article.get(article_id, []),
-                                'tag_names': tags_by_article.get(article_id, [])
-                            }
-                        
+                    for article in existing_articles:
+                        article_dict = {
+                            'id': article.id,
+                            'mp_id': article.mp_id,
+                            'title': article.title or '',
+                            'pic_url': article.pic_url or '',
+                            'url': article.url or '',
+                            'description': article.description or '',
+                            'publish_time': article.publish_time,
+                            'content': getattr(article, 'content', None),
+                            'tags': tags_by_article.get(article.id, []),
+                            'tag_names': tags_by_article.get(article.id, [])
+                        }
                         # 格式化发布时间（如果是时间戳）
                         if article_dict.get('publish_time'):
                             try:
@@ -479,9 +429,11 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
                             'feed': feed,
                             'articles': articles_list
                         })
-                        print_info(f"抓取到 {feed.mp_name} 的 {len(articles_list)} 篇新文章")
+                        print_info(f"获取到 {feed.mp_name} 的 {len(articles_list)} 篇当天发布的文章")
                     else:
-                        print_warning(f"{feed.mp_name} 没有抓取到文章，跳过")
+                        print_warning(f"{feed.mp_name} 没有当天发布的文章，跳过")
+                else:
+                    print_warning(f"{feed.mp_name} 没有当天发布的文章，跳过")
         except Exception as e:
             print_error(f"处理公众号 {feed.mp_name} 时出错: {e}")
             continue
