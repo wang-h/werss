@@ -121,6 +121,16 @@ async def add_custom_header(request: Request, call_next):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
+            # 添加 CSP 响应头，允许 Monaco Editor 从 CDN 加载资源
+            # 允许 'self'、'unsafe-inline'、'unsafe-eval'、百度统计和 jsdelivr CDN
+            csp_policy = (
+                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hm.baidu.com https://cdn.jsdelivr.net; "
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+                "font-src 'self' https://cdn.jsdelivr.net; "
+                "img-src 'self' data: https://cdn.jsdelivr.net; "
+                "connect-src 'self' https://cdn.jsdelivr.net"
+            )
+            response.headers["Content-Security-Policy"] = csp_policy
         else:
             # 静态资源：可以缓存，但需要验证
             response.headers["Cache-Control"] = "public, max-age=31536000, immutable"
