@@ -4,6 +4,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from fastapi.openapi.models import OAuthFlowPassword
 from fastapi.openapi.utils import get_openapi
+from contextlib import asynccontextmanager
 from apis.auth import router as auth_router
 from apis.user import router as user_router
 from apis.article import router as article_router
@@ -23,6 +24,53 @@ from apis.api_key import router as api_key_router
 import apis
 import os
 from core.config import cfg,VERSION,API_BASE
+import threading
+from core.print import print_info, print_warning
+
+# 全局变量：标记定时任务是否已启动
+_task_thread_started = False
+_task_thread = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理：启动和关闭事件"""
+    # 启动时执行
+    global _task_thread_started, _task_thread
+    
+    # 检查定时任务配置
+    job_arg = cfg.args.job == "True" if hasattr(cfg, 'args') else False
+    enable_job_config = cfg.get("server.enable_job", True)
+    
+    print_info(f"【应用启动】定时任务配置检查: -job参数={job_arg}, server.enable_job={enable_job_config}")
+    
+    if job_arg and enable_job_config:
+        # 如果定时任务线程已经启动，先停止它
+        if _task_thread_started and _task_thread and _task_thread.is_alive():
+            print_warning("【应用启动】检测到旧的定时任务线程，将在重新加载时重启")
+        
+        # 启动新的定时任务线程
+        try:
+            from jobs import start_all_task
+            print_info("【应用启动】正在启动定时任务...")
+            _task_thread = threading.Thread(target=start_all_task, daemon=False, name="定时任务线程")
+            _task_thread.start()
+            _task_thread_started = True
+            print_info("【应用启动】定时任务线程已启动")
+        except Exception as e:
+            print_warning(f"【应用启动】启动定时任务失败: {str(e)}")
+            import traceback
+            traceback.print_exc()
+    else:
+        if not job_arg:
+            print_warning("【应用启动】未开启定时任务: -job 参数未设置为 True")
+        if not enable_job_config:
+            print_warning("【应用启动】未开启定时任务: server.enable_job 配置为 False")
+    
+    yield  # 应用运行期间
+    
+    # 关闭时执行
+    if _task_thread_started:
+        print_info("【应用关闭】定时任务线程将在应用关闭时自动停止")
 
 app = FastAPI(
     title="WeRSS API",
@@ -32,6 +80,7 @@ app = FastAPI(
     redoc_url="/api/redoc",  # 指定Redoc路径
     # 指定OpenAPI schema路径
     openapi_url="/api/openapi.json",
+    lifespan=lifespan,  # 使用新的 lifespan 事件处理器
     openapi_tags=[
         {
             "name": "认证",

@@ -4,6 +4,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from typing import Callable, Any, Optional
 from core.log import logger
+from core.print import print_info, print_error, print_warning
 import uuid
 # 设置日志
 
@@ -145,10 +146,14 @@ class TaskScheduler:
                 # 包装任务函数以捕获异常
                 def wrapped_func(*args, **kwargs):
                     try:
-                        # logger.info(f"Executing job {job_id or 'anonymous'}")
-                        return func(*args, **kwargs)
+                        logger.info(f"【定时任务】开始执行任务 {tag} {job_id or 'anonymous'}")
+                        result = func(*args, **kwargs)
+                        logger.info(f"【定时任务】任务 {tag} {job_id or 'anonymous'} 执行完成")
+                        return result
                     except Exception as e:
-                        logger.error(f"Job {tag} {job_id or 'anonymous'} failed: {str(e)}")
+                        logger.error(f"【定时任务】任务 {tag} {job_id or 'anonymous'} 执行失败: {str(e)}")
+                        import traceback
+                        logger.error(traceback.format_exc())
                         raise
                 
                 job = self._scheduler.add_job(
@@ -159,7 +164,27 @@ class TaskScheduler:
                     id=str(job_id)
                 )
                 self._jobs[job.id] = job
-                logger.info(f"Successfully added job {tag} {job.id}")
+                
+                # 安全地获取下次执行时间
+                # 注意：在调度器未启动时，Job 对象可能没有 next_run_time 属性
+                try:
+                    if self._scheduler.running:
+                        # 调度器已启动，可以直接访问 next_run_time
+                        if hasattr(job, 'next_run_time') and job.next_run_time:
+                            next_run = job.next_run_time.isoformat()
+                        else:
+                            next_run = "未计划"
+                    else:
+                        # 调度器未启动时，使用 trigger 计算下次执行时间
+                        from datetime import datetime
+                        next_run_time = trigger.get_next_fire_time(None, datetime.now())
+                        next_run = next_run_time.isoformat() if next_run_time else "未计划（调度器未启动）"
+                except Exception as e:
+                    # 如果计算失败，使用默认值
+                    next_run = f"计算失败: {str(e)}"
+                
+                logger.info(f"【定时任务】成功添加任务 {tag} {job.id}, cron表达式: {cron_expr}, 下次执行时间: {next_run}")
+                print_info(f"【定时任务】成功添加任务 {tag} {job.id}, cron表达式: {cron_expr}, 下次执行时间: {next_run}")
                 return job.id
             except Exception as e:
                 logger.error(f"Failed to add cron job: {str(e)}")
@@ -206,14 +231,22 @@ class TaskScheduler:
         with self._lock:
             if self._scheduler.running:
                 logger.warning("Scheduler is already running")
+                print_warning("调度器已经在运行中")
                 return
                 
             try:
                 logger.info("Starting scheduler...")
+                print_info("正在启动调度器...")
                 self._scheduler.start()
                 logger.info("Scheduler started successfully")
+                print_info(f"调度器启动成功，当前任务数: {len(self._jobs)}")
+                # 打印所有任务的下次执行时间
+                for job_id, job in self._jobs.items():
+                    next_run = self._get_job_next_run_time(job) or "未计划"
+                    print_info(f"  任务 {job_id} 下次执行时间: {next_run}")
             except Exception as e:
                 logger.error(f"Failed to start scheduler: {str(e)}")
+                print_error(f"启动调度器失败: {str(e)}")
                 raise
     
     def shutdown(self, wait: bool = True) -> None:
@@ -241,6 +274,22 @@ class TaskScheduler:
         """支持上下文管理协议"""
         self.shutdown()
 
+    def _get_job_next_run_time(self, job) -> str:
+        """安全地获取任务的下次执行时间"""
+        try:
+            if hasattr(job, 'next_run_time') and job.next_run_time:
+                return job.next_run_time.isoformat()
+            elif hasattr(job, 'trigger'):
+                # 如果调度器未启动，尝试使用 trigger 计算
+                from datetime import datetime
+                next_run_time = job.trigger.get_next_fire_time(None, datetime.now())
+                return next_run_time.isoformat() if next_run_time else None
+            else:
+                return None
+        except Exception as e:
+            logger.warning(f"获取任务 {job.id if hasattr(job, 'id') else 'unknown'} 的下次执行时间失败: {str(e)}")
+            return None
+    
     def get_scheduler_status(self) -> dict:
         """
         获取调度器状态信息
@@ -252,7 +301,7 @@ class TaskScheduler:
                 'running': self._scheduler.running,
                 'job_count': len(self._jobs),
                 'next_run_times': [
-                    (job_id, job.next_run_time.isoformat() if job.next_run_time else None)
+                    (job_id, self._get_job_next_run_time(job))
                     for job_id, job in self._jobs.items()
                 ]
             }
@@ -273,9 +322,9 @@ class TaskScheduler:
                 'id': job.id,
                 'name': job.name,
                 'trigger': str(job.trigger),
-                'next_run_time': job.next_run_time.isoformat() if job.next_run_time else None,
-                'last_run_time': job.last_run_time.isoformat() if job.last_run_time else None,
-                'last_run_result': job.last_run_result
+                'next_run_time': self._get_job_next_run_time(job),
+                'last_run_time': job.last_run_time.isoformat() if hasattr(job, 'last_run_time') and job.last_run_time else None,
+                'last_run_result': job.last_run_result if hasattr(job, 'last_run_result') else None
             }
 
 if __name__ == "__main__":

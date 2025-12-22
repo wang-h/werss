@@ -754,9 +754,19 @@ def start_job(job_id:str=None):
             continue
       
         job_id=scheduler.add_cron_job(add_job,cron_expr=cron_exp,args=[get_feeds(task),task],job_id=str(task.id),tag="定时采集")
-        print(f"已添加任务: {job_id}")
-    scheduler.start()
-    print("启动任务")
+        print(f"已添加任务: {job_id}, cron表达式: {cron_exp}")
+    
+    # 检查调度器状态
+    status = scheduler.get_scheduler_status()
+    print_info(f"调度器状态: running={status['running']}, job_count={status['job_count']}")
+    for job_id, next_run_time in status['next_run_times']:
+        print_info(f"任务 {job_id} 下次执行时间: {next_run_time}")
+    
+    if not status['running']:
+        scheduler.start()
+        print_info("调度器已启动")
+    else:
+        print_warning("调度器已经在运行中")
 def start_all_task():
       #开启自动同步未同步 文章任务
     from jobs.fetch_no_article import start_sync_content

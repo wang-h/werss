@@ -70,11 +70,20 @@ if __name__ == '__main__':
     # 输出数据库来源信息
     print_database_source()
     
-    if  cfg.args.job =="True" and cfg.get("server.enable_job",False):
-        from jobs import start_all_task
-        threading.Thread(target=start_all_task,daemon=False).start()
-    else:
-        print_warning("未开启定时任务")
+    # 检查定时任务配置
+    # 注意：如果使用 uvicorn.run("web:app", ...)，定时任务会在 web.py 的 startup 事件中启动
+    # 这里只输出配置信息，不启动定时任务，避免重复启动
+    job_arg = cfg.args.job == "True"
+    enable_job_config = cfg.get("server.enable_job", True)  # 默认启用
+    print_info(f"定时任务配置检查: -job参数={job_arg}, server.enable_job={enable_job_config}")
+    
+    if not job_arg:
+        print_warning("未开启定时任务: -job 参数未设置为 True")
+    if not enable_job_config:
+        print_warning("未开启定时任务: server.enable_job 配置为 False")
+    
+    # 注意：定时任务将在 web.py 的 startup 事件中启动（如果使用 uvicorn）
+    # 这样可以确保每次重新加载时都会重新启动定时任务
     print("启动服务器")
     AutoReload=cfg.get("server.auto_reload",False)
     thread=cfg.get("server.threads",1)

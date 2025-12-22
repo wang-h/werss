@@ -208,18 +208,24 @@ class Config:
     def set(self,key,default:any=None):
         self.config[key] = default
         self.save_config()
-    def __fix(self,v:str):
+    def __fix(self,v):
         if v in ("", "''", '""', None):
             return ""
+        # 如果已经是布尔值，直接返回
+        if isinstance(v, bool):
+            return v
+        # 如果已经是数字，直接返回
+        if isinstance(v, (int, float)):
+            return v
         try:
             # 尝试转换为布尔值
-            if v.lower() in ('true', 'false'):
+            if isinstance(v, str) and v.lower() in ('true', 'false'):
                 return v.lower() == 'true'
             # 尝试转换为整数
-            if v.isdigit():
+            if isinstance(v, str) and v.isdigit():
                 return int(v)
             # 尝试转换为浮点数
-            if '.' in v and all(part.isdigit() for part in v.split('.') if part):
+            if isinstance(v, str) and '.' in v and all(part.isdigit() for part in v.split('.') if part):
                 return float(v)
             return v
         except:
