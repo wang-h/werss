@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useImperativeHandle, forwardRef } from 'react'
+import React, { useState, useEffect, useMemo, useImperativeHandle, forwardRef, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form, FormControl, FormField, FormItem, FormLabel } from '@/components/ui/form'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -22,6 +22,8 @@ const CronExpressionPicker = forwardRef<CronExpressionPickerRef, CronExpressionP
   const [days, setDays] = useState('*')
   const [months, setMonths] = useState('*')
   const [weekdays, setWeekdays] = useState('*')
+  const prevValueRef = useRef<string>('')
+  const isInternalUpdateRef = useRef<boolean>(false)
 
   const parseCronDescription = (part: string, type: string) => {
     if (part === '*') return `每${type}`
@@ -80,11 +82,20 @@ const CronExpressionPicker = forwardRef<CronExpressionPickerRef, CronExpressionP
   const parseExpression = (expr: string) => {
     const parts = expr.split(' ')
     if (parts.length === 5) {
-      setMinutes(parts[0])
-      setHours(parts[1])
-      setDays(parts[2])
-      setMonths(parts[3])
-      setWeekdays(parts[4])
+      // 只有当新的表达式与当前状态生成的表达式不同时才更新
+      const currentExpr = `${minutes} ${hours} ${days} ${months} ${weekdays}`
+      if (expr !== currentExpr) {
+        isInternalUpdateRef.current = true
+        setMinutes(parts[0])
+        setHours(parts[1])
+        setDays(parts[2])
+        setMonths(parts[3])
+        setWeekdays(parts[4])
+        // 使用 setTimeout 确保状态更新后再重置标志
+        setTimeout(() => {
+          isInternalUpdateRef.current = false
+        }, 0)
+      }
     }
   }
 
@@ -93,14 +104,23 @@ const CronExpressionPicker = forwardRef<CronExpressionPickerRef, CronExpressionP
   }))
 
   useEffect(() => {
-    if (value) {
-      parseExpression(value)
+    if (value && value !== prevValueRef.current) {
+      const currentExpr = `${minutes} ${hours} ${days} ${months} ${weekdays}`
+      if (value !== currentExpr) {
+        prevValueRef.current = value
+        parseExpression(value)
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value])
 
   useEffect(() => {
-    updateExpression()
+    if (!isInternalUpdateRef.current) {
+      if (cronExpression !== prevValueRef.current && cronExpression !== value) {
+        prevValueRef.current = cronExpression
+        updateExpression()
+      }
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minutes, hours, days, months, weekdays])
 
