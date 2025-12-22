@@ -74,11 +74,12 @@ class Db:
                 logging.getLogger('sqlalchemy.orm').setLevel(logging.WARNING)
             
             self.engine = create_engine(con_str,
-                                     pool_size=2,          # 最小空闲连接数
-                                     max_overflow=20,      # 允许的最大溢出连接数
+                                     pool_size=5,          # 最小空闲连接数（减少到5）
+                                     max_overflow=10,      # 允许的最大溢出连接数（减少到10）
                                      pool_timeout=30,      # 获取连接时的超时时间（秒）
                                      echo=db_echo_env,     # 只有在 DB_ECHO=true 时才启用 SQL 日志
-                                     pool_recycle=60,  # 连接池回收时间（秒）
+                                     pool_recycle=300,     # 连接池回收时间（秒，增加到5分钟）
+                                     pool_pre_ping=True,   # 连接前检查连接是否有效
                                      isolation_level="AUTOCOMMIT",  # 设置隔离级别
                                     #  isolation_level="READ COMMITTED",  # 设置隔离级别
                                     #  query_cache_size=0,
