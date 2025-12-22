@@ -122,6 +122,110 @@ WeRSS 是一个前后端分离的微信公众号热度分析系统，可以帮�
 - ✅ 飞书Webhook通知
 - ✅ 自定义Webhook通知
 - ✅ 授权二维码过期通知
+- ✅ 消息订阅模板（支持单个公众号和多公众号汇总）
+
+### 消息订阅模板
+
+系统支持通过消息任务定时发送公众号文章汇总，支持自定义消息模板。
+
+#### 模板类型
+
+**1. 单个公众号模板**
+
+适用于单个公众号的消息推送，模板变量：
+- `{{feed.mp_name}}` - 公众号名称
+- `{{articles}}` - 文章列表
+- `{{article.title}}` - 文章标题
+- `{{article.url}}` - 文章链接
+- `{{article.publish_time}}` - 发布时间
+- `{{article.description}}` - 文章描述
+- `{{article.pic_url}}` - 封面图URL
+
+**示例模板：**
+```jinja2
+### {{feed.mp_name}} 订阅消息：
+{% if articles %}
+{% for article in articles %}
+- [**{{ article.title }}**]({{article.url}}) ({{ article.publish_time }})
+{% endfor %}
+{% else %}
+- 暂无文章
+{% endif %}
+```
+
+**2. 多个公众号汇总模板（推荐）**
+
+适用于汇总多个公众号的文章，模板变量：
+- `{{feeds_with_articles}}` - 公众号及文章列表（数组）
+- `{{item.feed.mp_name}}` - 公众号名称
+- `{{item.articles}}` - 该公众号的文章列表
+- `{{total_articles}}` - 总文章数
+- `{{feeds_count}}` - 公众号数量
+- `{{task.name}}` - 任务名称
+- `{{now}}` - 当前时间
+
+**默认汇总模板：**
+```jinja2
+# 每日订阅汇总
+
+{% for item in feeds_with_articles %}
+## {{ item.feed.mp_name }}
+
+{% for article in item.articles %}
+- [**{{ article.title }}**]({{ article.url }}){% if article.publish_time %} ({{ article.publish_time }}){% endif %}
+{% endfor %}
+
+{% endfor %}
+
+---
+共 {{ total_articles }} 篇文章，来自 {{ feeds_count }} 个公众号
+```
+
+**自定义汇总模板示例：**
+```jinja2
+# 每日订阅汇总
+
+{% for item in feeds_with_articles %}
+### {{ item.feed.mp_name }} 订阅消息：
+
+{% for article in item.articles %}
+- [**{{ article.title }}**]({{ article.url }}) ({{ article.publish_time }})
+{% endfor %}
+
+{% endfor %}
+
+---
+共 {{ total_articles }} 篇文章，来自 {{ feeds_count }} 个公众号
+```
+
+#### 模板语法
+
+系统使用 Jinja2 风格的模板语法，支持：
+- **变量输出**：`{{ variable }}`
+- **条件判断**：`{% if condition %}...{% endif %}`
+- **循环遍历**：`{% for item in items %}...{% endfor %}`
+- **点号访问**：`{{ item.feed.mp_name }}`（访问嵌套属性）
+
+#### 模板选择逻辑
+
+- 如果自定义模板中包含 `feeds_with_articles` 变量，系统会使用自定义模板进行汇总
+- 如果自定义模板不包含 `feeds_with_articles`，系统会使用默认的汇总模板
+- 单个公众号模板仅适用于单个公众号的消息推送场景
+
+#### 支持的通知平台
+
+消息模板支持以下通知平台：
+- ✅ **飞书**：支持富文本（post）和文本格式，自动降级
+- ✅ **钉钉**：支持 Markdown 格式
+- ✅ **企业微信**：支持 Markdown 格式
+- ✅ **自定义 Webhook**：支持 JSON 格式
+
+#### 使用建议
+
+1. **多公众号汇总**：使用包含 `feeds_with_articles` 的模板，可以一次性汇总所有公众号的文章
+2. **单个公众号**：使用单个公众号模板，适合针对特定公众号的推送
+3. **模板测试**：在消息任务中可以使用"测试"功能预览模板渲染结果
+4. **Markdown 格式**：模板支持 Markdown 语法，可以美化消息格式
 
 ### 其他功能
 - ✅ 用户认证和权限管理

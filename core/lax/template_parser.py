@@ -96,7 +96,38 @@ class TemplateParser:
                         safe_globals = self._get_safe_globals()
                         eval_globals = {**safe_globals, **self.custom_functions}
                         
-                        result = eval(expr, eval_globals, context)
+                        # Add helper function for safe dict access in eval expressions
+                        # This allows accessing dict attributes using dot notation
+                        def safe_get(obj, key, default=None):
+                            if isinstance(obj, dict):
+                                return obj.get(key, default)
+                            return getattr(obj, key, default)
+                        eval_globals['safe_get'] = safe_get
+                        
+                        # Create a wrapper that allows dict.attr syntax to work
+                        # by converting dict.attr to dict.get('attr') or dict['attr']
+                        class DictWrapper:
+                            def __init__(self, obj):
+                                self._obj = obj
+                            def __getattr__(self, name):
+                                if isinstance(self._obj, dict):
+                                    return self._obj.get(name, None)
+                                return getattr(self._obj, name, None)
+                        
+                        # Wrap all dict objects in context with DictWrapper
+                        # Also wrap nested dicts in lists
+                        def wrap_value(v):
+                            if isinstance(v, dict):
+                                return DictWrapper(v)
+                            elif isinstance(v, list):
+                                return [wrap_value(item) if isinstance(item, dict) else item for item in v]
+                            return v
+                        
+                        wrapped_context = {}
+                        for k, v in context.items():
+                            wrapped_context[k] = wrap_value(v)
+                        
+                        result = eval(expr, eval_globals, wrapped_context)
                         output.append(str(result))
                     except Exception as e:
                         output.append(f'[Error: {str(e)}]')
@@ -105,9 +136,15 @@ class TemplateParser:
                     # Handle nested attribute access
                     parts = var_expr.split('.')
                     current = context.get(parts[0], {})
+                    # Handle DictWrapper objects
+                    if hasattr(current, '_obj'):
+                        current = current._obj
                     for part_name in parts[1:]:
                         if isinstance(current, dict):
                             current = current.get(part_name, '')
+                        elif hasattr(current, '_obj'):
+                            # Handle DictWrapper
+                            current = current._obj.get(part_name, '') if isinstance(current._obj, dict) else getattr(current, part_name, '')
                         else:
                             current = getattr(current, part_name, '')
                         if current is None:
@@ -179,16 +216,22 @@ class TemplateParser:
                     loop_var, iterable = self._parse_for_block(block)
                     items = self._get_iterable(iterable, context)
                     
-                    # Collect loop content
+                    # Collect loop content (handle nested loops)
                     loop_content = []
                     j = i + 1
                     endfor_idx = j
+                    nested_loop_depth = 1  # Track nested loop depth
                     while j < len(self.compiled):
                         inner_part = self.compiled[j]
-                        if (isinstance(inner_part, str) and 
-                            inner_part.startswith('{% endfor %}')):
-                            endfor_idx = j
-                            break
+                        if isinstance(inner_part, str):
+                            # Check for nested for loops
+                            if inner_part.startswith('{% for ') and ' in ' in inner_part:
+                                nested_loop_depth += 1
+                            elif inner_part.startswith('{% endfor %}'):
+                                nested_loop_depth -= 1
+                                if nested_loop_depth == 0:
+                                    endfor_idx = j
+                                    break
                         loop_content.append(str(inner_part) if inner_part else '')
                         j += 1
                         
@@ -204,9 +247,28 @@ class TemplateParser:
                         if indent_match:
                             indent = indent_match.group(1)
                     
+                    # Define DictWrapper class for wrapping dicts in loops
+                    class DictWrapper:
+                        def __init__(self, obj):
+                            self._obj = obj
+                        def __getattr__(self, name):
+                            if isinstance(self._obj, dict):
+                                value = self._obj.get(name, None)
+                                # Recursively wrap nested dicts
+                                if isinstance(value, dict):
+                                    return DictWrapper(value)
+                                elif isinstance(value, list):
+                                    return [DictWrapper(item) if isinstance(item, dict) else item for item in value]
+                                return value
+                            return getattr(self._obj, name, None)
+                    
                     for item_idx, item in enumerate(items):
                         loop_context = context.copy()
-                        loop_context[loop_var] = item
+                        # Wrap dict items with DictWrapper to support dot notation
+                        if isinstance(item, dict):
+                            loop_context[loop_var] = DictWrapper(item)
+                        else:
+                            loop_context[loop_var] = item
                         
                         # Add loop variable with iteration info
                         loop_context['loop'] = {
@@ -219,93 +281,8 @@ class TemplateParser:
                         }
                         
                         # Render loop content with current item
-                        item_output = []
-                        j = 0
-                        while j < len(loop_content):
-                            part = loop_content[j]
-                            if part is None:
-                                j += 1
-                                continue
-                            
-                            # Handle if conditions inside for loop
-                            if (isinstance(part, str) and 
-                                part.startswith('{% if ') and 
-                                part.endswith('%}')):
-                                condition = part[6:-2].strip()
-                                result, _ = self._evaluate_condition(condition, loop_context)
-                                
-                                # Find matching endif
-                                endif_idx = j + 1
-                                nested_depth = 1
-                                while endif_idx < len(loop_content):
-                                    inner_part = loop_content[endif_idx]
-                                    if (isinstance(inner_part, str) and 
-                                        inner_part.startswith('{% if ') and 
-                                        inner_part.endswith('%}')):
-                                        nested_depth += 1
-                                    elif (isinstance(inner_part, str) and 
-                                          inner_part.startswith('{% endif %}')):
-                                        nested_depth -= 1
-                                        if nested_depth == 0:
-                                            break
-                                    endif_idx += 1
-                                
-                                # Process if block if condition is true
-                                if result:
-                                    if_content = loop_content[j+1:endif_idx]
-                                    rendered = self._render_parts(if_content, loop_context)
-                                    item_output.append(rendered)
-                                
-                                # Skip to after endif
-                                j = endif_idx + 1
-                            
-                            # Handle variable references
-                            elif isinstance(part, str) and part.startswith('{{') and part.endswith('}}'):
-                                var_expr = part[2:-2].strip()
-                                # print(f"DEBUG - Evaluating variable: {var_expr}")  # Debug
-                            
-                                if var_expr.startswith('='):
-                                    # Handle eval expressions
-                                    try:
-                                        expr = var_expr[1:]
-                                        if not self._is_safe_expression(expr):
-                                            raise ValueError("Potentially dangerous expression detected")
-                                        
-                                        safe_globals = self._get_safe_globals()
-                                        eval_globals = {**safe_globals, **self.custom_functions}
-                                    
-                                        result = eval(expr, eval_globals, loop_context)
-                                        value = str(result)
-                                    except Exception as e:
-                                        value = f'[Error: {str(e)}]'
-                                elif '.' in var_expr:
-                                    # Handle nested attributes
-                                    parts = var_expr.split('.')
-                                    current = loop_context.get(parts[0], {})
-                                    for part_name in parts[1:]:
-                                        if isinstance(current, dict):
-                                            current = current.get(part_name, '')
-                                        else:
-                                            current = getattr(current, part_name, '')
-                                        if current is None:
-                                            current = ''
-                                            break
-                                    value = str(current)
-                                else:
-                                    # Handle simple variable
-                                    value = str(loop_context.get(var_expr, ''))
-                            
-                                # print(f"DEBUG - Variable value: {value}")  # Debug
-                                item_output.append(value)
-                                j += 1
-                            
-                            else:
-                                # Handle literal text (preserve whitespace and newlines)
-                                item_output.append(str(part))
-                                j += 1
-                        
-                        rendered_item = ''.join(item_output)
-                        # print(f"DEBUG - Rendered item {item_idx}:\n{repr(rendered_item)}")  # Debug
+                        # Use _render_parts to handle nested loops and conditions recursively
+                        rendered_item = self._render_parts(loop_content, loop_context)
                         loop_output.append(rendered_item)
                     
                     if loop_output:
@@ -435,16 +412,41 @@ class TemplateParser:
             
             # Handle function calls with = prefix
             if condition.startswith('='):
-                result = bool(eval(condition[1:], eval_globals, local_vars))
+                # For eval expressions, we need to handle dictionary access specially
+                # Replace dict.attr with dict.get('attr') for safer access
+                expr = condition[1:]
+                # Create a helper function for safe dict access
+                def safe_get(obj, key, default=None):
+                    if isinstance(obj, dict):
+                        return obj.get(key, default)
+                    return getattr(obj, key, default)
+                
+                # Add safe_get to eval globals
+                eval_globals['safe_get'] = safe_get
+                result = bool(eval(expr, eval_globals, local_vars))
                 return result, local_vars
             
-            # Handle nested attribute access (e.g. user.is_admin)
+            # Handle nested attribute access (e.g. user.is_admin or article.tag_names)
             if '.' in condition:
                 parts = condition.split('.')
-                current = local_vars.get(parts[0], {})
+                # Get the first part from local_vars or context
+                var_name = parts[0]
+                if var_name in local_vars:
+                    current = local_vars[var_name]
+                else:
+                    # Try to get from context (for loop variables)
+                    current = context.get(var_name, {})
+                
+                # Handle DictWrapper objects
+                if hasattr(current, '_obj'):
+                    current = current._obj
+                
                 for part in parts[1:]:
                     if isinstance(current, dict):
                         current = current.get(part, None)
+                    elif hasattr(current, '_obj'):
+                        # Handle DictWrapper
+                        current = current._obj.get(part, None) if isinstance(current._obj, dict) else getattr(current, part, None)
                     else:
                         current = getattr(current, part, None)
                     if current is None:
@@ -532,9 +534,25 @@ class TemplateParser:
             if not self._is_safe_expression(iterable):
                 raise ValueError("Potentially dangerous expression detected")
             
+            # Handle nested attribute access (e.g. item.articles)
+            if '.' in iterable:
+                parts = iterable.split('.')
+                current = context.get(parts[0], {})
+                for part_name in parts[1:]:
+                    if isinstance(current, dict):
+                        current = current.get(part_name, None)
+                    else:
+                        current = getattr(current, part_name, None)
+                    if current is None:
+                        return []
+                return current if isinstance(current, (list, tuple)) else []
+            
             safe_globals = self._get_safe_globals()
             return eval(iterable, safe_globals, context)
-        except Exception:
+        except Exception as e:
+            # Debug: print error for nested access
+            if '.' in iterable:
+                print(f"DEBUG - Failed to get iterable '{iterable}': {e}")
             return []
             
     def _render_parts(self, parts: List[Union[str, None]], context: Dict[str, Any]) -> str:

@@ -12,8 +12,32 @@ from core.log import logger
 class MpsWeb(WxGather):
 
     # 重写 content_extract 方法
-    def content_extract(self,  url):
+    def content_extract(self, url, mp_id=None):
         try:
+            # 如果提供了 mp_id，先检查文章是否已存在，避免重复上传图片
+            article_exists = False
+            if mp_id:
+                try:
+                    from core.models import Article
+                    import core.db as db
+                    article_id = self._extract_article_id_from_url(url) or "unknown"
+                    if article_id != "unknown":
+                        full_article_id = f"{str(mp_id)}-{article_id}".replace("MP_WXS_", "")
+                        DB = db.Db(tag="文章检查")
+                        db_session = DB.get_session()
+                        existing_article = db_session.query(Article).filter(Article.id == full_article_id).first()
+                        if existing_article is not None:
+                            article_exists = True
+                            # 如果文章已存在且有完整内容，直接返回已存在的内容（避免重复处理）
+                            if existing_article.content and len(existing_article.content.strip()) > 0:
+                                logger.info(f"文章已存在且有完整内容，跳过内容提取和图片上传: {full_article_id}")
+                                return existing_article.content
+                            else:
+                                logger.info(f"文章已存在但内容不完整，继续提取内容但跳过图片上传: {full_article_id}")
+                except Exception as e:
+                    logger.warning(f"检查文章是否存在时出错: {e}")
+                    # 检查失败时继续处理，避免影响正常流程
+            
             from driver.wxarticle import Web as App
             r = App.get_article_content(url)
             if r!=None:
@@ -45,6 +69,7 @@ class MpsWeb(WxGather):
                 except Exception as e:
                     logger.warning(f"MinIO客户端初始化失败: {e}")
                 
+                # 只有在文章不存在时才上传图片
                 # 遍历每个img标签并处理图片
                 uploaded_count = 0
                 for img_tag in img_tags:
@@ -53,23 +78,30 @@ class MpsWeb(WxGather):
                     if not img_url:
                         continue
                     
-                    # 如果MinIO可用，尝试上传图片
-                    minio_url = None
-                    if minio_client and minio_client.is_available():
-                        minio_url = minio_client.upload_image(img_url, article_id)
-                    
-                    if minio_url:
-                        # 替换为MinIO URL
-                        img_tag['src'] = minio_url  # type: ignore
-                        if hasattr(img_tag, 'attrs') and 'data-src' in img_tag.attrs:
-                            del img_tag['data-src']  # type: ignore
-                        logger.info(f"图片已上传到MinIO: {img_url} -> {minio_url}")
-                        uploaded_count += 1
-                    else:
+                    # 如果文章已存在，跳过图片上传，只处理src属性
+                    if article_exists:
                         # 如果上传失败，至少确保src可用
                         if hasattr(img_tag, 'attrs') and 'data-src' in img_tag.attrs:
                             img_tag['src'] = img_tag['data-src']  # type: ignore
                             del img_tag['data-src']  # type: ignore
+                    else:
+                        # 如果MinIO可用，尝试上传图片
+                        minio_url = None
+                        if minio_client and minio_client.is_available():
+                            minio_url = minio_client.upload_image(img_url, article_id)
+                        
+                        if minio_url:
+                            # 替换为MinIO URL
+                            img_tag['src'] = minio_url  # type: ignore
+                            if hasattr(img_tag, 'attrs') and 'data-src' in img_tag.attrs:
+                                del img_tag['data-src']  # type: ignore
+                            logger.info(f"图片已上传到MinIO: {img_url} -> {minio_url}")
+                            uploaded_count += 1
+                        else:
+                            # 如果上传失败，至少确保src可用
+                            if hasattr(img_tag, 'attrs') and 'data-src' in img_tag.attrs:
+                                img_tag['src'] = img_tag['data-src']  # type: ignore
+                                del img_tag['data-src']  # type: ignore
                     
                     # 处理样式
                     if hasattr(img_tag, 'attrs') and 'style' in img_tag.attrs:
@@ -191,7 +223,30 @@ class MpsWeb(WxGather):
                                             logger.warning(f"解析文章发布时间失败: {e}")
                                     if Gather_Content:
                                         if not super().HasGathered(item["aid"]):
-                                            item["content"] = self.content_extract(item['link'])
+                                            # 先检查文章是否已存在且有完整内容，避免重复处理
+                                            article_id = str(item.get("aid", ""))
+                                            if article_id and Mps_id:
+                                                full_article_id = f"{str(Mps_id)}-{article_id}".replace("MP_WXS_", "")
+                                                try:
+                                                    from core.models import Article
+                                                    import core.db as db
+                                                    DB = db.Db(tag="文章检查")
+                                                    db_session = DB.get_session()
+                                                    existing_article = db_session.query(Article).filter(Article.id == full_article_id).first()
+                                                    if existing_article and existing_article.content and len(existing_article.content.strip()) > 0:
+                                                        # 文章已存在且有完整内容，直接使用，不调用 content_extract
+                                                        item["content"] = existing_article.content
+                                                        print_info(f"文章已存在且有完整内容，跳过内容提取: {full_article_id}")
+                                                    else:
+                                                        # 文章不存在或内容不完整，调用 content_extract（会检查并跳过图片上传）
+                                                        item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
+                                                except Exception as e:
+                                                    logger.warning(f"检查文章是否存在时出错: {e}，继续处理")
+                                                    # 检查失败时继续处理
+                                                    item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
+                                            else:
+                                                # 无法构建完整ID，直接调用 content_extract
+                                                item["content"] = self.content_extract(item['link'], mp_id=Mps_id)
                                     else:
                                         item["content"] = ""
                                     item["id"] = item["aid"]

@@ -107,6 +107,51 @@ def get_existing_articles(mp_id: str, limit: int = 10):
         logger.error(f"获取已有文章失败: {e}")
         return []
 
+def get_article_tags(session, article_ids: list):
+    """
+    批量获取文章的标签信息
+    
+    参数:
+        session: 数据库会话
+        article_ids: 文章ID列表
+        
+    返回:
+        字典，key为article_id，value为标签名称列表
+    """
+    if not article_ids:
+        return {}
+    
+    try:
+        from core.models.article_tags import ArticleTag
+        from core.models.tags import Tags as TagsModel
+        
+        # 批量查询文章标签关联
+        article_tags = session.query(ArticleTag).filter(
+            ArticleTag.article_id.in_(article_ids)
+        ).all()
+        
+        # 获取所有标签ID
+        tag_ids = list(set([at.tag_id for at in article_tags]))
+        
+        # 批量查询标签信息
+        tags_dict = {}
+        if tag_ids:
+            tags = session.query(TagsModel).filter(TagsModel.id.in_(tag_ids)).all()
+            tags_dict = {t.id: t.name for t in tags}
+        
+        # 按文章ID分组标签
+        tags_by_article = {}
+        for at in article_tags:
+            if at.article_id not in tags_by_article:
+                tags_by_article[at.article_id] = []
+            if at.tag_id in tags_dict:
+                tags_by_article[at.article_id].append(tags_dict[at.tag_id])
+        
+        return tags_by_article
+    except Exception as e:
+        logger.error(f"获取文章标签失败: {e}")
+        return {}
+
 def get_today_articles(mp_id: str = None):
     """
     从数据库获取当天的文章
@@ -160,6 +205,14 @@ def do_job(mp=None,task:MessageTask=None,isTest=False):
                 if not existing_articles:
                     print_warning(f"公众号 {mp.mp_name} 没有已有文章，无法发送测试消息")
                     return
+                # 批量获取标签信息
+                session = db.DB.get_session()
+                try:
+                    article_ids = [article.id for article in existing_articles]
+                    tags_by_article = get_article_tags(session, article_ids)
+                finally:
+                    session.close()
+                
                 # 将 Article 对象转换为字典格式，兼容 wx.articles 格式
                 wx.articles = []
                 for article in existing_articles:
@@ -171,8 +224,20 @@ def do_job(mp=None,task:MessageTask=None,isTest=False):
                         'url': article.url,
                         'description': article.description,
                         'publish_time': article.publish_time,
-                        'content': getattr(article, 'content', None)
+                        'content': getattr(article, 'content', None),
+                        'tags': tags_by_article.get(article.id, []),
+                        'tag_names': tags_by_article.get(article.id, [])
                     }
+                    # 格式化发布时间
+                    if article_dict.get('publish_time'):
+                        try:
+                            publish_time = article_dict['publish_time']
+                            if isinstance(publish_time, (int, float)):
+                                from datetime import datetime
+                                dt = datetime.fromtimestamp(publish_time)
+                                article_dict['publish_time'] = dt.strftime("%Y-%m-%d %H:%M:%S")
+                        except Exception as e:
+                            print_warning(f"格式化发布时间失败: {e}")
                     wx.articles.append(article_dict)
                 print_info(f"获取到 {len(wx.articles)} 篇已有文章")
             else:
@@ -181,6 +246,37 @@ def do_job(mp=None,task:MessageTask=None,isTest=False):
                 max_pages = calculate_pages_from_month_start()
                 print_info(f"从月初开始抓取，预计抓取 {max_pages} 页")
                 wx.get_Articles(mp.faker_id,CallBack=UpdateArticle,Mps_id=mp.id,Mps_title=mp.mp_name, MaxPage=max_pages,Over_CallBack=Update_Over,interval=interval)
+                
+                # 抓取完成后，为文章添加标签信息
+                if wx.articles:
+                    # 获取所有文章的ID（如果文章已保存到数据库）
+                    article_ids = []
+                    for article in wx.articles:
+                        if isinstance(article, dict):
+                            article_id = article.get('id', '')
+                            if article_id:
+                                article_ids.append(article_id)
+                    
+                    # 批量查询标签
+                    tags_by_article = {}
+                    if article_ids:
+                        session = db.DB.get_session()
+                        try:
+                            tags_by_article = get_article_tags(session, article_ids)
+                        finally:
+                            session.close()
+                    
+                    # 为文章添加标签信息
+                    for article in wx.articles:
+                        if isinstance(article, dict):
+                            article_id = article.get('id', '')
+                            if article_id:
+                                article['tags'] = tags_by_article.get(article_id, [])
+                                article['tag_names'] = tags_by_article.get(article_id, [])
+                            else:
+                                # 如果文章还没有ID（新抓取的），标签为空
+                                article['tags'] = []
+                                article['tag_names'] = []
         except Exception as e:
             print_error(e)
             # raise
@@ -206,10 +302,15 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
         task: 消息任务
         isTest: 是否为测试模式
     """
+    # 确保使用全局 logger（已在文件顶部导入）
+    global logger
+    
     if isTest:
-        print("执行测试任务（汇总所有公众号，使用已有文章）")
+        print("【任务执行】执行测试任务（汇总所有公众号，使用已有文章）", flush=True)
+        print_info("【任务执行】执行测试任务（汇总所有公众号，使用已有文章）")
     else:
-        print("执行任务（汇总所有公众号）")
+        print("【任务执行】执行任务（汇总所有公众号）", flush=True)
+        print_info("【任务执行】执行任务（汇总所有公众号）")
     
     all_articles_by_feed = []  # 按公众号分组的文章列表
     
@@ -217,10 +318,18 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
     for feed in feeds:
         try:
             if isTest:
-                # 测试模式：从数据库获取已有文章（最近10篇）
-                print_info(f"测试模式：从数据库获取 {feed.mp_name} 的已有文章")
-                existing_articles = get_existing_articles(feed.id, limit=10)
+                # 测试模式：从数据库获取当天的文章
+                print_info(f"测试模式：从数据库获取 {feed.mp_name} 的当天文章")
+                existing_articles = get_today_articles(feed.id)
                 if existing_articles:
+                    # 批量获取标签信息
+                    session = db.DB.get_session()
+                    try:
+                        article_ids = [article.id for article in existing_articles]
+                        tags_by_article = get_article_tags(session, article_ids)
+                    finally:
+                        session.close()
+                    
                     # 转换为字典格式，并格式化发布时间
                     articles_list = []
                     for article in existing_articles:
@@ -232,7 +341,9 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
                             'url': article.url or '',
                             'description': article.description or '',
                             'publish_time': article.publish_time,
-                            'content': getattr(article, 'content', None)
+                            'content': getattr(article, 'content', None),
+                            'tags': tags_by_article.get(article.id, []),
+                            'tag_names': tags_by_article.get(article.id, [])
                         }
                         # 格式化发布时间（如果是时间戳）
                         if article_dict.get('publish_time'):
@@ -267,6 +378,28 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
                     # 统一转换为字典格式，并格式化发布时间
                     articles_list = []
                     print_info(f"开始处理 {feed.mp_name} 的 {len(wx.articles)} 篇文章")
+                    
+                    # 批量获取标签信息（如果文章有ID）
+                    article_ids = []
+                    for idx, article in enumerate(wx.articles):
+                        if isinstance(article, dict):
+                            article_id = str(article.get('id', '')) if article.get('id') is not None else ''
+                            if article_id:
+                                article_ids.append(article_id)
+                        else:
+                            article_id = str(getattr(article, 'id', '')) if getattr(article, 'id', None) else ''
+                            if article_id:
+                                article_ids.append(article_id)
+                    
+                    # 批量查询标签
+                    tags_by_article = {}
+                    if article_ids:
+                        session = db.DB.get_session()
+                        try:
+                            tags_by_article = get_article_tags(session, article_ids)
+                        finally:
+                            session.close()
+                    
                     for idx, article in enumerate(wx.articles):
                         # 调试：打印原始文章数据结构
                         if idx < 2:  # 只打印前2篇
@@ -282,17 +415,20 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
                             # 直接获取字段值，不进行额外的转换
                             title = article.get('title', '')
                             url = article.get('url', '') or article.get('link', '')
+                            article_id = str(article.get('id', '')) if article.get('id') is not None else ''
                             
                             # 确保字段是字符串类型，且不为 None
                             article_dict = {
-                                'id': str(article.get('id', '')) if article.get('id') is not None else '',
+                                'id': article_id,
                                 'mp_id': str(article.get('mp_id', '')) if article.get('mp_id') is not None else '',
                                 'title': str(title) if title is not None else '',
                                 'pic_url': str(article.get('pic_url', '')) if article.get('pic_url') is not None else '',
                                 'url': str(url) if url is not None else '',
                                 'description': str(article.get('description', '')) if article.get('description') is not None else '',
                                 'publish_time': article.get('publish_time', ''),
-                                'content': article.get('content', None)
+                                'content': article.get('content', None),
+                                'tags': tags_by_article.get(article_id, []),
+                                'tag_names': tags_by_article.get(article_id, [])
                             }
                             
                             # 如果 title 或 url 为空，打印警告和完整字典内容
@@ -304,15 +440,18 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
                             if idx < 2:
                                 print_info(f"    转换后: title='{article_dict['title'][:50] if article_dict['title'] else '(空)'}', url='{article_dict['url'][:50] if article_dict['url'] else '(空)'}'")
                         else:
+                            article_id = str(getattr(article, 'id', '')) if getattr(article, 'id', None) else ''
                             article_dict = {
-                                'id': str(getattr(article, 'id', '')) if getattr(article, 'id', None) else '',
+                                'id': article_id,
                                 'mp_id': str(getattr(article, 'mp_id', '')) if getattr(article, 'mp_id', None) else '',
                                 'title': str(getattr(article, 'title', '')) if getattr(article, 'title', None) else '',
                                 'pic_url': str(getattr(article, 'pic_url', '')) if getattr(article, 'pic_url', None) else '',
                                 'url': str(getattr(article, 'url', '') or getattr(article, 'link', '')) if (getattr(article, 'url', None) or getattr(article, 'link', None)) else '',
                                 'description': str(getattr(article, 'description', '')) if getattr(article, 'description', None) else '',
                                 'publish_time': getattr(article, 'publish_time', ''),
-                                'content': getattr(article, 'content', None)
+                                'content': getattr(article, 'content', None),
+                                'tags': tags_by_article.get(article_id, []),
+                                'tag_names': tags_by_article.get(article_id, [])
                             }
                         
                         # 格式化发布时间（如果是时间戳）
@@ -334,11 +473,15 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
                         
                         articles_list.append(article_dict)
                     
-                    all_articles_by_feed.append({
-                        'feed': feed,
-                        'articles': articles_list
-                    })
-                    print_info(f"抓取到 {feed.mp_name} 的 {len(articles_list)} 篇新文章")
+                    # 只有当有文章时才添加到列表
+                    if articles_list:
+                        all_articles_by_feed.append({
+                            'feed': feed,
+                            'articles': articles_list
+                        })
+                        print_info(f"抓取到 {feed.mp_name} 的 {len(articles_list)} 篇新文章")
+                    else:
+                        print_warning(f"{feed.mp_name} 没有抓取到文章，跳过")
         except Exception as e:
             print_error(f"处理公众号 {feed.mp_name} 时出错: {e}")
             continue
@@ -360,31 +503,21 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
     from core.notice import notice
     
     # 使用汇总模板
-    # 注意：Jinja2 中访问字典字段可以使用点号或方括号
-    # 为了确保正确访问，直接使用点号访问（Jinja2 会自动处理字典）
-    default_template = """# 每日订阅汇总
+    # 注意：TemplateParser 支持点号访问字典，直接遍历列表即可（空列表不会执行循环）
+    # 确保所有字段都有默认值，避免显示为空
+    default_template = """{{ today }} 每日科技聚合资讯
 
 {% for item in feeds_with_articles %}
 ## {{ item.feed.mp_name }}
 
-{% if item.articles and item.articles|length > 0 %}
 {% for article in item.articles %}
-{% if article.title and article.url %}
-- [**{{ article.title }}**]({{ article.url }}) ({{ article.publish_time|default('未知时间') }})
-{% elif article.get and article.get('title') and article.get('url') %}
-- [**{{ article.get('title') }}**]({{ article.get('url') }}) ({{ article.get('publish_time', '未知时间') }})
-{% else %}
-- 文章数据不完整：title={{ article.title|default('空') }}, url={{ article.url|default('空') }}
-{% endif %}
+- [**{{ article.title }}**]({{ article.url }}){% if article.tag_names %} 🏷️ {{= ', '.join(article.tag_names) if isinstance(article.tag_names, list) else str(article.tag_names) }}{% endif %}
 {% endfor %}
-{% else %}
-- 暂无文章
-{% endif %}
 
 {% endfor %}
 
 ---
-共 {{ total_articles }} 篇文章，来自 {{ feeds_count }} 个公众号
+📊 共 {{ total_articles }} 篇文章，来自 {{ feeds_count }} 个公众号
 """
     
     # 如果用户自定义了模板，检查是否支持汇总格式
@@ -396,38 +529,137 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
         template = default_template
     
     parser = TemplateParser(template)
+    # 确保数据格式正确：将字典列表转换为模板可以访问的格式
+    # TemplateParser 支持点号访问，所以 item.articles 应该可以工作
+    # 但为了确保兼容性，我们同时提供两种格式
+    # 获取今天的日期
+    today_date = datetime.now().strftime("%Y-%m-%d")
+    
     data = {
         "feeds_with_articles": all_articles_by_feed,
         "total_articles": total_articles,
         "feeds_count": len(all_articles_by_feed),
         "task": task,
-        'now': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        'now': today_date,
+        'today': today_date
     }
     
+    # 调试：打印传递给模板的数据结构
+    debug_data = "=" * 80 + "\n"
+    debug_data += "【传递给模板的数据结构】\n"
+    debug_data += "=" * 80 + "\n"
+    debug_data += f"feeds_with_articles 类型: {type(data['feeds_with_articles'])}\n"
+    debug_data += f"feeds_with_articles 长度: {len(data['feeds_with_articles'])}\n"
+    if len(data['feeds_with_articles']) > 0:
+        first_item = data['feeds_with_articles'][0]
+        debug_data += f"第一个 item 类型: {type(first_item)}\n"
+        debug_data += f"第一个 item 键: {list(first_item.keys()) if isinstance(first_item, dict) else '不是字典'}\n"
+        if isinstance(first_item, dict) and 'articles' in first_item:
+            debug_data += f"第一个 item['articles'] 类型: {type(first_item['articles'])}\n"
+            debug_data += f"第一个 item['articles'] 长度: {len(first_item['articles'])}\n"
+            if len(first_item['articles']) > 0:
+                first_article = first_item['articles'][0]
+                debug_data += f"第一篇文章类型: {type(first_article)}\n"
+                debug_data += f"第一篇文章内容: {first_article}\n"
+    debug_data += "=" * 80 + "\n"
+    print(debug_data, flush=True)
+    # logger 已在文件顶部导入
+    logger.info(debug_data)
+    
     try:
-        # 调试：打印数据结构
-        print_info(f"准备渲染模板，共 {len(all_articles_by_feed)} 个公众号")
+        # 调试：打印数据结构（详细输出，确保能看到所有信息）
+        import sys
+        # logger 已在文件顶部导入
+        
+        debug_output = "=" * 80 + "\n"
+        debug_output += "【模板渲染前的数据结构检查】\n"
+        debug_output += "=" * 80 + "\n"
+        debug_output += f"准备渲染模板，共 {len(all_articles_by_feed)} 个公众号\n"
+        
         for idx, item in enumerate(all_articles_by_feed):
             feed_name = item['feed'].mp_name if hasattr(item['feed'], 'mp_name') else '未知'
             articles_count = len(item['articles'])
-            print_info(f"  公众号 {idx+1}: {feed_name}, 文章数: {articles_count}")
+            debug_output += f"\n公众号 {idx+1}: {feed_name}\n"
+            debug_output += f"  文章数: {articles_count}\n"
+            debug_output += f"  item类型: {type(item)}\n"
+            debug_output += f"  item['articles']类型: {type(item['articles'])}\n"
+            
             if articles_count > 0:
+                debug_output += f"  前 {min(3, articles_count)} 篇文章详情:\n"
                 # 打印前3篇文章的详细数据
                 for i, article in enumerate(item['articles'][:3]):
                     if isinstance(article, dict):
                         title = article.get('title', '')
                         url = article.get('url', '')
                         publish_time = article.get('publish_time', '')
-                        print_info(f"    文章 {i+1}: title='{title[:50] if title else '(空)'}', url='{url[:50] if url else '(空)'}', publish_time='{publish_time}'")
-                        print_info(f"      字段检查: title类型={type(title)}, title值={repr(title)}, url类型={type(url)}, url值={repr(url)}")
+                        tag_names = article.get('tag_names', [])
+                        tags = article.get('tags', [])
+                        debug_output += f"    文章 {i+1}:\n"
+                        debug_output += f"      title='{title[:50] if title else '(空)'}'\n"
+                        debug_output += f"      url='{url[:50] if url else '(空)'}'\n"
+                        debug_output += f"      publish_time='{publish_time}'\n"
+                        debug_output += f"      tag_names={tag_names} (类型: {type(tag_names)})\n"
+                        debug_output += f"      tags={tags} (类型: {type(tags)})\n"
+                        debug_output += f"      title类型={type(title)}, title值={repr(title)}\n"
+                        debug_output += f"      url类型={type(url)}, url值={repr(url)}\n"
+                        debug_output += f"      完整文章字典: {article}\n"
                     else:
-                        print_info(f"    文章 {i+1}: 不是字典格式，类型={type(article)}")
+                        debug_output += f"    文章 {i+1}: 不是字典格式，类型={type(article)}\n"
+            else:
+                debug_output += f"  ⚠️ 公众号 {feed_name} 没有文章！\n"
+        
+        debug_output += "=" * 80 + "\n"
+        
+        # 输出调试信息
+        print(debug_output, flush=True)
+        logger.info(debug_output)
+        print_info(debug_output)
         
         message = parser.render(data)
-        # 打印渲染后的消息前1000个字符，用于调试
-        print_info(f"渲染后的消息预览（前1000字符）:\n{message[:1000]}")
-        notice(task.web_hook_url, task.name, message)
-        print_success(f"任务({task.id})执行成功,汇总了{len(all_articles_by_feed)}个公众号,共{total_articles}篇文章")
+        # 打印完整的渲染后消息，用于调试（使用多种方式确保输出可见）
+        # logger 已在文件顶部导入
+        
+        output = "=" * 80 + "\n"
+        output += "【完整渲染后的消息内容】\n"
+        output += "=" * 80 + "\n"
+        output += message + "\n"
+        output += "=" * 80 + "\n"
+        output += f"消息总长度: {len(message)} 字符\n"
+        
+        # 使用 print 输出到标准输出
+        print(output, flush=True)
+        # 使用 logger 输出到日志
+        logger.info(output)
+        # 使用 print_info 输出（带颜色）
+        print_info("=" * 80)
+        print_info("【完整渲染后的消息内容】")
+        print_info("=" * 80)
+        print_info(message)
+        print_info("=" * 80)
+        print_info(f"消息总长度: {len(message)} 字符")
+        
+        # 检查 webhook_url 是否为空
+        if not task.web_hook_url:
+            print_error(f"任务({task.id})的 web_hook_url 为空，无法发送消息")
+            print_error(f"任务名称: {task.name}")
+            print_error(f"任务ID: {task.id}")
+            return
+        
+        print_info(f"准备发送消息到: {task.web_hook_url[:50]}...")
+        print_info(f"任务名称: {task.name}")
+        print_info(f"消息内容长度: {len(message)} 字符")
+        
+        try:
+            result = notice(task.web_hook_url, task.name, message)
+            if result:
+                print_success(f"任务({task.id})执行成功,汇总了{len(all_articles_by_feed)}个公众号,共{total_articles}篇文章，消息已发送")
+            else:
+                print_error(f"任务({task.id})执行完成，但消息发送失败")
+        except Exception as e:
+            print_error(f"发送消息时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            print_success(f"任务({task.id})执行成功,汇总了{len(all_articles_by_feed)}个公众号,共{total_articles}篇文章，但消息发送失败")
     except Exception as e:
         print_error(f"发送汇总消息失败: {e}")
         import traceback
@@ -437,19 +669,33 @@ def add_job(feeds:list[Feed]=None,task:MessageTask=None,isTest=False):
     if isTest:
         TaskQueue.clear_queue()
     
-    # 始终使用汇总逻辑，无论有多少个公众号
-    # 这样可以统一消息格式，并且支持富文本消息
     if not feeds or len(feeds) == 0:
         print_warning("没有公众号可处理")
         return
     
-    # 使用汇总逻辑处理所有公众号
-    TaskQueue.add_task(do_job_all_feeds, feeds, task, isTest)
-    if isTest:
-        print(f"测试任务，汇总{len(feeds)}个公众号，加入队列成功")
-        reload_job()
+    # 检查用户模板是否支持聚合格式
+    user_template = task.message_template if task.message_template else None
+    has_aggregate_template = user_template and 'feeds_with_articles' in user_template
+    
+    # 如果只有一个公众号，且用户模板不包含 feeds_with_articles，使用单个公众号逻辑
+    if len(feeds) == 1 and not has_aggregate_template:
+        # 单个公众号，使用单个公众号模板
+        print_info(f"单个公众号模式：{feeds[0].mp_name}")
+        TaskQueue.add_task(do_job, feeds[0], task, isTest)
+        if isTest:
+            print(f"测试任务，单个公众号，加入队列成功")
+            reload_job()
+        else:
+            print(f"单个公众号任务，加入队列成功")
     else:
-        print(f"汇总任务，{len(feeds)}个公众号，加入队列成功")
+        # 多个公众号，或者用户模板包含 feeds_with_articles，使用聚合逻辑
+        print_info(f"聚合模式：{len(feeds)}个公众号")
+        TaskQueue.add_task(do_job_all_feeds, feeds, task, isTest)
+        if isTest:
+            print(f"测试任务，汇总{len(feeds)}个公众号，加入队列成功")
+            reload_job()
+        else:
+            print(f"汇总任务，{len(feeds)}个公众号，加入队列成功")
     
     print_success(TaskQueue.get_queue_info())
     pass

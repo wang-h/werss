@@ -124,10 +124,11 @@ class WxGather:
     def content_extract(self,  url):
         text=""
         try:
-            session=self.session
+            # 确保使用 requests.Session，而不是 SQLAlchemy Session
+            requests_session = self.session
             # 更新请求头
             headers = self.fix_header(url)
-            r = session.get(url, headers=headers)
+            r = requests_session.get(url, headers=headers)
             if r.status_code == 200:
                 text = r.text
                 text=self.remove_common_html_elements(text)

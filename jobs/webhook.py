@@ -180,25 +180,44 @@ def web_hook(hook:MessageWebHook):
             return 
         for article in hook.articles:
             if isinstance(article, dict):
-                # 如果是字典类型，直接使用
-                processed_article = {
-                    field.name: (
-                        datetime.fromtimestamp(article[field.name]).strftime("%Y-%m-%d %H:%M:%S")
-                        if field.name == "publish_time" and field.name in article
-                        else article.get(field.name, "")
-                    )
-                    for field in Article.__table__.columns
-                }
+                # 如果是字典类型，直接使用，保留所有字段包括 tags 和 tag_names
+                processed_article = {}
+                # 先处理 Article 表的字段
+                for field in Article.__table__.columns:
+                    if field.name == "publish_time" and field.name in article:
+                        try:
+                            publish_time = article[field.name]
+                            if isinstance(publish_time, (int, float)):
+                                processed_article[field.name] = datetime.fromtimestamp(publish_time).strftime("%Y-%m-%d %H:%M:%S")
+                            else:
+                                processed_article[field.name] = article.get(field.name, "")
+                        except:
+                            processed_article[field.name] = article.get(field.name, "")
+                    else:
+                        processed_article[field.name] = article.get(field.name, "")
+                # 保留额外的字段（如 tags, tag_names）
+                for key in ['tags', 'tag_names']:
+                    if key in article:
+                        processed_article[key] = article[key]
             else:
                 # 如果是Article对象，使用getattr获取属性
-                processed_article = {
-                    field.name: (
-                        datetime.fromtimestamp(getattr(article, field.name)).strftime("%Y-%m-%d %H:%M:%S")
-                        if field.name == "publish_time"
-                        else getattr(article, field.name)
-                    )
-                    for field in Article.__table__.columns
-                }
+                processed_article = {}
+                for field in Article.__table__.columns:
+                    if field.name == "publish_time":
+                        try:
+                            publish_time = getattr(article, field.name, None)
+                            if publish_time:
+                                processed_article[field.name] = datetime.fromtimestamp(publish_time).strftime("%Y-%m-%d %H:%M:%S")
+                            else:
+                                processed_article[field.name] = ""
+                        except:
+                            processed_article[field.name] = ""
+                    else:
+                        processed_article[field.name] = getattr(article, field.name, "")
+                # 尝试获取额外的字段（如 tags, tag_names）
+                for key in ['tags', 'tag_names']:
+                    if hasattr(article, key):
+                        processed_article[key] = getattr(article, key, [])
             processed_articles.append(processed_article)
         
         hook.articles = processed_articles

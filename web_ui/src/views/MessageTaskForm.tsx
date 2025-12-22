@@ -205,14 +205,26 @@ const MessageTaskForm: React.FC = () => {
                       language="custom"
                     />
                     {messageType === 0 ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="mt-2"
-                        onClick={() => form.setValue('message_template', '### {{feed.mp_name}} 订阅消息：\n{% if articles %}\n{% for article in articles %}\n- [**{{ article.title }}**]({{article.url}}) ({{ article.publish_time }})\n{% endfor %}\n{% else %}\n- 暂无文章\n{% endif %}')}
-                      >
-                        使用示例消息模板
-                      </Button>
+                      <div className="mt-2 flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const mpsId = form.watch('mps_id') || []
+                            const isMultiple = mpsId.length > 1
+                            
+                            if (isMultiple) {
+                              // 多个公众号：使用聚合模板
+                              form.setValue('message_template', '{{ today }} 每日科技聚合资讯\n\n{% for item in feeds_with_articles %}\n## {{ item.feed.mp_name }}\n\n{% for article in item.articles %}\n- [**{{ article.title }}**]({{ article.url }}){% if article.tag_names %} 🏷️ {{= \', \'.join(article.tag_names) if isinstance(article.tag_names, list) else str(article.tag_names) }}{% endif %}\n{% endfor %}\n\n{% endfor %}\n\n---\n📊 共 {{ total_articles }} 篇文章，来自 {{ feeds_count }} 个公众号')
+                            } else {
+                              // 单个公众号：使用单个公众号模板
+                              form.setValue('message_template', '### {{feed.mp_name}} 订阅消息：\n{% if articles %}\n{% for article in articles %}\n- [**{{ article.title }}**]({{article.url}}){% if article.tag_names %} 🏷️ {{= \', \'.join(article.tag_names) if isinstance(article.tag_names, list) else str(article.tag_names) }}{% endif %}\n{% endfor %}\n{% else %}\n- 暂无文章\n{% endif %}')
+                            }
+                          }}
+                        >
+                          使用示例消息模板
+                        </Button>
+                      </div>
                     ) : (
                       <Button
                         type="button"

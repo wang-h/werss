@@ -49,12 +49,16 @@ class TaskQueueManager:
                     try:
                         # 记录任务开始时间
                         start_time = time.time()
+                        print_info(f"\n【队列任务】开始执行任务: {task.__name__ if hasattr(task, '__name__') else str(task)}")
+                        print_info(f"【队列任务】任务参数数量: {len(args)} 个位置参数, {len(kwargs)} 个关键字参数")
                         task(*args, **kwargs)
                         # 记录任务执行时间
                         duration = time.time() - start_time
-                        print_info(f"\n任务执行完成，耗时: {duration:.2f}秒")
+                        print_info(f"\n【队列任务】任务执行完成，耗时: {duration:.2f}秒")
                     except Exception as e:
-                        print_error(f"队列任务执行失败: {e}")
+                        print_error(f"【队列任务】任务执行失败: {e}")
+                        import traceback
+                        traceback.print_exc()
                         # raise
                     finally:
                         # 确保任务完成标记和资源释放

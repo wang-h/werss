@@ -438,8 +438,11 @@ start_backend() {
     echo -e "${GREEN}🎯 启动后台服务器...${NC}"
     # 使用虚拟环境中的 Python，确保依赖正确加载（特别是后台运行时）
     # 环境变量已通过 export 导出，子进程会自动继承
-    $VENV_DIR/bin/python main.py -job True -init False &
+    # 注意：使用 nohup 和重定向输出，确保可以看到日志
+    $VENV_DIR/bin/python main.py -job True -init False > backend.log 2>&1 &
     BACKEND_PID=$!
+    echo -e "${GREEN}✅ 后台服务 PID: $BACKEND_PID${NC}"
+    echo -e "${YELLOW}📝 后端日志文件: backend.log (使用 'tail -f backend.log' 查看实时日志)${NC}"
     
     # 等待后台服务启动
     echo -e "${YELLOW}⏳ 等待后台服务启动...${NC}"
@@ -520,6 +523,10 @@ main() {
     echo -e "  前端界面: ${GREEN}http://localhost:3000${NC}"
     echo -e "  后台 API: ${GREEN}http://localhost:8001/api${NC}"
     echo -e "  API 文档: ${GREEN}http://localhost:8001/api/docs${NC}"
+    echo ""
+    echo -e "${YELLOW}📝 查看后端日志:${NC}"
+    echo -e "  ${GREEN}tail -f backend.log${NC}  (实时查看)"
+    echo -e "  ${GREEN}cat backend.log${NC}      (查看全部)"
     echo ""
     echo -e "${YELLOW}按 Ctrl+C 停止所有服务${NC}"
     echo "================================"
