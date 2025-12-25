@@ -126,9 +126,11 @@ async def add_custom_header(request: Request, call_next):
             csp_policy = (
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hm.baidu.com https://cdn.jsdelivr.net; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
-                "font-src 'self' https://cdn.jsdelivr.net; "
+                "font-src 'self' data: https://cdn.jsdelivr.net; "
                 "img-src 'self' data: https://hm.baidu.com https://cdn.jsdelivr.net https://mmbiz.qpic.cn https://mmbiz.qlogo.cn; "
-                "connect-src 'self' https://hm.baidu.com https://cdn.jsdelivr.net"
+                "connect-src 'self' https://hm.baidu.com https://cdn.jsdelivr.net; "
+                "worker-src 'self' blob: https://cdn.jsdelivr.net; "
+                "child-src 'self' blob: https://cdn.jsdelivr.net"
             )
             response.headers["Content-Security-Policy"] = csp_policy
         else:
