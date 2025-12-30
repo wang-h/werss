@@ -412,15 +412,129 @@ docker run -d -p 8001:8001 werss:latest
 
 **注意**：Docker 镜像已包含前端构建，无需单独启动前端服务。前端和 API 都通过 `http://localhost:8001` 访问。
 
-如果使用 docker-compose：
+#### Docker Compose 开发环境（推荐）
+
+`docker-compose.dev.yml` 提供了完整的本地开发环境，包含 PostgreSQL 数据库、MinIO 对象存储和 WeRSS 应用服务。
+
+**特点：**
+- ✅ 所有服务直接暴露端口，方便本地访问和调试
+- ✅ 不需要 Traefik 和域名配置
+- ✅ MinIO 使用 HTTP 访问（开发环境）
+- ✅ 简化配置，快速启动
+- ✅ 数据持久化到本地 `./data` 目录
+
+**快速开始：**
+
+1. **配置环境变量**
+
 ```bash
-# 使用 docker-compose（推荐）
-# 进入项目根目录（包含 docker-compose.dev.yml 的目录）
-cd <project-root>
-docker-compose -f docker-compose.dev.yml up -d --build werss
+# 复制环境变量模板文件
+cp .env.dev.example .env.dev
+
+# 编辑环境变量（根据实际情况修改）
+vim .env.dev
+```
+
+主要需要配置的环境变量：
+- `POSTGRES_PASSWORD` - PostgreSQL 数据库密码
+- `WERSS_USERNAME` - WeRSS 管理员用户名
+- `WERSS_PASSWORD` - WeRSS 管理员密码
+- `MINIO_ROOT_PASSWORD` - MinIO 管理员密码
+- `OPENAI_API_KEY` - OpenAI 兼容 API Key（用于 AI 标签提取，可选）
+
+2. **启动所有服务**
+
+```bash
+# 启动所有服务（PostgreSQL、MinIO、WeRSS）
+docker-compose -f docker-compose.dev.yml up -d
+
+# 查看所有服务状态
+docker-compose -f docker-compose.dev.yml ps
 
 # 查看日志
+docker-compose -f docker-compose.dev.yml logs -f
+```
+
+3. **访问服务**
+
+启动成功后，可以通过以下地址访问：
+
+- **WeRSS 前端界面**: http://localhost:8001
+- **WeRSS API 文档**: http://localhost:8001/api/docs
+- **PostgreSQL 数据库**: localhost:5432
+  - 数据库名: `werss_db`（或 `POSTGRES_WERSS_DB` 配置的值）
+  - 用户名: `admin`（或 `POSTGRES_USER` 配置的值）
+  - 密码: 环境变量中配置的 `POSTGRES_PASSWORD`
+- **MinIO 控制台**: http://localhost:9001
+  - 用户名: `admin`（或 `MINIO_ROOT_USER` 配置的值）
+  - 密码: 环境变量中配置的 `MINIO_ROOT_PASSWORD`
+- **MinIO API**: http://localhost:9000
+
+4. **常用操作**
+
+```bash
+# 停止所有服务
+docker-compose -f docker-compose.dev.yml down
+
+# 停止并删除数据卷（注意：会删除所有数据）
+docker-compose -f docker-compose.dev.yml down -v
+
+# 重启单个服务
+docker-compose -f docker-compose.dev.yml restart werss
+
+# 查看特定服务的日志
 docker-compose -f docker-compose.dev.yml logs -f werss
+docker-compose -f docker-compose.dev.yml logs -f postgres
+docker-compose -f docker-compose.dev.yml logs -f minio
+
+# 进入容器执行命令
+docker-compose -f docker-compose.dev.yml exec werss bash
+docker-compose -f docker-compose.dev.yml exec postgres psql -U admin -d werss_db
+
+# 重新构建并启动（代码更新后）
+docker-compose -f docker-compose.dev.yml up -d --build
+```
+
+5. **数据目录说明**
+
+开发环境的数据会保存在项目根目录的 `./data` 目录下：
+
+```
+data/
+├── postgres-data-dev/    # PostgreSQL 数据文件
+├── minio-data-dev/       # MinIO 数据文件
+└── werss-data/           # WeRSS 应用数据
+    ├── cache/            # 缓存目录
+    ├── pdf/              # PDF 导出目录（如果启用）
+    └── markdown/         # Markdown 导出目录（如果启用）
+```
+
+**注意事项：**
+
+- 开发环境使用 `-dev` 后缀的数据目录，避免与生产环境冲突
+- 首次启动会自动初始化数据库和创建管理员账号
+- 如果修改了环境变量，需要重启服务才能生效：`docker-compose -f docker-compose.dev.yml restart`
+- 开发环境默认启用 DEBUG 模式，日志级别为 DEBUG
+- MinIO 在开发环境使用 HTTP，生产环境建议使用 HTTPS
+
+**故障排查：**
+
+```bash
+# 检查服务健康状态
+docker-compose -f docker-compose.dev.yml ps
+
+# 查看服务启动日志
+docker-compose -f docker-compose.dev.yml logs werss
+
+# 检查数据库连接
+docker-compose -f docker-compose.dev.yml exec postgres pg_isready -U admin
+
+# 检查 MinIO 服务
+curl http://localhost:9000/minio/health/live
+
+# 重置环境（删除所有数据并重新启动）
+docker-compose -f docker-compose.dev.yml down -v
+docker-compose -f docker-compose.dev.yml up -d
 ```
 
 ---
