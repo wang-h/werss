@@ -42,6 +42,8 @@ trap cleanup SIGINT SIGTERM
 test_openai_api() {
     if [ -z "$OPENAI_API_KEY" ]; then
         echo -e "${YELLOW}⚠️  OPENAI_API_KEY 未设置，跳过 API 测试${NC}"
+        echo -e "${YELLOW}   提示: 如需使用 AI 标签提取功能，请在 .env 文件中配置 OPENAI_API_KEY${NC}"
+        echo ""
         return 0
     fi
     
@@ -57,6 +59,12 @@ api_key = os.getenv("OPENAI_API_KEY")
 base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 model = os.getenv("OPENAI_MODEL", "gpt-4o")
 
+# 如果没有 API Key，提前退出（不应该到达这里，但为了安全起见）
+if not api_key:
+    print("⚠️  OPENAI_API_KEY 未设置，跳过 API 测试")
+    print("   提示: 如需使用 AI 标签提取功能，请在 .env 文件中配置 OPENAI_API_KEY")
+    sys.exit(0)
+
 print(f"测试配置:")
 print(f"  API Key: {api_key[:15]}..." if api_key and len(api_key) > 15 else f"  API Key: {api_key or '未设置'}")
 print(f"  Base URL: {base_url}")
@@ -69,10 +77,6 @@ except ImportError:
     print("⚠️  openai 模块未安装，跳过 API 测试")
     print("   安装命令: pip install openai")
     sys.exit(0)
-
-if not api_key:
-    print("❌ OPENAI_API_KEY 未设置")
-    sys.exit(1)
 
 try:
     client = OpenAI(
