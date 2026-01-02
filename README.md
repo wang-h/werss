@@ -262,7 +262,7 @@ chmod +x start_dev.sh
 ```
 
 启动后访问：
-- 前端界面: http://localhost:3000
+- 前端界面: http://localhost:5173
 - 后台API: http://localhost:8001
 - API文档: http://localhost:8001/api/docs
 
@@ -338,8 +338,8 @@ vim config.yaml
 
 ```bash
 # 设置环境变量（首次运行需要）
-export USERNAME=admin
-export PASSWORD=your_password
+export WERSS_USERNAME=admin
+export WERSS_PASSWORD=your_password
 export DB=sqlite:///data/db.db  # 或使用 PostgreSQL/MySQL
 
 # 初始化数据库
@@ -378,7 +378,7 @@ pnpm dev
 npm run dev
 ```
 
-前端服务启动后访问：http://localhost:3000
+前端服务启动后访问：http://localhost:5173
 
 ### 方式三：Docker部署
 
@@ -429,10 +429,10 @@ docker run -d -p 8001:8001 werss:latest
 
 ```bash
 # 复制环境变量模板文件
-cp .env.dev.example .env.dev
+cp .env.example .env
 
 # 编辑环境变量（根据实际情况修改）
-vim .env.dev
+vim .env
 ```
 
 主要需要配置的环境变量：
@@ -443,7 +443,7 @@ vim .env.dev
 - `OPENAI_API_KEY` - OpenAI 兼容 API Key（用于 AI 标签提取，可选）
 
 **重要提示：**
-- `docker-compose.dev.yml` 已配置自动从 `.env.dev` 文件加载环境变量
+- `docker-compose.dev.yml` 已配置自动从 `.env` 文件加载环境变量
 - 如果使用 `docker-compose` 命令，环境变量会在启动时自动加载
 - 如果修改了环境变量，需要重启服务：`docker-compose -f docker-compose.dev.yml restart werss`
 
@@ -568,8 +568,8 @@ export DEBUG=False
 export AUTO_RELOAD=False
 
 # 用户认证（首次运行）
-export USERNAME=admin
-export PASSWORD=your_password
+export WERSS_USERNAME=admin
+export WERSS_PASSWORD=your_password
 
 # 定时任务
 export ENABLE_JOB=True

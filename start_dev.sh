@@ -538,7 +538,7 @@ start_frontend() {
     # 等待前端服务启动
     echo -e "${YELLOW}⏳ 等待前端服务启动...${NC}"
     for i in {1..30}; do
-        if curl -s http://localhost:3000 > /dev/null 2>&1; then
+        if curl -s http://localhost:5173 > /dev/null 2>&1; then
             echo -e "${GREEN}✅ 前端服务已启动${NC}"
             break
         fi
@@ -560,7 +560,7 @@ main() {
     echo -e "${GREEN}✅ 开发环境启动完成！${NC}"
     echo ""
     echo -e "${BLUE}访问地址:${NC}"
-    echo -e "  前端界面: ${GREEN}http://localhost:3000${NC}"
+    echo -e "  前端界面: ${GREEN}http://localhost:5173${NC}"
     echo -e "  后台 API: ${GREEN}http://localhost:8001/api${NC}"
     echo -e "  API 文档: ${GREEN}http://localhost:8001/api/docs${NC}"
     echo ""

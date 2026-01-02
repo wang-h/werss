@@ -232,7 +232,7 @@ const ArticleListDesktop: React.FC = () => {
           id: '',
           name: '全部',
           mp_name: '全部',
-          avatar: import.meta.env.DEV ? '/logo.svg' : '/static/logo.svg',
+          avatar: import.meta.env ? '/logo.svg' : '/static/logo.svg',
           mp_intro: '显示所有公众号文章',
           article_count: res.total || res.data?.total || 0
         })

@@ -10,7 +10,9 @@ import os
 from core.print import print_info, print_error
 def init_user(_db: Db):
     try:
-      username,password=os.getenv("USERNAME", "admin"),os.getenv("PASSWORD", "admin@123")
+      # 优先使用 WERSS_USERNAME/WERSS_PASSWORD，兼容 USERNAME/PASSWORD
+      username = os.getenv("WERSS_USERNAME") or os.getenv("USERNAME", "admin")
+      password = os.getenv("WERSS_PASSWORD") or os.getenv("PASSWORD", "admin@123")
       session=_db.get_session()
       # 检查用户是否已存在
       existing_user = session.query(User).filter(User.username == username).first()
