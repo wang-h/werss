@@ -442,6 +442,11 @@ vim .env.dev
 - `MINIO_ROOT_PASSWORD` - MinIO 管理员密码
 - `OPENAI_API_KEY` - OpenAI 兼容 API Key（用于 AI 标签提取，可选）
 
+**重要提示：**
+- `docker-compose.dev.yml` 已配置自动从 `.env.dev` 文件加载环境变量
+- 如果使用 `docker-compose` 命令，环境变量会在启动时自动加载
+- 如果修改了环境变量，需要重启服务：`docker-compose -f docker-compose.dev.yml restart werss`
+
 2. **启动所有服务**
 
 ```bash
