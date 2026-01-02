@@ -40,12 +40,29 @@ trap cleanup SIGINT SIGTERM
 
 # ==================== OpenAI API 测试 ====================
 test_openai_api() {
+    # 检查 API Key 是否未设置或为占位符
     if [ -z "$OPENAI_API_KEY" ]; then
-        echo -e "${YELLOW}⚠️  OPENAI_API_KEY 未设置，跳过 API 测试${NC}"
-        echo -e "${YELLOW}   提示: 如需使用 AI 标签提取功能，请在 .env 文件中配置 OPENAI_API_KEY${NC}"
+        echo -e "${YELLOW}⚠️  OPENAI_API_KEY 未配置或为占位符，跳过 API 测试${NC}"
+        echo -e "${YELLOW}   提示: 如需使用 AI 标签提取功能，请在 .env 文件中配置有效的 OPENAI_API_KEY${NC}"
         echo ""
         return 0
     fi
+    
+    # 检查是否为占位符（如 sk-your_openai、sk-your_openai_api_key_here 等）
+    case "$OPENAI_API_KEY" in
+        "sk-your_openai_api_key_here"|"sk-your_openai"|"sk-***")
+            echo -e "${YELLOW}⚠️  OPENAI_API_KEY 为占位符值，跳过 API 测试${NC}"
+            echo -e "${YELLOW}   提示: 请在 .env 文件中配置有效的 OPENAI_API_KEY${NC}"
+            echo ""
+            return 0
+            ;;
+        sk-your*)
+            echo -e "${YELLOW}⚠️  OPENAI_API_KEY 为占位符值，跳过 API 测试${NC}"
+            echo -e "${YELLOW}   提示: 请在 .env 文件中配置有效的 OPENAI_API_KEY（当前值: ${OPENAI_API_KEY:0:20}...）${NC}"
+            echo ""
+            return 0
+            ;;
+    esac
     
     echo -e "${BLUE}🧪 测试 OpenAI API 连接...${NC}"
     
@@ -59,10 +76,30 @@ api_key = os.getenv("OPENAI_API_KEY")
 base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
 model = os.getenv("OPENAI_MODEL", "gpt-4o")
 
-# 如果没有 API Key，提前退出（不应该到达这里，但为了安全起见）
+# 检查是否为占位符或未设置
+placeholder_patterns = [
+    "sk-your_openai_api_key_here",
+    "sk-your_openai",
+    "sk-***",
+    "sk-your_",
+]
+
+is_placeholder = False
 if not api_key:
-    print("⚠️  OPENAI_API_KEY 未设置，跳过 API 测试")
-    print("   提示: 如需使用 AI 标签提取功能，请在 .env 文件中配置 OPENAI_API_KEY")
+    is_placeholder = True
+else:
+    api_key_lower = api_key.lower()
+    for pattern in placeholder_patterns:
+        if api_key_lower.startswith(pattern.lower()):
+            is_placeholder = True
+            break
+    # 检查是否以 sk-your 开头（占位符模式）
+    if api_key_lower.startswith("sk-your"):
+        is_placeholder = True
+
+if is_placeholder:
+    print("⚠️  OPENAI_API_KEY 未配置或为占位符，跳过 API 测试")
+    print("   提示: 如需使用 AI 标签提取功能，请在 .env 文件中配置有效的 OPENAI_API_KEY")
     sys.exit(0)
 
 print(f"测试配置:")
