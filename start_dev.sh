@@ -297,18 +297,17 @@ start_backend() {
             fi
             POSTGRES_USER=${POSTGRES_USER:-deepling_user}
             POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-your_password}
-            POSTGRES_DB=${POSTGRES_DB:-postgres}
-            POSTGRES_WERSS_DB=${POSTGRES_WERSS_DB:-werss_db}
+            POSTGRES_DB=${POSTGRES_DB:-werss_db}
             
-            # 检查数据库是否存在，不存在则创建
-            DB_EXISTS=$(docker exec postgres-dev psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -tAc "SELECT 1 FROM pg_database WHERE datname='$POSTGRES_WERSS_DB'" 2>/dev/null || echo "0")
+            # 检查数据库是否存在，不存在则创建（使用 postgres 系统数据库连接）
+            DB_EXISTS=$(docker exec postgres-dev psql -U "$POSTGRES_USER" -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='$POSTGRES_DB'" 2>/dev/null || echo "0")
             if [ "$DB_EXISTS" != "1" ]; then
-                echo -e "${YELLOW}📦 创建数据库 $POSTGRES_WERSS_DB...${NC}"
-                docker exec postgres-dev psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "CREATE DATABASE $POSTGRES_WERSS_DB;" 2>/dev/null && \
-                echo -e "${GREEN}✅ 数据库 $POSTGRES_WERSS_DB 创建成功${NC}" || \
+                echo -e "${YELLOW}📦 创建数据库 $POSTGRES_DB...${NC}"
+                docker exec postgres-dev psql -U "$POSTGRES_USER" -d postgres -c "CREATE DATABASE $POSTGRES_DB;" 2>/dev/null && \
+                echo -e "${GREEN}✅ 数据库 $POSTGRES_DB 创建成功${NC}" || \
                 echo -e "${YELLOW}⚠️  数据库可能已存在或创建失败${NC}"
             else
-                echo -e "${GREEN}✅ 数据库 $POSTGRES_WERSS_DB 已存在${NC}"
+                echo -e "${GREEN}✅ 数据库 $POSTGRES_DB 已存在${NC}"
             fi
         fi
     else
@@ -397,8 +396,8 @@ start_backend() {
             if [ -z "$POSTGRES_PASSWORD" ]; then
             export POSTGRES_PASSWORD=$(grep "^POSTGRES_PASSWORD=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "")
             fi
-            if [ -z "$POSTGRES_WERSS_DB" ]; then
-            export POSTGRES_WERSS_DB=$(grep "^POSTGRES_WERSS_DB=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "werss_db")
+            if [ -z "$POSTGRES_DB" ]; then
+            export POSTGRES_DB=$(grep "^POSTGRES_DB=" .env 2>/dev/null | cut -d'=' -f2 | tr -d '"' | tr -d "'" || echo "werss_db")
             fi
         fi
         
@@ -410,10 +409,10 @@ start_backend() {
         # 设置默认值
         POSTGRES_USER=${POSTGRES_USER:-deepling_user}
         POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-your_password}
-        POSTGRES_WERSS_DB=${POSTGRES_WERSS_DB:-werss_db}
+        POSTGRES_DB=${POSTGRES_DB:-werss_db}
         
-        export DB="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_WERSS_DB}"
-        echo -e "${GREEN}✅ 数据库连接: postgresql://${POSTGRES_USER}:***@localhost:5432/${POSTGRES_WERSS_DB}${NC}"
+        export DB="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}"
+        echo -e "${GREEN}✅ 数据库连接: postgresql://${POSTGRES_USER}:***@localhost:5432/${POSTGRES_DB}${NC}"
     else
         echo -e "${GREEN}✅ 使用环境变量 DB 配置${NC}"
     fi
