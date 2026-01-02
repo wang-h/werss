@@ -206,7 +206,9 @@ networks:
   werss_network:
     driver: bridge
     name: werss_network
-    ipam:
-      config:
-        - subnet: 172.28.0.0/16
+    # 移除固定子网配置，让 Docker 自动分配以避免与其他网络冲突
+    # 如果需要固定子网，可以取消下面的注释并修改为不冲突的子网
+    # ipam:
+    #   config:
+    #     - subnet: 172.29.0.0/16
 
