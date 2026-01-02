@@ -123,12 +123,13 @@ async def add_custom_header(request: Request, call_next):
             response.headers["Expires"] = "0"
             # 添加 CSP 响应头，允许 Monaco Editor 从 CDN 加载资源
             # 允许 'self'、'unsafe-inline'、'unsafe-eval'、百度统计、jsdelivr CDN 和微信公众号图片
+            # connect-src 需要包含开发环境的 API 地址（localhost:8001 和 127.0.0.1:8001）
             csp_policy = (
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hm.baidu.com https://cdn.jsdelivr.net; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "font-src 'self' data: https://cdn.jsdelivr.net; "
                 "img-src 'self' data: https://hm.baidu.com https://cdn.jsdelivr.net https://mmbiz.qpic.cn https://mmbiz.qlogo.cn; "
-                "connect-src 'self' https://hm.baidu.com https://cdn.jsdelivr.net; "
+                "connect-src 'self' http://localhost:8001 http://127.0.0.1:8001 https://hm.baidu.com https://cdn.jsdelivr.net; "
                 "worker-src 'self' blob: https://cdn.jsdelivr.net; "
                 "child-src 'self' blob: https://cdn.jsdelivr.net"
             )
