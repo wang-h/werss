@@ -340,7 +340,14 @@ vim config.yaml
 # 设置环境变量（首次运行需要）
 export WERSS_USERNAME=admin
 export WERSS_PASSWORD=your_password
-export DB=sqlite:///data/db.db  # 或使用 PostgreSQL/MySQL
+
+# 数据库配置（必须配置 DB 环境变量）
+# 使用 SQLite（默认，无需额外配置）
+export DB=sqlite:///data/db.db
+
+# 或使用 PostgreSQL（推荐）
+export DB=postgresql://admin:12345678@localhost:5432/werss_db
+# 注意：使用 PostgreSQL 前需要先启动 PostgreSQL 服务
 
 # 初始化数据库
 python main.py -init True
@@ -436,14 +443,21 @@ vim .env
 ```
 
 主要需要配置的环境变量：
+- `POSTGRES_DB` - PostgreSQL 数据库名（默认：werss_db）
+- `POSTGRES_USER` - PostgreSQL 用户名（默认：admin）
 - `POSTGRES_PASSWORD` - PostgreSQL 数据库密码
+- `DB` - **重要**：数据库连接字符串，格式：`postgresql://用户名:密码@localhost:5432/数据库名`
+  - 示例：`DB=postgresql://admin:12345678@localhost:5432/werss_db`
+  - 如果不配置 `DB`，应用会默认使用 SQLite（`sqlite:///data/db.db`）
 - `WERSS_USERNAME` - WeRSS 管理员用户名
 - `WERSS_PASSWORD` - WeRSS 管理员密码
+- `MINIO_ROOT_USER` - MinIO 用户名（默认：admin）
 - `MINIO_ROOT_PASSWORD` - MinIO 管理员密码
 - `OPENAI_API_KEY` - OpenAI 兼容 API Key（用于 AI 标签提取，可选）
 
 **重要提示：**
 - `docker-compose.dev.yml` 已配置自动从 `.env` 文件加载环境变量
+- **必须配置 `DB` 环境变量**才能使用 PostgreSQL，否则会使用 SQLite
 - 如果使用 `docker-compose` 命令，环境变量会在启动时自动加载
 - 如果修改了环境变量，需要重启服务：`docker-compose -f docker-compose.dev.yml restart werss`
 
@@ -467,9 +481,10 @@ docker-compose -f docker-compose.dev.yml logs -f
 - **WeRSS 前端界面**: http://localhost:8001
 - **WeRSS API 文档**: http://localhost:8001/api/docs
 - **PostgreSQL 数据库**: localhost:5432
-  - 数据库名: `werss_db`（或 `POSTGRES_WERSS_DB` 配置的值）
+  - 数据库名: `werss_db`（或 `POSTGRES_DB` 配置的值）
   - 用户名: `admin`（或 `POSTGRES_USER` 配置的值）
   - 密码: 环境变量中配置的 `POSTGRES_PASSWORD`
+  - **注意**：确保在 `.env` 文件中配置了 `DB` 环境变量，格式：`DB=postgresql://用户名:密码@localhost:5432/数据库名`
 - **MinIO 控制台**: http://localhost:9001
   - 用户名: `admin`（或 `MINIO_ROOT_USER` 配置的值）
   - 密码: 环境变量中配置的 `MINIO_ROOT_PASSWORD`
@@ -517,6 +532,9 @@ data/
 **注意事项：**
 
 - 开发环境使用 `-dev` 后缀的数据目录，避免与生产环境冲突
+- **数据库配置**：必须在 `.env` 文件中配置 `DB` 环境变量才能使用 PostgreSQL
+  - 格式：`DB=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@localhost:5432/${POSTGRES_DB}`
+  - 如果不配置 `DB`，应用会使用 SQLite（`sqlite:///data/db.db`）
 - 首次启动会自动初始化数据库和创建管理员账号
 - 如果修改了环境变量，需要重启服务才能生效：`docker-compose -f docker-compose.dev.yml restart`
 - 开发环境默认启用 DEBUG 模式，日志级别为 DEBUG
