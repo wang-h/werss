@@ -116,7 +116,7 @@ services:
       - BROWSER_TYPE=${BROWSER_TYPE:-firefox}
       - INSTALL=${INSTALL:-True}  # Docker 环境默认安装 Playwright 浏览器
       # Playwright 下载镜像源配置（加速下载）
-      - PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright/
+      - PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright
       - PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=300000
       
       # RSS 配置（开发环境使用 localhost）
