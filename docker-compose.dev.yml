@@ -69,7 +69,7 @@ services:
   # ==================== WeRSS 服务 ====================
   werss:
     build:
-      context: ./werss
+      context: .
       dockerfile: Dockerfile.cn
     container_name: werss-dev
     restart: unless-stopped
