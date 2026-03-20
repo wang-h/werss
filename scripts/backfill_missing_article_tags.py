@@ -249,10 +249,12 @@ def main() -> None:
         print_warning("dry-run：数据库不会被持久化修改")
     print_info("=" * 72)
 
-    session = DB.get_session()
-    session.expire_on_commit = False
+    session_factory = DB.get_session_factory()
+
+    # 用独立 session 查询待处理 ID 列表
+    id_session = session_factory()
     try:
-        q = _base_article_query(session)
+        q = _base_article_query(id_session)
         if args.mp_id:
             q = q.filter(Article.mp_id == args.mp_id)
         total = q.count()
@@ -265,75 +267,75 @@ def main() -> None:
         if args.limit is not None:
             q = q.limit(args.limit)
         article_ids = [row[0] for row in q.with_entities(Article.id).all()]
-        n = len(article_ids)
-        if n == 0:
-            print_warning("没有符合条件的文章，退出。")
+    finally:
+        id_session.close()
+
+    n = len(article_ids)
+    if n == 0:
+        print_warning("没有符合条件的文章，退出。")
+        return
+
+    if not args.yes and not args.dry_run:
+        r = input(f"将处理 {n} 篇，是否继续？(y/n): ")
+        if r.lower() != "y":
+            print_info("已取消")
             return
 
-        if not args.yes and not args.dry_run:
-            r = input(f"将处理 {n} 篇，是否继续？(y/n): ")
-            if r.lower() != "y":
-                print_info("已取消")
-                return
-
-        tagged = 0
-        empty = 0
-        fail = 0
-        for i, aid in enumerate(article_ids, 1):
+    tagged = 0
+    empty = 0
+    fail = 0
+    for i, aid in enumerate(article_ids, 1):
+        session = session_factory()
+        try:
             article = session.get(Article, aid)
             if article is None:
                 fail += 1
                 continue
             title_short = (article.title or "")[:56]
             print_info(f"[{i}/{n}] {title_short}")
-            try:
-                result = backfill_one(session, article, dry_run=args.dry_run)
-                if result["errors"]:
-                    fail += 1
-                    print_error(f"  跳过: {result['errors']}")
-                    if args.fail_log:
-                        try:
-                            with open(args.fail_log, "a", encoding="utf-8") as fl:
-                                fl.write(f"{aid}\t{result['errors']}\n")
-                        except OSError as e:
-                            print_warning(f"  写入 fail-log 失败: {e}")
-                elif result["new_tags"]:
-                    tagged += 1
-                    print_success(f"  标签: {', '.join(result['new_tags'][:8])}")
-                else:
-                    empty += 1
-                    print_warning("  未得到标签（正文过短、抽取失败或未命中关键词等，可改 extract_method 或检查 API）")
-                    if args.fail_log:
-                        try:
-                            with open(args.fail_log, "a", encoding="utf-8") as fl:
-                                fl.write(f"{aid}\tno_tags_extracted\n")
-                        except OSError as e:
-                            print_warning(f"  写入 fail-log 失败: {e}")
-                if not args.dry_run and i % args.batch_size == 0:
-                    session.commit()
-                    print_info(f"  已提交批次（{args.batch_size} 篇/批）")
-            except Exception:
+            result = backfill_one(session, article, dry_run=args.dry_run)
+            if result["errors"]:
                 fail += 1
-                if not args.dry_run:
-                    session.rollback()
+                print_error(f"  跳过: {result['errors']}")
                 if args.fail_log:
                     try:
                         with open(args.fail_log, "a", encoding="utf-8") as fl:
-                            fl.write(f"{aid}\texception\n")
-                    except OSError:
-                        pass
-            if args.sleep > 0 and i < n:
-                time.sleep(args.sleep)
+                            fl.write(f"{aid}\t{result['errors']}\n")
+                    except OSError as e:
+                        print_warning(f"  写入 fail-log 失败: {e}")
+            elif result["new_tags"]:
+                tagged += 1
+                print_success(f"  标签: {', '.join(result['new_tags'][:8])}")
+            else:
+                empty += 1
+                print_warning("  未得到标签（正文过短、抽取失败或未命中关键词等，可改 extract_method 或检查 API）")
+                if args.fail_log:
+                    try:
+                        with open(args.fail_log, "a", encoding="utf-8") as fl:
+                            fl.write(f"{aid}\tno_tags_extracted\n")
+                    except OSError as e:
+                        print_warning(f"  写入 fail-log 失败: {e}")
+            if not args.dry_run:
+                session.commit()
+        except Exception:
+            fail += 1
+            if not args.dry_run:
+                session.rollback()
+            if args.fail_log:
+                try:
+                    with open(args.fail_log, "a", encoding="utf-8") as fl:
+                        fl.write(f"{aid}\texception\n")
+                except OSError:
+                    pass
+        finally:
+            session.close()
+        if args.sleep > 0 and i < n:
+            time.sleep(args.sleep)
 
-        if not args.dry_run:
-            session.commit()
-            print_success("已全部提交")
-        print_info("-" * 72)
-        print_info(
-            f"完成: 已打标 {tagged} 篇, 无标签 {empty} 篇, 失败 {fail} 篇, 本轮共 {n} 篇"
-        )
-    finally:
-        session.close()
+    print_info("-" * 72)
+    print_info(
+        f"完成: 已打标 {tagged} 篇, 无标签 {empty} 篇, 失败 {fail} 篇, 本轮共 {n} 篇"
+    )
 
 
 if __name__ == "__main__":
