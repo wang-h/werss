@@ -76,8 +76,9 @@ class MinIOClient:
             if not self.client.bucket_exists(self.bucket_name):
                 self.client.make_bucket(self.bucket_name)
                 print_success(f"创建MinIO bucket: {self.bucket_name}")
-                if not self.use_presigned_url:
-                    print_warning(f"⚠️  提示：如果bucket {self.bucket_name} 未设置为公开读取，请在MinIO管理界面设置bucket策略，或配置 use_presigned_url: true 使用临时访问链接")
+            
+            if not self.use_presigned_url:
+                self._ensure_public_read_policy()
             
             self._initialized = True
             print_success(f"MinIO客户端初始化成功: {self.endpoint}/{self.bucket_name}")
@@ -86,6 +87,27 @@ class MinIOClient:
             self.client = None
             self._initialized = True
     
+    def _ensure_public_read_policy(self):
+        """确保 bucket 有公开读取策略，避免头像和图片无法外部访问"""
+        import json
+        try:
+            self.client.get_bucket_policy(self.bucket_name)
+        except Exception:
+            try:
+                policy = {
+                    "Version": "2012-10-17",
+                    "Statement": [{
+                        "Effect": "Allow",
+                        "Principal": {"AWS": ["*"]},
+                        "Action": ["s3:GetObject"],
+                        "Resource": [f"arn:aws:s3:::{self.bucket_name}/*"]
+                    }]
+                }
+                self.client.set_bucket_policy(self.bucket_name, json.dumps(policy))
+                print_success(f"已自动设置 {self.bucket_name} bucket 为公开读取")
+            except Exception as e:
+                print_warning(f"设置 bucket 公开读取策略失败: {e}，请手动在MinIO管理界面设置")
+
     def is_available(self) -> bool:
         """检查MinIO是否可用"""
         return self.client is not None and MINIO_AVAILABLE

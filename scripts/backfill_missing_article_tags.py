@@ -250,6 +250,7 @@ def main() -> None:
     print_info("=" * 72)
 
     session = DB.get_session()
+    session.expire_on_commit = False
     try:
         q = _base_article_query(session)
         if args.mp_id:
@@ -310,7 +311,6 @@ def main() -> None:
                             print_warning(f"  写入 fail-log 失败: {e}")
                 if not args.dry_run and i % args.batch_size == 0:
                     session.commit()
-                    session.expunge_all()
                     print_info(f"  已提交批次（{args.batch_size} 篇/批）")
             except Exception:
                 fail += 1
