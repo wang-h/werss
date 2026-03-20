@@ -48,6 +48,8 @@ class WeChatAPI:
         self.wx_login_url=f"{self.qr_code_path}"
         # 线程安全
         self._lock = Lock()
+        self._login_in_progress = False
+        self._heartbeat_timer = None
         
         # 回调函数
         self.login_callback :Optional[Callable] = None
@@ -79,7 +81,15 @@ class WeChatAPI:
         Returns:
             包含二维码信息的字典
         """
+        if self._login_in_progress:
+            logger.info("登录流程已在进行中，跳过重复发起")
+            return {
+                'code': f"{self.qr_code_path}?t={int(time.time())}" if os.path.exists(self.qr_code_path) else None,
+                'is_exists': os.path.exists(self.qr_code_path),
+                'msg': '登录流程已在进行中，请等待扫码'
+            }
         self.__init__()
+        self._login_in_progress = True
         with self._lock:
             self.login_callback = callback
             self.notice_callback = notice
@@ -106,6 +116,7 @@ class WeChatAPI:
                         'msg': '请使用微信扫描二维码登录'
                     }
                 else:
+                    self._login_in_progress = False
                     return {
                         'code': None,
                         'is_exists': False,
@@ -113,6 +124,7 @@ class WeChatAPI:
                     }
                     
             except Exception as e:
+                self._login_in_progress = False
                 logger.error(f"获取二维码失败: {str(e)}")
                 return {
                     'code': None,
@@ -362,44 +374,81 @@ class WeChatAPI:
 
     def _start_login_check(self, uuid: str):
         """
-        启动登录状态检查
+        启动登录状态检查，最多轮询5分钟（150次 x 2秒）
         
         Args:
             uuid: 二维码UUID
         """
+        max_attempts = 150
+        attempt_count = [0]
+        error_count = [0]
+        max_consecutive_errors = 3
+        last_status = [None]
+
         def check_login():
+            attempt_count[0] += 1
+
+            if attempt_count[0] > max_attempts:
+                logger.warning(f"二维码轮询超时（已等待 {max_attempts * 2} 秒），停止检查")
+                self._clean_qr_code()
+                self._login_in_progress = False
+                if self.notice_callback:
+                    self.notice_callback('二维码已超时，请重新获取')
+                return
+
             try:
-                # 检查登录状态
                 status = self._check_login_status(uuid)
+
+                if status != last_status[0]:
+                    logger.info(f"登录状态变化: {last_status[0]} -> {status} (第{attempt_count[0]}次)")
+                    last_status[0] = status
+
                 if status == 'success':
-                    self._islogin=True
+                    self._islogin = True
+                    self._login_in_progress = False
+                    error_count[0] = 0
                     self._handle_login_success()
-                elif status == 'waiting':
-                    # 继续等待
-                    Timer(2.0, check_login).start()
                 elif status == 'scanned':
-                    # 已扫描，等待确认
+                    error_count[0] = 0
                     if self.notice_callback:
                         self.notice_callback('已扫描，请在手机上确认登录')
                     Timer(2.0, check_login).start()
+                elif status == 'not_exists':
+                    logger.info("二维码文件不存在，停止轮询")
+                    self._login_in_progress = False
+                    return
                 elif status == 'expired':
-                    # 二维码过期
+                    logger.info("二维码已过期")
+                    self._clean_qr_code()
+                    self._login_in_progress = False
                     if self.notice_callback:
                         self.notice_callback('二维码已过期，请重新获取')
                     return
-                elif status == 'exists':
-                    return
+                elif status in ('invalid session', 'error'):
+                    error_count[0] += 1
+                    if error_count[0] >= max_consecutive_errors:
+                        logger.error(f"连续 {error_count[0]} 次错误（{status}），停止轮询")
+                        self._clean_qr_code()
+                        self._login_in_progress = False
+                        if self.notice_callback:
+                            self.notice_callback('登录检查失败，请重新获取二维码')
+                        return
+                    Timer(3.0, check_login).start()
                 else:
-                    # 继续检查
+                    error_count[0] = 0
                     Timer(2.0, check_login).start()
-                    
+
             except Exception as e:
-                logger.error(f"检查登录状态失败: {str(e)}")
-                if self.notice_callback:
-                    self.notice_callback('检查登录状态失败,请重试')
-                # Timer(5.0, check_login).start()  # 出错后延长检查间隔
-        
-        # 启动检查
+                logger.error(f"检查登录状态异常: {str(e)}")
+                error_count[0] += 1
+                if error_count[0] >= max_consecutive_errors:
+                    logger.error("连续异常过多，停止轮询")
+                    self._login_in_progress = False
+                    if self.notice_callback:
+                        self.notice_callback('检查登录状态失败,请重试')
+                    return
+                Timer(3.0, check_login).start()
+
         Timer(2.0, check_login).start()
 
     def _check_login_status(self, uuid: str) -> str:
@@ -410,13 +459,14 @@ class WeChatAPI:
             uuid: 二维码UUID
             
         Returns:
-            登录状态: 'waiting', 'scanned', 'success', 'expired', 'error'
+            登录状态: 'wait', 'scanned', 'success', 'expired', 'not_exists',
+                      'invalid session', 'error'
         """
         try:
             if not os.path.exists(self.qr_code_path):
                 return "not_exists"
-            check_url=f"{self.base_url}/cgi-bin/scanloginqrcode"
-            self.fingerprint=self.cookies.get("fingerprint") or self._generate_uuid()
+            check_url = f"{self.base_url}/cgi-bin/scanloginqrcode"
+            self.fingerprint = self.cookies.get("fingerprint") or self._generate_uuid()
             params = {
                 "action": "ask",
                 "fingerprint": self.fingerprint,
@@ -428,25 +478,23 @@ class WeChatAPI:
             response = self.session.get(check_url, params=params)
             response.raise_for_status()
             
-            # 解析响应
             if response.headers.get('content-type', '').startswith('application/json'):
                 data = response.json()
                 status = data.get('status', 0)
-                print(data)
-                if "invalid session" in str(data):
+                if "invalid session" in str(data).lower():
                     return 'invalid session'
                 if status == 1:
                     with self._lock:
                         self.cookies = requests.utils.dict_from_cookiejar(self.session.cookies) if self.session.cookies else {}
-                    return 'success'  # 登录成功
+                    return 'success'
                 elif status == 2:
-                    return 'scanned'  # 已扫描
+                    return 'scanned'
                 elif status == 3:
-                    return 'success'  # 登录成功
+                    return 'success'
                 elif status == 4:
-                    return 'scanned'  # 已扫描，等待确认
+                    return 'scanned'
                 else:
-                    return 'wait'  # 继续等待
+                    return 'wait'
                     
         except Exception as e:
             logger.error(f"检查登录状态失败: {str(e)}")
@@ -466,12 +514,65 @@ class WeChatAPI:
             self._clean_qr_code()
             from driver.cookies import expire
             # 调用成功回调
-            if self._get_account_info() is not  None:
+            if self._get_account_info() is not None:
                 logger.info("登录成功！")
+                self._start_heartbeat()
                 return True
         except Exception as e:
             logger.error(f"处理登录失败: {str(e)}")
         return False
+
+    def _start_heartbeat(self):
+        """登录成功后启动心跳保活，每15分钟请求一次非敏感接口"""
+        self._stop_heartbeat()
+        heartbeat_interval = 900  # 15分钟
+
+        def heartbeat():
+            if not self.is_logged_in:
+                logger.info("已登出，心跳停止")
+                return
+            try:
+                result = self._get_account_list()
+                if result and result.get('base_resp', {}).get('ret') == 0:
+                    logger.debug("心跳保活成功")
+                    timer = Timer(heartbeat_interval, heartbeat)
+                    timer.daemon = True
+                    timer.start()
+                    self._heartbeat_timer = timer
+                else:
+                    ret = result.get('base_resp', {}).get('ret') if result else 'None'
+                    logger.warning(f"心跳检测到 Session 失效 (ret={ret})")
+                    self._on_session_expired()
+            except Exception as e:
+                logger.error(f"心跳请求失败: {e}")
+                self._on_session_expired()
+
+        logger.info(f"启动心跳保活（间隔 {heartbeat_interval}s）")
+        timer = Timer(heartbeat_interval, heartbeat)
+        timer.daemon = True
+        timer.start()
+        self._heartbeat_timer = timer
+
+    def _stop_heartbeat(self):
+        """停止心跳定时器"""
+        if self._heartbeat_timer:
+            try:
+                self._heartbeat_timer.cancel()
+            except Exception:
+                pass
+            self._heartbeat_timer = None
+
+    def _on_session_expired(self):
+        """Session 过期时的统一处理"""
+        self._stop_heartbeat()
+        self.is_logged_in = False
+        self._islogin = False
+        from driver.success import setStatus
+        setStatus(False)
+        logger.warning("Session 已过期，标记为未登录状态")
+        from jobs.failauth import send_wx_code
+        import threading
+        threading.Thread(target=send_wx_code, args=("心跳检测到Session过期，请重新扫码登录",)).start()
     def _extract_login_info(self):
         """
         提取登录信息（token和cookies）
@@ -785,7 +886,7 @@ class WeChatAPI:
 
                 token=token or get_token("token")
                 cookies=cookies or self._cookie_string_to_dict(get_token("cookie"))
-                print(f"token: {token}")
+                logger.info(f"尝试 Token 登录 (token={token[:8]}...)" if token else "Token 为空")
                 self.token = token
                 
                 if cookies:
@@ -816,8 +917,10 @@ class WeChatAPI:
         """
         登出
         """
+        self._stop_heartbeat()
         with self._lock:
             self.is_logged_in = False
+            self._islogin = False
             self.token = None
             self.cookies = {}
             self.session.cookies.clear()

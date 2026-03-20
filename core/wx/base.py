@@ -355,15 +355,19 @@ class WxGather:
     def Error(self,error:str,code=None):
         self.Over()
         if code=="Invalid Session":
-            from jobs.failauth import send_wx_code
-            import threading
-            setStatus(False)
+            from driver.success import getStatus
             from core.queue import TaskQueue
+            already_handling = not getStatus()
+            setStatus(False)
             TaskQueue.clear_queue()
-            threading.Thread(target=send_wx_code,args=(f"公众号平台登录失效,请重新登录",)).start()
-            # send_wx_code(f"公众号平台登录失效,请重新登录")
+            if not already_handling:
+                import threading
+                from jobs.failauth import send_wx_code
+                logger.warning(f"Session 失效，触发重新登录: {error}")
+                threading.Thread(target=send_wx_code,args=(f"公众号平台登录失效,请重新登录",)).start()
+            else:
+                logger.info(f"Session 已标记失效，跳过重复触发登录: {error}")
             raise Exception(error)
-        # raise Exception(error)
 
     def Over(self,CallBack=None):
         if getattr(self, 'articles', None) is not None:

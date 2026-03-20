@@ -263,8 +263,8 @@ def main() -> None:
             q = q.offset(args.offset)
         if args.limit is not None:
             q = q.limit(args.limit)
-        articles = q.all()
-        n = len(articles)
+        article_ids = [row[0] for row in q.with_entities(Article.id).all()]
+        n = len(article_ids)
         if n == 0:
             print_warning("没有符合条件的文章，退出。")
             return
@@ -278,7 +278,11 @@ def main() -> None:
         tagged = 0
         empty = 0
         fail = 0
-        for i, article in enumerate(articles, 1):
+        for i, aid in enumerate(article_ids, 1):
+            article = session.get(Article, aid)
+            if article is None:
+                fail += 1
+                continue
             title_short = (article.title or "")[:56]
             print_info(f"[{i}/{n}] {title_short}")
             try:
@@ -289,7 +293,7 @@ def main() -> None:
                     if args.fail_log:
                         try:
                             with open(args.fail_log, "a", encoding="utf-8") as fl:
-                                fl.write(f"{article.id}\t{result['errors']}\n")
+                                fl.write(f"{aid}\t{result['errors']}\n")
                         except OSError as e:
                             print_warning(f"  写入 fail-log 失败: {e}")
                 elif result["new_tags"]:
@@ -301,7 +305,7 @@ def main() -> None:
                     if args.fail_log:
                         try:
                             with open(args.fail_log, "a", encoding="utf-8") as fl:
-                                fl.write(f"{article.id}\tno_tags_extracted\n")
+                                fl.write(f"{aid}\tno_tags_extracted\n")
                         except OSError as e:
                             print_warning(f"  写入 fail-log 失败: {e}")
                 if not args.dry_run and i % args.batch_size == 0:
@@ -315,7 +319,7 @@ def main() -> None:
                 if args.fail_log:
                     try:
                         with open(args.fail_log, "a", encoding="utf-8") as fl:
-                            fl.write(f"{article.id}\texception\n")
+                            fl.write(f"{aid}\texception\n")
                     except OSError:
                         pass
             if args.sleep > 0 and i < n:

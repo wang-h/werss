@@ -82,6 +82,28 @@ from core.models.message_task import MessageTask
 from .webhook import web_hook
 interval=int(cfg.get("interval",60)) # 每隔多少秒执行一次
 
+import time as _time
+def check_session_valid() -> bool:
+    """
+    检查微信 Session 是否有效（登录状态 + cookie 剩余时间）。
+    返回 True 表示可以继续采集，False 表示应跳过。
+    """
+    from driver.success import getStatus
+    if not getStatus():
+        print_warning("微信 Session 未登录或已失效，跳过本次采集")
+        return False
+    try:
+        from driver.token import wx_cfg
+        expiry = wx_cfg.get("expiry", {})
+        if isinstance(expiry, dict) and expiry.get("remaining_seconds") is not None:
+            remaining = expiry.get("expiry_timestamp", 0) - _time.time()
+            if remaining < 600:  # 不足10分钟
+                print_warning(f"Session 剩余时间不足（约 {int(remaining)}s），跳过本次采集")
+                return False
+    except Exception as e:
+        logger.warning(f"检查 Session 有效期时出错: {e}")
+    return True
+
 def get_existing_articles(mp_id: str, limit: int = 10):
     """
     从数据库获取指定公众号的已有文章
@@ -189,11 +211,11 @@ def get_today_articles(mp_id: str = None):
         return []
 
 def do_job(mp=None,task:MessageTask=None,isTest=False):
-        # TaskQueue.add_task(test,info=datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-        # print("执行任务", task.mps_id)
         if isTest:
             print("执行测试任务（不抓取文章，使用已有文章）")
         else:
+            if not check_session_valid():
+                return
             print("执行任务")
         all_count=0
         wx=WxGather().Model()
@@ -309,6 +331,8 @@ def do_job_all_feeds(feeds: list[Feed] = None, task: MessageTask = None, isTest:
         print("【任务执行】执行测试任务（汇总所有公众号，使用已有文章）", flush=True)
         print_info("【任务执行】执行测试任务（汇总所有公众号，使用已有文章）")
     else:
+        if not check_session_valid():
+            return
         print("【任务执行】执行任务（汇总所有公众号）", flush=True)
         print_info("【任务执行】执行任务（汇总所有公众号）")
     
