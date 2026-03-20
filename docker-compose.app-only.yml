@@ -2,12 +2,13 @@
 # 适用于已有外部 PostgreSQL / MinIO 的环境（子项目、生产集群等）。
 # 所有外部服务坐标从 .env 读取。
 #
-# 基本用法：
+# 基本用法（独立部署，先创建默认网络）：
+#   docker network create werss_app 2>/dev/null || true
 #   docker compose -f docker-compose.app-only.yml up -d --build
 #
 # 加入已有 Docker 网络（如 Postgres 或 Traefik 所在网络）：
 #   WERSS_EXTERNAL_NETWORK=your_network_name docker compose -f docker-compose.app-only.yml up -d
-#
+# 
 # 启用 Traefik HTTPS 路由：
 #   在 .env 中设置 WERSS_TRAEFIK_ENABLE=true, WERSS_HOST, WERSS_TLS_RESOLVER,
 #   并将 WERSS_EXTERNAL_NETWORK 设为 Traefik 所在网络名。
@@ -49,4 +50,5 @@ services:
 
 networks:
   werss_net:
+    external: true
     name: ${WERSS_EXTERNAL_NETWORK:-werss_app}

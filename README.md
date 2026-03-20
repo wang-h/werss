@@ -4,7 +4,7 @@
 
 # WeRSS - 微信公众号热度分析系统
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
 ![GitHub Stars](https://img.shields.io/github/stars/wang-h/werss?style=social)
@@ -1116,6 +1116,31 @@ chmod 755 data
 - [提交 Issue](https://github.com/wang-h/werss/issues)
 - [发送 Pull Request](https://github.com/wang-h/werss/pulls)
 - [查看项目文档](https://github.com/wang-h/werss)
+
+---
+
+## 📋 更新日志
+
+### v1.1.0（2026-03-21）
+
+**采集稳定性**
+- 二维码登录存活时间延长并支持自动刷新，解决了每天都要重新扫码登录的问题
+- 爬取间隔 `SPAN_INTERVAL` 默认从 10 调高到 30，降低被微信流控/封禁的风险
+- `MAX_PAGE` 默认从 5 调低到 3，减少单次连续请求时长
+- User-Agent 去除 `WeRss` 标识，改为模拟真实 Chrome 浏览器
+
+**部署架构重构**
+- Compose 文件从 4 个叠加简化为 2 个：`docker-compose.yml`（完整栈）和 `docker-compose.app-only.yml`（仅应用）
+- 新用户 `cp .env.example .env && docker compose up -d` 一键启动
+- 子项目模式通过环境变量 `WERSS_EXTERNAL_NETWORK` / `WERSS_TRAEFIK_ENABLE` 配置，无需叠加额外 compose 文件
+- `.env.example` 重写为 4 个清晰区块，移除 WeRSS 不使用的变量
+- 全局匿名化，移除所有私有路径和域名引用
+- 脚本移除 monorepo 假设（不再加载上级目录 `.env`）
+- 文档合并为统一的 `docs/DEPLOYMENT.md`
+
+### v1.0.0
+
+初始发布版本。
 
 ---
 
