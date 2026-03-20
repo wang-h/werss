@@ -23,8 +23,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    environment:
-      PLAYWRIGHT_DOWNLOAD_HOST: https://npmmirror.com/mirrors/playwright
+    # Playwright 下载源由 install.sh 选择（npmmirror 失败会自动改官方 CDN），勿在此固定死以免 404
     volumes:
       - ${WERSS_DATA_DIR:-./data/werss-data}:/app/data
       - ${WERSS_LOGS_DIR:-./logs}:/app/logs

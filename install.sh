@@ -121,17 +121,21 @@ INSTALL=${INSTALL:-False}
 if [ "$INSTALL" = True ]; then
     echo "INSTALL环境变量为$INSTALL，开始安装playwright浏览器..."
     
-    # 检测系统架构，ARM 架构使用官方源，AMD64 使用国内镜像源
+    # 检测系统架构；国内镜像常滞后，404 时回退官方 CDN（与 Dockerfile.cn 一致）
     ARCH=$(uname -m)
+    export PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=300000
     if [ "$ARCH" = "arm64" ] || [ "$ARCH" = "aarch64" ]; then
         echo "检测到 ARM 架构 ($ARCH)，使用官方 Playwright 下载源"
         export PLAYWRIGHT_DOWNLOAD_HOST=https://playwright.azureedge.net
     else
-        echo "检测到 x86_64/AMD64 架构，使用国内镜像源加速下载"
+        echo "检测到 x86_64/AMD64，先尝试 npmmirror"
         export PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright
     fi
-    export PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=300000
-    playwright install $BROWSER_TYPE --with-deps
+    if ! playwright install $BROWSER_TYPE --with-deps; then
+        echo "主下载源失败（npmmirror 未同步新版浏览器包时会出现），改用 playwright.azureedge.net 重试..."
+        export PLAYWRIGHT_DOWNLOAD_HOST=https://playwright.azureedge.net
+        playwright install $BROWSER_TYPE --with-deps || echo "Playwright 浏览器安装仍失败，采集功能可能不可用"
+    fi
 else
     echo "INSTALL环境变量为$INSTALL，跳过playwright浏览器安装"
 fi

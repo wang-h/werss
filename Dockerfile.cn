@@ -101,17 +101,20 @@ ARG TARGETARCH
 # - AMD64 架构使用国内镜像源加速下载
 ENV BROWSER_TYPE=${BROWSER_TYPE} \
     PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=300000
-# 根据架构动态设置 PLAYWRIGHT_DOWNLOAD_HOST
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-        echo "检测到 ARM64 架构，使用官方 Playwright 下载源"; \
+# 根据架构选主源；npmmirror 常滞后于新版 Playwright（如 debian-13 包 404），失败则回退官方 CDN
+RUN export PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=300000; \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+        echo "检测到 ARM64，Playwright 使用官方源"; \
         export PLAYWRIGHT_DOWNLOAD_HOST=https://playwright.azureedge.net; \
     else \
-        echo "检测到 AMD64 架构，使用国内镜像源加速"; \
+        echo "检测到 AMD64，先尝试 npmmirror"; \
         export PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright; \
     fi && \
     echo "PLAYWRIGHT_DOWNLOAD_HOST=$PLAYWRIGHT_DOWNLOAD_HOST" && \
-    python3 -m playwright install ${BROWSER_TYPE} --with-deps || \
-    (echo "Playwright 浏览器安装失败，将在运行时安装" && true)
+    ( python3 -m playwright install ${BROWSER_TYPE} --with-deps || \
+      ( echo "主源失败（镜像未同步时常见），改用 playwright.azureedge.net 重试..." && \
+        PLAYWRIGHT_DOWNLOAD_HOST=https://playwright.azureedge.net python3 -m playwright install ${BROWSER_TYPE} --with-deps ) \
+    ) || (echo "Playwright 浏览器仍未安装成功，启动时 install.sh 会再试" && true)
 
 # 设置脚本权限
 RUN chmod +x install.sh start.sh

@@ -85,7 +85,6 @@ services:
       - WERSS_USERNAME=${WERSS_USERNAME:-admin}
       - WERSS_PASSWORD=${WERSS_PASSWORD:-admin123}
       - BROWSER_TYPE=${BROWSER_TYPE:-firefox}
-      - PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright
       - MINIO_ENDPOINT=minio:9000
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-admin}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-admin123}

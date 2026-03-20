@@ -79,11 +79,14 @@ COPY --from=frontend-builder /app/web_ui/dist ./static
 # 使用 ARG 接收构建参数，ENV 设置运行时环境变量
 ARG BROWSER_TYPE=firefox
 ENV BROWSER_TYPE=${BROWSER_TYPE} \
-    PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright \
     PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=300000
 # PLAYWRIGHT_BROWSERS_PATH 在运行时由 install.sh 设置
-RUN python3 -m playwright install ${BROWSER_TYPE} --with-deps || \
-    (echo "Playwright 浏览器安装失败，将在运行时安装" && true)
+RUN export PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT=300000 && \
+    ( export PLAYWRIGHT_DOWNLOAD_HOST=https://npmmirror.com/mirrors/playwright && \
+      python3 -m playwright install ${BROWSER_TYPE} --with-deps || \
+      ( echo "npmmirror 失败，改用官方 CDN..." && \
+        PLAYWRIGHT_DOWNLOAD_HOST=https://playwright.azureedge.net python3 -m playwright install ${BROWSER_TYPE} --with-deps ) \
+    ) || (echo "Playwright 浏览器安装失败，将在运行时安装" && true)
 
 # 设置脚本权限
 RUN chmod +x install.sh start.sh
