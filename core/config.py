@@ -231,25 +231,70 @@ class Config:
         except:
             return v
     def get(self,key,default:any=None, silent:bool=False):
-        _config=self.replace_env_vars(self.config)
-        
-        # 支持嵌套key访问
-        keys = key.split('.') if isinstance(key, str) else [key]
-        value = _config
-        try:
-            for k in keys:
-                value = value[k]
-            val=self.__fix(value)
-            if val is None and default is not None  :
-                return default
-            else:
-                return val
-        except (KeyError, TypeError):
-            # 如果提供了默认值，这是正常情况，不需要警告
-            # 如果 silent=True，也不输出警告（用于有 fallback 机制的情况，如从环境变量读取）
+        from core.config_overrides import (
+            env_overrides_db_mode,
+            get_config_override,
+        )
+
+        def _yaml_resolved():
+            _config = self.replace_env_vars(self.config)
+            keys = key.split('.') if isinstance(key, str) else [key]
+            value = _config
+            try:
+                for k in keys:
+                    value = value[k]
+                return True, self.__fix(value)
+            except (KeyError, TypeError):
+                return False, None
+
+        def _db_override():
+            if not isinstance(key, str):
+                return None
+            try:
+                return get_config_override(key)
+            except Exception:
+                return None
+
+        def _effective_empty(val) -> bool:
+            if val is None:
+                return True
+            if isinstance(val, str) and val.strip() == '':
+                return True
+            return False
+
+        env_first = isinstance(key, str) and env_overrides_db_mode()
+
+        if not env_first and isinstance(key, str):
+            try:
+                ov = _db_override()
+                if ov is not None:
+                    return self.__fix(ov)
+            except Exception:
+                pass
+
+        ok, val = _yaml_resolved()
+        if not ok:
             if default is None and not silent:
                 print_warning("Key {} not found in configuration".format(key))
-        return default 
+            if env_first:
+                ov = _db_override()
+                if ov is not None:
+                    return self.__fix(ov)
+            return default
+
+        if env_first:
+            if not _effective_empty(val):
+                return val
+            ov = _db_override()
+            if ov is not None:
+                return self.__fix(ov)
+            if val is None and default is not None:
+                return default
+            return val
+
+        if val is None and default is not None:
+            return default
+        return val
 
 cfg=Config()
 def set_config(key:str,value:str):

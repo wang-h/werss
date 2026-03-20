@@ -2,6 +2,10 @@
 
 感谢您考虑对 `werss` 项目做出贡献！以下是帮助您开始的一些步骤和建议。
 
+**路线图与课题向待办**（微信成文 Skill、GLiNER 关键词方向、共同维护者招募）见 [ROADMAP.md](./ROADMAP.md)。
+
+**维护说明：** 日常维护目前主要依托 [OpenClaw](https://openclaw.ai)；贡献流程与社区 PR 仍按本文执行。
+
 ## 如何参与？
 
 1. **查看问题列表**：在 [Issues](https://github.com/wang-h/werss/issues) 页面查找适合您的任务。

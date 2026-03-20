@@ -12,9 +12,25 @@
 
 **一个功能强大的微信公众号热度分析系统，支持自动采集、标签管理、多格式导出、主题词提取与热度追踪等功能**
 
-[功能特性](#-功能特性) • [快速开始](#-快速开始) • [配置说明](#-配置说明) • [API文档](#-api文档) • [开发指南](#-开发指南)
+[功能特性](#-功能特性) • [快速开始](#-快速开始) • [配置说明](#-配置说明) • [API文档](#-api文档) • [开发指南](#-开发指南) • [路线图与维护](#-路线图与维护)
 
 </div>
+
+---
+
+## 路线图与维护
+
+**维护说明：** 当前本项目的日常维护（Issue 与 PR 的跟进、文档与发布节奏等）**主要依托 [OpenClaw](https://openclaw.ai)** 进行；社区贡献与学术合作仍照常欢迎。
+
+**路线图与待办（摘要）：**
+
+| 方向 | 概要 |
+|------|------|
+| 微信成文 Skill | 按给定 **topic** 生成公众号向文章/大纲，与现有入库与审核流程对齐 |
+| 关键词 / 标签 | 探索基于 **GLiNER** 的轻量化抽取，与现有 KeyBERT、LLM 管线对照或级联 |
+| 共建维护 | 欢迎学术研究者与开源贡献者参与长期维护（见贡献指南） |
+
+完整表格与可勾选待办见 **[docs/ROADMAP.md](docs/ROADMAP.md)**。
 
 ---
 
@@ -418,6 +434,18 @@ docker run -d -p 8001:8001 werss:latest
 ```
 
 **注意**：Docker 镜像已包含前端构建，无需单独启动前端服务。前端和 API 都通过 `http://localhost:8001` 访问。
+
+#### Docker Compose：已有主栈 / 独立 WeRSS（推荐与 Traefik 主栈共用库时）
+
+若机器上 **已有** PostgreSQL、MinIO、Traefik（例如与 deepling 主栈共用），不要用 `docker-compose.dev.yml`（会再起一套库并占用端口）。请使用仅包含应用容器的编排：
+
+```bash
+docker compose -f docker-compose.standalone.yml up -d --build
+```
+
+说明见 [docs/DOCKER_STANDALONE.md](docs/DOCKER_STANDALONE.md)。
+
+**配置优先级与重启：** 默认情况下，控制台写入数据库表 `config_management` 的项会**优先于** `.env` / yaml 中同含义的配置；进程重启不会清空数据库中的这些值。若希望 **`.env` 优先**、仅在环境变量未设置或为空时才回退到表里的值，请设置 `WERSS_ENV_OVERRIDES_DB=true`。详见 [docs/DOCKER_STANDALONE.md](docs/DOCKER_STANDALONE.md) 中的「配置优先级、控制台与重启」。
 
 #### Docker Compose 开发环境（推荐）
 
@@ -1049,7 +1077,7 @@ chmod 755 data
 4. 推送到分支 (`git push origin feature/AmazingFeature`)
 5. [开启 Pull Request](https://github.com/wang-h/werss/pulls)
 
-详细贡献指南请查看 [CONTRIBUTING.md](CONTRIBUTING.md)。
+详细贡献指南请查看 [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md)。路线图与课题向待办见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 ---
 
@@ -1076,7 +1104,8 @@ chmod 755 data
 - [快速开始指南](QUICK_START.md)
 - [开发指南](DEVELOPMENT.md)
 - [uv使用指南](UV_VENV_GUIDE.md)
-- [贡献指南](CONTRIBUTING.md)
+- [贡献指南](docs/CONTRIBUTING.md)
+- [路线图与待办](docs/ROADMAP.md)
 
 ---
 

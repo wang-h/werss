@@ -112,20 +112,17 @@ class ConfigManager:
             config = self._load_config()
         config_list = []
         from core.config import cfg
-        keys=cfg.get("safe.hide_config","db").split(",")
-        print(keys)
+        keys = [k.strip() for k in cfg.get("safe.hide_config", "db").split(",") if k.strip()]
         try:
             for key, value in config.items():
                 if key in keys:
-                    value="***"
-                    pass
+                    value = "***"
                 if isinstance(value, dict):
                     # 处理嵌套配置
                     for sub_key, sub_value in value.items():
                         config_key = f"{key}.{sub_key}"
                         if config_key in keys:
-                            sub_value="***"
-                            pass
+                            sub_value = "***"
                         config_list.append(ConfigManagement(
                             config_key=config_key,
                             config_value=str(sub_value) if sub_value is not None else '',
@@ -137,6 +134,33 @@ class ConfigManager:
                         config_value=str(value) if value is not None else '',
                         description="系统配置项"
                     ))
+
+            # 用 config_management 表中的值覆盖展示（与运行时 cfg.get 一致）
+            try:
+                from core.config_overrides import env_overrides_db_mode, get_all_overrides
+
+                if not env_overrides_db_mode():
+                    overrides = get_all_overrides()
+                    seen = {item.config_key for item in config_list}
+                    for item in config_list:
+                        if item.config_key in overrides:
+                            v = overrides[item.config_key]
+                            item.config_value = (
+                                "***" if item.config_key in keys else str(v if v is not None else "")
+                            )
+                    for k, v in overrides.items():
+                        if k not in seen:
+                            config_list.append(
+                                ConfigManagement(
+                                    config_key=k,
+                                    config_value=(
+                                        "***" if k in keys else str(v if v is not None else "")
+                                    ),
+                                    description="数据库配置项",
+                                )
+                            )
+            except Exception as e:
+                self.logger.debug("合并数据库配置覆盖失败（可忽略）: %s", e)
             
             self.logger.info("配置已成功转换为列表")
             return config_list

@@ -92,6 +92,12 @@ def create_config(
         db.add(db_config)
         db.commit()
         db.refresh(db_config)
+        try:
+            from core.config_overrides import invalidate_config_overrides_cache
+
+            invalidate_config_overrides_cache()
+        except Exception:
+            pass
         return success_response(data=db_config)
     except Exception as e:
         db.rollback()
@@ -104,23 +110,40 @@ def update_config(
     current_user: dict = Depends(get_current_user)
 ):
     db=DB.get_session()
-    """更新配置项"""
+    """更新配置项（不存在则插入，便于首次在控制台保存 yaml 中已有键）"""
     try:
         db_config = db.query(ConfigManagement).filter(ConfigManagement.config_key == config_key).first()
         if not db_config:
-            raise HTTPException(status_code=404, detail="Config not found")
-        
-        # 检查是否至少有一个字段需要更新
-        if config_data.config_value is None and config_data.description is None:
-            raise HTTPException(status_code=400, detail="At least one field (config_value or description) must be provided")
-        
-        if config_data.config_value is not None:
-            db_config.config_value = config_data.config_value
-        if config_data.description is not None:
-            db_config.description = config_data.description
+            if config_data.config_value is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Config not found; provide config_value to create",
+                )
+            db_config = ConfigManagement(
+                config_key=config_key,
+                config_value=config_data.config_value,
+                description=(config_data.description or "控制台编辑"),
+            )
+            db.add(db_config)
+        else:
+            if config_data.config_value is None and config_data.description is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="At least one field (config_value or description) must be provided",
+                )
+            if config_data.config_value is not None:
+                db_config.config_value = config_data.config_value
+            if config_data.description is not None:
+                db_config.description = config_data.description
         
         db.commit()
         db.refresh(db_config)
+        try:
+            from core.config_overrides import invalidate_config_overrides_cache
+
+            invalidate_config_overrides_cache()
+        except Exception:
+            pass
         return success_response(data=db_config)
     except HTTPException:
         raise
@@ -146,6 +169,12 @@ def delete_config(
         
         db.delete(db_config)
         db.commit()
+        try:
+            from core.config_overrides import invalidate_config_overrides_cache
+
+            invalidate_config_overrides_cache()
+        except Exception:
+            pass
         return success_response(message="Config deleted successfully")
     except Exception as e:
         db.rollback()
