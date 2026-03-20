@@ -2,15 +2,25 @@
 cd /app/
 source install.sh
 
-# 检查环境变量是否正确设置
+# 与 init_sys.py 一致：优先 WERSS_*，兼容 USERNAME/PASSWORD（避免 .env 里只有 WERSS_* 时误报未设置）
+_init_user="${WERSS_USERNAME:-${USERNAME:-}}"
+_init_pass="${WERSS_PASSWORD:-${PASSWORD:-}}"
 echo "=== 环境变量检查 ==="
-echo "USERNAME: ${USERNAME:-未设置}"
-if [ -n "${PASSWORD}" ]; then
-    echo "PASSWORD: 已设置（长度: ${#PASSWORD} 字符）"
+if [ -n "${_init_user}" ]; then
+    echo "登录用户名(生效): ${_init_user}"
 else
-    echo "PASSWORD: 未设置"
+    echo "登录用户名(生效): 未设置 → 默认 admin"
 fi
-echo "DB: ${DB:+已设置}"
+if [ -n "${_init_pass}" ]; then
+    echo "登录密码(生效): 已设置（长度: ${#_init_pass} 字符）"
+else
+    echo "登录密码(生效): 未设置 → 默认 admin@123"
+fi
+if [ -n "${DB}" ]; then
+    echo "DB: 已设置"
+else
+    echo "DB: 未设置"
+fi
 echo "=================="
 
 # Docker 环境默认执行初始化（init_user 会检查用户是否存在，存在则更新密码）

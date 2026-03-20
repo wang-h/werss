@@ -8,7 +8,7 @@ from .user import User
 from .message_task import MessageTask
 # 导入配置管理模型
 from .config_management import ConfigManagement
-# 导入标签模型（必须在 article_tags 之前导入，因为 article_tags 有外键引用）
+# 导入标签模型（先于 article_tags）
 from .tags import Tags
 # 导入文章-标签关联模型
 from .article_tags import ArticleTag

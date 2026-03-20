@@ -7,7 +7,7 @@
 | 场景 | 文件 |
 |------|------|
 | 本机一键开发（自带库 + MinIO + 直连端口） | `docker-compose.dev.yml` |
-| 只跑 WeRSS 容器，库和对象存储用现成的 | `docker-compose.standalone.yml` |
+| 只跑 WeRSS 容器，库和对象存储用现成的 | `docker-compose.standalone.yml`（可选再叠 `docker-compose.standalone.db-network.yml`，见下文数据库一节） |
 
 ## 配置优先级、控制台与重启
 
@@ -41,20 +41,51 @@ docker compose -f docker-compose.standalone.yml up -d --build
 
 ## `.env` 里数据库怎么写
 
-应用在容器里读的是 **`DB`**（以及你在 `config.yaml` / 环境变量里为 MinIO 等配的项），需保证 **从 werss 容器内能解析并连上** Postgres。
+WeRSS 进程只读环境变量 **`DB`**（`DATABASE_URL` / `DEEPLING_DB_URL` 等是给主栈其它服务用的，按各自运行位置填写即可）。
 
-**常见坑：** 若 `DB` 里是 `@postgres:5432`，这只在「与名为 `postgres` 的容器同网」时成立。默认只用 `docker-compose.standalone.yml` 时 **没有** `postgres` 服务，会连不上——要么把 werss 加入主栈网络，要么把主机名改成 `host.docker.internal`（并保证 Postgres 在宿主机可连）。
+### 先分清：Postgres 的端口映射是哪一种
 
-1. **Postgres 在主栈 Docker 里，且能与 werss 同网**  
-   - 把 werss 加入主栈使用的 `external` 网络（见下文 Traefik 示例）。  
-   - `.env` 里 `DB` 用主栈里的服务名，例如：`...@postgres:5432/deepling_db`。
+在宿主机执行 `ss -tlnp | grep 5432` 或 `docker ps` 看 Postgres 一行的 **Ports**：
 
-2. **Postgres 只映射在宿主机 `127.0.0.1:5432`**  
-   - `docker-compose.standalone.yml` 已加 `host.docker.internal`。  
-   - `.env` 示例：`DB=postgresql://用户:密码@host.docker.internal:5432/数据库名`。
+| 映射方式 | 从 werss 容器连库 |
+|----------|-------------------|
+| **`127.0.0.1:5432->5432`**（仅本机回环） | 走 **`host.docker.internal` 会 `Connection refused`**：从 Docker 网桥进来的目标不是 `127.0.0.1`，宿主机上没有任何进程在 `0.0.0.0:5432` 监听。 |
+| **`0.0.0.0:5432->5432`** 或 **`5432:5432`** | 可用 **`host.docker.internal:5432`**（`docker-compose.standalone.yml` 已配 `extra_hosts`）。 |
 
-3. **密码含 `@` 等特殊字符**  
-   - 在连接串里对用户/密码做 URL 编码，或使用主栈推荐的写法。
+**不要用 `localhost`：** 在 werss 容器里 `localhost` 是 **容器自己**，不是宿主机。
+
+### 做法 A：改主栈映射（适合坚持「经宿主机端口」）
+
+把 Postgres 的 `ports` 从 `127.0.0.1:5432:5432` 改成 **`5432:5432`**（或等价地绑定到 `0.0.0.0`），然后只用单文件启动：
+
+```bash
+docker compose -f docker-compose.standalone.yml up -d --build
+```
+
+```env
+DB=postgresql://用户:密码@host.docker.internal:5432/数据库名
+```
+
+### 做法 B：不改主栈，叠加入库所在 Docker 网络（你当前环境）
+
+仓库提供 **`docker-compose.standalone.db-network.yml`**：让 werss 再挂到 Postgres 容器所在的外部网络上，用 Docker **服务名** `postgres` 访问（需与主栈里服务名一致）。
+
+```bash
+export WERSS_DB_DOCKER_NETWORK=deeplingtech_network   # docker inspect postgres 看 Networks 下的键名
+docker compose -f docker-compose.standalone.yml -f docker-compose.standalone.db-network.yml up -d --build
+```
+
+```env
+DB=postgresql://用户:密码@postgres:5432/数据库名
+```
+
+也可在容器起来后执行一次 `docker network connect deeplingtech_network werss`（网络名按实际改），效果同类。
+
+**密码含 `@` 等字符**时，在连接串里对用户/密码做 URL 编码。
+
+### 与主栈共库：`article_tags` 与外键
+
+若主栈里 `articles.id` 是 **integer**（如 Prisma），而 WeRSS 文章主键是 **字符串**（`公众号id-文章id`），无法在 PostgreSQL 里对 `article_tags.article_id` 声明指向 `articles.id` 的外键。当前模型 **不在库层建该外键**，由应用用 `JOIN` 维护关联；删除文章时 **不会** 由数据库级联删除 `article_tags` 行。若既要共库又要严格一致，更稳妥的是为 WeRSS 使用 **独立数据库** 或与主栈对齐的同一套 id 策略。
 
 ## Traefik
 

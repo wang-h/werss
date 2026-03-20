@@ -1,15 +1,17 @@
 """文章-标签关联表模型"""
-from .base import Base, Column, String, DateTime, ForeignKey, UniqueConstraint
+from .base import Base, Column, String, DateTime, UniqueConstraint
 from datetime import datetime
 
 
 class ArticleTag(Base):
     """文章-标签关联表"""
     __tablename__ = 'article_tags'
-    
+
+    # 不设数据库级 FOREIGN KEY：主栈/Prisma 等库里 articles.id 常为 integer，WeRSS 使用字符串复合 id，
+    # 类型不一致会导致建表失败；关联由应用层 join 维护（删除文章时不会级联删关联行，需业务侧处理）。
     id = Column(String(255), primary_key=True)
-    article_id = Column(String(255), ForeignKey('articles.id', ondelete='CASCADE'), nullable=False, index=True)
-    tag_id = Column(String(255), ForeignKey('tags.id', ondelete='CASCADE'), nullable=False, index=True)
+    article_id = Column(String(255), nullable=False, index=True)
+    tag_id = Column(String(255), nullable=False, index=True)
     created_at = Column(DateTime, default=datetime.now)  # 关联创建时间（标签被关联到文章的时间）
     article_publish_date = Column(DateTime, nullable=True, index=True)  # 文章的发布日期（用于趋势统计）
     
