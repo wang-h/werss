@@ -6,6 +6,8 @@
 
 ## 🚀 快速开始
 
+文档中的 **`/path/to/werss`** 请替换为你本机上的 WeRSS 仓库路径。
+
 ### 1. 安装 uv
 
 ```bash
@@ -31,7 +33,7 @@ uv --version
 ### 2. 创建虚拟环境
 
 ```bash
-cd /home/hao/deepling.tech/werss
+cd /path/to/werss
 
 # 使用 uv 创建虚拟环境（默认创建 .venv）
 uv venv
@@ -92,7 +94,7 @@ python main.py -job True -init False
 
 ```bash
 # 1. 进入项目目录
-cd /home/hao/deepling.tech/werss
+cd /path/to/werss
 
 # 2. 创建虚拟环境
 uv venv
@@ -124,7 +126,7 @@ python main.py -job True -init False
 每次打开新的终端时，需要重新激活虚拟环境：
 
 ```bash
-cd /home/hao/deepling.tech/werss
+cd /path/to/werss
 source .venv/bin/activate
 ```
 

@@ -56,7 +56,7 @@ python main.py -job True -init False
 
 ```bash
 # 使用 docker-compose.dev.yml
-cd /home/hao/deepling.tech
+cd /path/to/werss
 docker-compose -f docker-compose.dev.yml up -d --build werss
 
 # 查看日志
