@@ -22,31 +22,52 @@ from typing import Optional
 # 添加项目根目录到路径
 project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
+_monorepo_env = os.path.abspath(os.path.join(project_root, "..", ".env"))
+_werss_env = os.path.join(project_root, ".env")
 
-# 在导入配置之前，先加载 .env 文件（如果存在）
-env_path = os.path.join(project_root, '.env')
-if os.path.exists(env_path):
+
+def _parse_db_url_argv() -> None:
+    argv = sys.argv[1:]
+    for i, a in enumerate(argv):
+        if a == "--db-url" and i + 1 < len(argv):
+            os.environ["DB"] = argv[i + 1]
+            return
+        if a.startswith("--db-url="):
+            os.environ["DB"] = a.split("=", 1)[1]
+            return
+
+
+def _bootstrap_db_env() -> None:
+    _parse_db_url_argv()
     try:
         from dotenv import load_dotenv
-        load_dotenv(env_path, override=False)  # 不覆盖已存在的环境变量
-        
-        # 如果 DB 环境变量未设置，尝试从 PostgreSQL 配置构建
+    except ImportError:
+        load_dotenv = None  # type: ignore
+    try:
+        if load_dotenv:
+            for path in (_werss_env, _monorepo_env):
+                if os.path.isfile(path):
+                    load_dotenv(path, override=False)
         if not os.getenv("DB"):
             postgres_user = os.getenv("POSTGRES_USER", "deepling_user")
             postgres_password = os.getenv("POSTGRES_PASSWORD", "")
             postgres_db = os.getenv("POSTGRES_WERSS_DB") or os.getenv("POSTGRES_DB", "werss_db")
             postgres_host = os.getenv("POSTGRES_HOST", "localhost")
             postgres_port = os.getenv("POSTGRES_PORT", "5432")
-            
-            # 如果找到了 PostgreSQL 配置，构建连接字符串
             if postgres_password:
-                db_url = f"postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}"
-                os.environ["DB"] = db_url
-                print(f"✅ 已从 .env 文件构建 PostgreSQL 连接: postgresql://{postgres_user}:***@{postgres_host}:{postgres_port}/{postgres_db}")
-    except ImportError:
-        pass  # python-dotenv 未安装时忽略
+                os.environ["DB"] = (
+                    f"postgresql://{postgres_user}:{postgres_password}"
+                    f"@{postgres_host}:{postgres_port}/{postgres_db}"
+                )
+                print(
+                    f"✅ 已从 .env 构建 PostgreSQL 连接: postgresql://{postgres_user}:***@"
+                    f"{postgres_host}:{postgres_port}/{postgres_db}"
+                )
     except Exception as e:
-        print(f"⚠️  加载 .env 文件失败: {e}")
+        print(f"⚠️  加载 .env 失败: {e}")
+
+
+_bootstrap_db_env()
 
 from core.db import DB
 from core.models.article import Article
@@ -56,6 +77,18 @@ from core.models.base import DATA_STATUS
 from core.print import print_info, print_success, print_warning, print_error
 from core.config import cfg
 from sqlalchemy import func, or_
+
+
+def _reinit_db_if_config_yaml_forced_sqlite() -> None:
+    url = os.getenv("DB") or ""
+    if not url.startswith("postgresql"):
+        return
+    cur = getattr(DB, "connection_str", None) or ""
+    if cur.startswith("sqlite") or cur != url:
+        DB.init(url)
+
+
+_reinit_db_if_config_yaml_forced_sqlite()
 
 
 def re_extract_tags_for_article(session, article: Article, dry_run: bool = False) -> dict:
@@ -412,8 +445,16 @@ def main():
         default=100,
         help="批处理大小（每批提交一次，默认：100）"
     )
-    
+    parser.add_argument(
+        "--db-url",
+        type=str,
+        default=None,
+        help="数据库连接串（PostgreSQL），覆盖 config.yaml 中的 sqlite 默认",
+    )
+
     args = parser.parse_args()
+    if args.db_url:
+        DB.init(args.db_url)
     
     # 显示配置信息
     extract_method = cfg.get("article_tag.extract_method", "textrank")
