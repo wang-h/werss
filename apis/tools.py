@@ -18,6 +18,114 @@ from tools.mdtools.export import export_md_to_doc, process_articles
 router = APIRouter(prefix="/tools", tags=["工具"])
 
 # Schema 模型定义
+class ReExtractTagsRequest(BaseModel):
+    """批量重新提取标签请求模型"""
+    article_ids: List[str] = Field(..., description="要重新提取标签的文章ID列表")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "article_ids": ["1", "2", "3"]
+            }
+        }
+
+
+@router.post("/extract_tags", summary="批量重新提取标签")
+async def re_extract_tags(
+    request: ReExtractTagsRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    批量重新提取选中文章的标签
+    删除旧标签关联后重新提取
+    """
+    try:
+        if not request.article_ids:
+            return error_response(400, "文章ID列表不能为空")
+
+        from core.models.article import Article
+        from core.models.article_tags import ArticleTag
+        from core.models.tags import Tags
+        from core.models.base import DATA_STATUS
+
+        session = DB.get_session()
+        try:
+            success_count = 0
+            error_count = 0
+            results = []
+
+            for article_id in request.article_ids:
+                try:
+                    article = session.query(Article).filter(Article.id == article_id).first()
+                    if not article:
+                        error_count += 1
+                        results.append({"article_id": article_id, "error": "文章不存在"})
+                        continue
+
+                    if not article.title:
+                        error_count += 1
+                        results.append({"article_id": article_id, "error": "文章标题为空"})
+                        continue
+
+                    # 删除旧标签关联
+                    old_tags = session.query(ArticleTag).filter(
+                        ArticleTag.article_id == article_id
+                    ).all()
+                    for old_tag in old_tags:
+                        session.delete(old_tag)
+                    session.flush()
+
+                    # 重新提取标签
+                    content = article.content if hasattr(article, 'content') and article.content else ""
+                    description = article.description if article.description else ""
+                    DB._assign_tags_by_extraction(
+                        session=session,
+                        article_id=article_id,
+                        title=article.title,
+                        description=description,
+                        content=content
+                    )
+                    session.commit()
+
+                    # 获取新标签
+                    new_article_tags = session.query(ArticleTag).filter(
+                        ArticleTag.article_id == article_id
+                    ).all()
+                    tag_names = []
+                    if new_article_tags:
+                        tag_ids = [at.tag_id for at in new_article_tags]
+                        new_tags = session.query(Tags).filter(Tags.id.in_(tag_ids)).all()
+                        tag_names = [tag.name for tag in new_tags]
+
+                    success_count += 1
+                    results.append({
+                        "article_id": article_id,
+                        "title": article.title[:50],
+                        "tags": tag_names
+                    })
+                except Exception as e:
+                    session.rollback()
+                    error_count += 1
+                    results.append({"article_id": article_id, "error": str(e)})
+                    from core.print import print_error
+                    print_error(f"重新提取标签失败 [文章ID: {article_id}]: {e}")
+
+            return success_response({
+                "success_count": success_count,
+                "error_count": error_count,
+                "results": results
+            }, message=f"成功处理 {success_count} 篇文章，失败 {error_count} 篇")
+        finally:
+            session.close()
+
+    except Exception as e:
+        from core.print import print_error
+        print_error(f"批量重新提取标签失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return error_response(500, f"批量重新提取标签失败: {str(e)}")
+
+
 class ExportArticlesRequest(BaseModel):
     """导出文章请求模型"""
     mp_id: str  # type: ignore

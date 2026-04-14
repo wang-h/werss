@@ -63,6 +63,12 @@ export const exportArticles = (params:any) => {
     }
   })
 }
+export const reExtractTags = (articleIds: string[]) => {
+  return http.post<{code: number, data: any, message?: string}>('/wx/tools/extract_tags', {
+    article_ids: articleIds
+  })
+}
+
 export const getExportRecords = (params:any) => {
     const requestData = {
       mp_id: params.mp_id,

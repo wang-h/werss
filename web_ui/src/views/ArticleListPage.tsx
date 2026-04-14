@@ -17,7 +17,8 @@ import { getSubscriptions, SubscriptionListResult } from '@/api/subscription'
 import { formatDateTime, formatTimestamp } from '@/utils/date'
 import dayjs from 'dayjs'
 import ExportModal from '@/components/ExportModal'
-import { Trash2, Download, Wifi, ChevronDown, Loader2, Edit } from 'lucide-react'
+import { Trash2, Download, Wifi, ChevronDown, Loader2, Edit, Tags } from 'lucide-react'
+import { reExtractTags } from '@/api/tools'
 
 const ArticleListPage: React.FC = () => {
   const { t } = useTranslation()
@@ -46,6 +47,8 @@ const ArticleListPage: React.FC = () => {
     url: '',
     pic_url: ''
   })
+  const [reExtractDialogOpen, setReExtractDialogOpen] = useState(false)
+  const [reExtracting, setReExtracting] = useState(false)
   const exportModalRef = React.useRef<any>(null)
   const { toast } = useToast()
 
@@ -188,6 +191,42 @@ const ArticleListPage: React.FC = () => {
         title: "错误",
         description: error.message || '删除失败'
       })
+    }
+  }
+
+  // 批量重新提取标签
+  const handleReExtractTags = () => {
+    if (selectedRowKeys.length === 0) {
+      toast({
+        variant: "destructive",
+        title: t('common.warning'),
+        description: t('articles.messages.selectFirst')
+      })
+      return
+    }
+    setReExtractDialogOpen(true)
+  }
+
+  const confirmReExtractTags = async () => {
+    setReExtracting(true)
+    try {
+      const res = await reExtractTags(selectedRowKeys)
+      const data = (res as any)?.data || res
+      toast({
+        title: "成功",
+        description: data?.message || `重新提取标签完成`
+      })
+      setSelectedRowKeys([])
+      setReExtractDialogOpen(false)
+      loadArticles()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "错误",
+        description: error?.response?.data?.message || error?.message || '重新提取标签失败'
+      })
+    } finally {
+      setReExtracting(false)
     }
   }
 
@@ -356,6 +395,14 @@ const ArticleListPage: React.FC = () => {
                 <DropdownMenuItem onClick={() => openRssFeed('json')}>JSON</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant="outline"
+              onClick={handleReExtractTags}
+              disabled={selectedRowKeys.length === 0}
+            >
+              <Tags className="h-4 w-4 mr-2" />
+              重新提取标签
+            </Button>
             <Button
               variant="destructive"
               onClick={handleBatchDelete}
@@ -574,6 +621,23 @@ const ArticleListPage: React.FC = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setBatchDeleteDialogOpen(false)}>取消</Button>
             <Button variant="destructive" onClick={confirmBatchDelete}>删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 重新提取标签确认对话框 */}
+      <Dialog open={reExtractDialogOpen} onOpenChange={setReExtractDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>重新提取标签</DialogTitle>
+            <DialogDescription>确定要为选中的 {selectedRowKeys.length} 篇文章重新提取标签吗？将删除旧标签并重新提取。</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReExtractDialogOpen(false)} disabled={reExtracting}>取消</Button>
+            <Button onClick={confirmReExtractTags} disabled={reExtracting}>
+              {reExtracting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              确定
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
