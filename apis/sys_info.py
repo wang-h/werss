@@ -10,6 +10,8 @@ from driver.token import wx_cfg
 from core.config import cfg
 from jobs.mps import TaskQueue
 from driver.success import getLoginInfo,getStatus
+from jobs.mps import scheduler as mps_scheduler, get_message_task
+from jobs.fetch_no_article import scheduler as fetch_scheduler
 router = APIRouter(prefix="/sys", tags=["系统信息"])
 
 # 记录服务器启动时间
@@ -120,6 +122,17 @@ async def get_system_info(
             },
             "article":ARTICLE_INFO,
             'queue':TaskQueue.get_queue_info(),
+            "scheduler": {
+                "mps": mps_scheduler.get_scheduler_status() if hasattr(mps_scheduler, 'get_scheduler_status') else {"running": False, "job_count": 0, "next_run_times": []},
+                "fetch": fetch_scheduler.get_scheduler_status() if hasattr(fetch_scheduler, 'get_scheduler_status') else {"running": False, "job_count": 0, "next_run_times": []},
+            },
+            "message_tasks": [{
+                "id": task.id,
+                "name": task.name,
+                "cron_exp": task.cron_exp,
+                "status": task.status,
+                "mps_id": task.mps_id
+            } for task in (get_message_task() or [])],
         }
         return success_response(data=system_info)
     except Exception as e:

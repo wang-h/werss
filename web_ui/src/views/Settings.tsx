@@ -6,20 +6,46 @@ import { Separator } from '@/components/ui/separator'
 import { Label } from '@/components/ui/label'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { getSettings, saveSettings, type AppSettings } from '@/utils/settings'
 import { useTheme } from '@/components/theme-provider'
 import { getConfig, createConfig, updateConfig } from '@/api/configManagement'
+import { getSysInfo } from '@/api/sysInfo'
 import dayjs from 'dayjs'
-import { CalendarIcon, Loader2 } from 'lucide-react'
+import { CalendarIcon, Loader2, Clock, Play, Pause, AlertCircle } from 'lucide-react'
 import { format } from 'date-fns'
 import { cn } from '@/lib/utils'
+
+interface SchedulerInfo {
+  mps: {
+    running: boolean
+    job_count: number
+    next_run_times: [string, string | null][]
+  }
+  fetch: {
+    running: boolean
+    job_count: number
+    next_run_times: [string, string | null][]
+  }
+}
+
+interface MessageTask {
+  id: string
+  name: string
+  cron_exp: string
+  status: number
+  mps_id: string
+}
 
 const Settings: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(getSettings())
   const [collectStartDate, setCollectStartDate] = useState<Date | null>(null)
   const [tempCollectStartDate, setTempCollectStartDate] = useState<Date | null>(null)
   const [loading, setLoading] = useState(false)
+  const [schedulerInfo, setSchedulerInfo] = useState<SchedulerInfo | null>(null)
+  const [messageTasks, setMessageTasks] = useState<MessageTask[]>([])
+  const [loadingScheduler, setLoadingScheduler] = useState(false)
   const { toast } = useToast()
   const { theme, setTheme } = useTheme()
 
@@ -28,16 +54,37 @@ const Settings: React.FC = () => {
     const handleSettingsChange = (e: CustomEvent<AppSettings>) => {
       setSettings(e.detail)
     }
-    
+
     window.addEventListener('settingsChanged', handleSettingsChange as EventListener)
-    
+
     // 加载采集起始时间配置
     loadCollectStartDate()
-    
+    // 加载调度器状态
+    loadSchedulerInfo()
+
     return () => {
       window.removeEventListener('settingsChanged', handleSettingsChange as EventListener)
     }
   }, [])
+
+  // 加载调度器状态
+  const loadSchedulerInfo = async () => {
+    setLoadingScheduler(true)
+    try {
+      const res = await getSysInfo()
+      const data = (res as any)?.data || res
+      if (data?.scheduler) {
+        setSchedulerInfo(data.scheduler)
+      }
+      if (data?.message_tasks) {
+        setMessageTasks(data.message_tasks)
+      }
+    } catch (error) {
+      console.error('加载调度器状态失败:', error)
+    } finally {
+      setLoadingScheduler(false)
+    }
+  }
 
   // 加载采集起始时间配置
   const loadCollectStartDate = async () => {
@@ -255,6 +302,105 @@ const Settings: React.FC = () => {
               </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* 定时任务状态 */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Clock className="h-5 w-5" />
+            定时抓取任务
+          </CardTitle>
+          <CardDescription>
+            查看和管理定时文章抓取任务状态
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {loadingScheduler ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              <span className="ml-2 text-muted-foreground">加载中...</span>
+            </div>
+          ) : (
+            <>
+              {/* 调度器状态 */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Label className="text-base">调度器状态</Label>
+                    {schedulerInfo?.mps?.running ? (
+                      <Badge variant="default" className="bg-green-500">
+                        <Play className="h-3 w-3 mr-1" />
+                        运行中
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">
+                        <Pause className="h-3 w-3 mr-1" />
+                        未运行
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    文章抓取调度器 {schedulerInfo?.mps?.running ? '正在运行' : '未运行'}，共 {schedulerInfo?.mps?.job_count || 0} 个定时任务
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={loadSchedulerInfo}>
+                  刷新状态
+                </Button>
+              </div>
+
+              {/* 消息任务列表 */}
+              {messageTasks.length > 0 ? (
+                <div className="space-y-3">
+                  <Separator />
+                  <Label className="text-sm font-medium">定时任务列表</Label>
+                  {messageTasks.map((task) => (
+                    <div key={task.id} className="flex items-center justify-between p-3 border rounded-lg">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{task.name}</span>
+                          <Badge variant={task.status === 1 ? "default" : "secondary"}>
+                            {task.status === 1 ? '已启用' : '已禁用'}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Cron: {task.cron_exp}
+                        </p>
+                      </div>
+                      {schedulerInfo?.mps?.running && schedulerInfo?.mps?.next_run_times?.length > 0 && (
+                        <div className="text-right">
+                          {schedulerInfo.mps.next_run_times
+                            .filter(([id]) => id === task.id)
+                            .map(([, time]) => (
+                              <p key={task.id} className="text-xs text-muted-foreground">
+                                下次: {time ? dayjs(time).format('MM-DD HH:mm:ss') : '未知'}
+                              </p>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-4 border border-dashed rounded-lg">
+                  <AlertCircle className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      暂无定时抓取任务
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      请到{' '}
+                      <a href="/message-tasks" className="text-primary hover:underline">
+                        消息任务
+                      </a>
+                      页面创建定时抓取任务
+                    </p>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </div>
