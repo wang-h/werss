@@ -337,42 +337,56 @@ const BasicLayout: React.FC = () => {
     </SidebarProvider>
   )
 
-  // 水印功能暂时保留，等找到 shadcn/ui 的替代方案
+  // 水印功能：显示版权水印信息
+  const renderWatermark = () => {
+    if (!settings.watermarkEnabled) return null
+
+    const watermarkText = `${appTitle} · ${new Date().getFullYear()}`
+
+    return (
+      <div
+        className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden"
+        aria-hidden="true"
+      >
+        {/* 对角线水印文字矩阵 */}
+        {Array.from({ length: 15 }).map((_, rowIndex) => (
+          <div
+            key={rowIndex}
+            className="flex"
+            style={{
+              marginTop: rowIndex === 0 ? '-80px' : '160px',
+            }}
+          >
+            {Array.from({ length: 20 }).map((_, colIndex) => (
+              <div
+                key={colIndex}
+                className="select-none dark:text-white/[0.03] text-black/[0.04]"
+                style={{
+                  width: '250px',
+                  marginLeft: colIndex === 0 ? (rowIndex % 2 === 0 ? '-50px' : '0') : '0',
+                  transform: 'rotate(-25deg)',
+                  transformOrigin: 'left center',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                  padding: '20px 0',
+                }}
+              >
+                {watermarkText}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <AppContext.Provider value={{ showAuthQrcode }}>
-      {settings.watermarkEnabled ? (
-        <div 
-          className="relative"
-          style={{
-            backgroundImage: `repeating-linear-gradient(
-              -22deg,
-              transparent,
-              transparent 100px,
-              rgba(0,0,0,0.03) 100px,
-              rgba(0,0,0,0.03) 200px
-            )`,
-            backgroundSize: '200px 200px'
-          }}
-        >
-          <div 
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `repeating-linear-gradient(
-                22deg,
-                transparent,
-                transparent 50px,
-                rgba(0,0,0,0.02) 50px,
-                rgba(0,0,0,0.02) 100px
-              )`
-            }}
-          />
-          <div className="relative">
-            {layoutContent}
-          </div>
-        </div>
-      ) : (
-        layoutContent
-      )}
+      {renderWatermark()}
+      <div className="relative">
+        {layoutContent}
+      </div>
     </AppContext.Provider>
   )
 }
