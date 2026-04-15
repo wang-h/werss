@@ -10,7 +10,8 @@ from driver.token import wx_cfg
 from core.config import cfg
 from jobs.mps import TaskQueue
 from driver.success import getLoginInfo,getStatus
-from jobs.mps import scheduler as mps_scheduler, get_message_task
+from jobs.mps import scheduler as mps_scheduler
+from jobs.taskmsg import get_message_task
 from jobs.fetch_no_article import scheduler as fetch_scheduler
 router = APIRouter(prefix="/sys", tags=["系统信息"])
 
