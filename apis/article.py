@@ -676,12 +676,13 @@ async def fetch_article_content(
         from driver.wxarticle import Web
         import random
         import time
-        
+        import asyncio
+
         content = None
         if cfg.get("gather.content_mode", "web") == "web":
             # 使用 Web 模式（Playwright）
             try:
-                result = Web.get_article_content(url)
+                result = await asyncio.to_thread(Web.get_article_content, url)
                 content = result.get("content") if result else None
             except Exception as e:
                 print_error(f"Web模式获取内容失败: {e}")
