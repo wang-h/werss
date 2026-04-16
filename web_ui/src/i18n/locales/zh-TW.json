@@ -39,6 +39,8 @@
     "subscriptions": "訂閱管理",
     "exportRecords": "導出記錄",
     "tags": "標籤管理",
+    "tagClusters": "標籤聚類",
+    "tagClusterDetail": "聚類詳情",
     "messageTasks": "消息任務",
     "configs": "配置信息",
     "sysInfo": "系統信息",

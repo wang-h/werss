@@ -39,6 +39,8 @@
     "subscriptions": "订阅管理",
     "exportRecords": "导出记录",
     "tags": "标签管理",
+    "tagClusters": "标签聚类",
+    "tagClusterDetail": "聚类详情",
     "messageTasks": "消息任务",
     "configs": "配置信息",
     "sysInfo": "系统信息",

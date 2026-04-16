@@ -16,6 +16,8 @@ import NovelReader from '../views/NovelReader'
 import SysInfo from '../views/SysInfo'
 import TagList from '../views/TagList'
 import TagForm from '../views/TagForm'
+import TagClusterList from '../views/TagClusterList'
+import TagClusterDetail from '../views/TagClusterDetail'
 import Dashboard from '../views/Dashboard'
 import Settings from '../views/Settings'
 import ApiKeyManagement from '../views/ApiKeyManagement'
@@ -184,6 +186,22 @@ const router = createBrowserRouter(
         )
       },
       {
+        path: 'tag-clusters',
+        element: (
+          <PermissionRoute permissions={['tag:view']}>
+            <TagClusterList />
+          </PermissionRoute>
+        )
+      },
+      {
+        path: 'tag-clusters/:id',
+        element: (
+          <PermissionRoute permissions={['tag:view']}>
+            <TagClusterDetail />
+          </PermissionRoute>
+        )
+      },
+      {
         path: 'api-keys',
         element: (
           <PermissionRoute permissions={['admin']}>
@@ -231,4 +249,3 @@ const router = createBrowserRouter(
 )
 
 export default router
-

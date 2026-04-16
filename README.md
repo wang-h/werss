@@ -4,7 +4,7 @@
 
 # WeRSS - 微信公众号热度分析系统
 
-![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
 ![GitHub Stars](https://img.shields.io/github/stars/wang-h/werss?style=social)
@@ -1133,6 +1133,18 @@ chmod 755 data
 ---
 
 ## 📋 更新日志
+
+### v1.1.2（2026-04-16）
+
+**标签体系增强**
+- 新增标签语义聚类：基于标签 profile、文章共现与 embedding 生成标签主题簇
+- 新增相似标签视图与聚类详情页
+- 支持聚类 JSON 导出与合并建议展示
+- 支持 BigModel / Doubao embedding provider 配置
+
+**部署与维护**
+- 修复 `DB` 环境变量覆盖问题，避免 compose 锁死到错误数据库
+- 新增标签聚类部署与验证清单
 
 ### v1.1.1（2026-04-15）
 

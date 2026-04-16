@@ -10,7 +10,7 @@ import {
   SidebarMenuButton,
   SidebarRail,
 } from '@/components/ui/sidebar'
-import { FileText, Rss, Tag, Bell, Settings, Info, LayoutDashboard, GalleryVerticalEnd, Key } from 'lucide-react'
+import { FileText, Rss, Tag, Bell, Settings, Info, LayoutDashboard, GalleryVerticalEnd, Key, Layers3 } from 'lucide-react'
 import { NavMain } from '@/components/nav-main'
 
 const Navbar: React.FC = () => {
@@ -44,6 +44,11 @@ const Navbar: React.FC = () => {
       title: t('layout.tags'),
       url: '/tags',
       icon: Tag,
+    },
+    {
+      title: t('layout.tagClusters'),
+      url: '/tag-clusters',
+      icon: Layers3,
     },
     {
       title: t('layout.messageTasks'),

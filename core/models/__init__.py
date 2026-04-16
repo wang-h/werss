@@ -12,6 +12,12 @@ from .config_management import ConfigManagement
 from .tags import Tags
 # 导入文章-标签关联模型
 from .article_tags import ArticleTag
+# 导入标签聚类相关模型
+from .tag_profiles import TagProfile
+from .tag_embeddings import TagEmbedding
+from .tag_similarities import TagSimilarity
+from .tag_clusters import TagCluster
+from .tag_cluster_members import TagClusterMember
 # 导入 API Key 模型
 from .api_key import ApiKey, ApiKeyLog
 # 导入基础模型

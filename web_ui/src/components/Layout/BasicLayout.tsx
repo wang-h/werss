@@ -178,6 +178,7 @@ const BasicLayout: React.FC = () => {
     '/subscriptions': t('layout.subscriptions'),
     '/export/records': t('layout.exportRecords'),
     '/tags': t('layout.tags'),
+    '/tag-clusters': t('layout.tagClusters'),
     '/message-tasks': t('layout.messageTasks'),
     '/configs': t('layout.configs'),
     '/sys-info': t('layout.sysInfo'),
@@ -195,7 +196,10 @@ const BasicLayout: React.FC = () => {
     let currentPath = ''
     pathSegments.forEach((segment) => {
       currentPath += `/${segment}`
-      const label = routeNameMap[currentPath] || segment
+      let label = routeNameMap[currentPath] || segment
+      if (currentPath.startsWith('/tag-clusters/') && pathSegments.length >= 2 && currentPath !== '/tag-clusters') {
+        label = t('layout.tagClusterDetail')
+      }
       items.push({ label, path: currentPath })
     })
 

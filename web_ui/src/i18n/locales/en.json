@@ -39,6 +39,8 @@
     "subscriptions": "Subscriptions",
     "exportRecords": "Export Records",
     "tags": "Tags",
+    "tagClusters": "Tag Clusters",
+    "tagClusterDetail": "Cluster Detail",
     "messageTasks": "Message Tasks",
     "configs": "Configs",
     "sysInfo": "System Info",
