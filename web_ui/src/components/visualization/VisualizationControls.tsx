@@ -15,7 +15,6 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import {Switch} from '@/components/ui/switch'
-import {Slider} from '@/components/ui/slider'
 import {Settings, RefreshCw} from 'lucide-react'
 import type {VisualizationControlsProps, ReductionMethod, LayoutType} from '@/types/visualization'
 import {cn} from '@/lib/utils'
@@ -194,15 +193,16 @@ export const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                 {config.minEdgeWeight ? (config.minEdgeWeight * 100).toFixed(0) : '50'}%
               </span>
             </div>
-            <Slider
+            <input
               id="edge-weight-slider"
-              value={[config.minEdgeWeight || 0.5]}
-              onValueChange={([value]) => handleConfigChange({minEdgeWeight: value})}
+              type="range"
+              value={config.minEdgeWeight || 0.5}
+              onChange={(e) => handleConfigChange({minEdgeWeight: parseFloat(e.target.value)})}
               min={0}
               max={1}
               step={0.05}
               disabled={disabled}
-              className="w-full"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
             />
             <p className="text-xs text-muted-foreground">
               只显示相似度高于此阈值的关系
@@ -221,15 +221,16 @@ export const VisualizationControls: React.FC<VisualizationControlsProps> = ({
                 {config.maxNodes}
               </span>
             </div>
-            <Slider
+            <input
               id="max-nodes-slider"
-              value={[config.maxNodes]}
-              onValueChange={([value]) => handleConfigChange({maxNodes: value})}
+              type="range"
+              value={config.maxNodes}
+              onChange={(e) => handleConfigChange({maxNodes: parseInt(e.target.value)})}
               min={10}
               max={500}
               step={10}
               disabled={disabled}
-              className="w-full"
+              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700"
             />
             <p className="text-xs text-muted-foreground">
               限制显示的节点数量以提高性能
