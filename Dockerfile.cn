@@ -18,7 +18,7 @@ COPY web_ui/package.json web_ui/pnpm-lock.yaml* web_ui/
 
 # 安装前端依赖
 WORKDIR /app/web_ui
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 # 复制前端源代码
 COPY web_ui/ .
