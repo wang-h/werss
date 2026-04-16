@@ -84,3 +84,6 @@ yarl==1.22.0
 openai>=2.11.0
 # MinIO 对象存储（用于图片上传）
 minio>=7.2.0
+# 可视化降维算法
+umap-learn>=0.5.0
+scikit-learn>=1.0.0

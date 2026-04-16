@@ -11,6 +11,7 @@ from core.models.tag_clusters import TagCluster
 from core.models.tag_similarities import TagSimilarity
 from core.models.tags import Tags as TagsModel
 from core.tag_cluster import rebuild_tag_clusters
+from core.visualization import compute_2d_layout, normalize_coordinates, compute_cluster_overview
 from .base import success_response, error_response
 
 router = APIRouter(prefix="/tag-clusters", tags=["标签聚类"])
@@ -180,3 +181,211 @@ async def rebuild_clusters(
 ):
     result = rebuild_tag_clusters(db)
     return success_response(data=result, message="标签聚类重建完成")
+
+
+@router.get("/{cluster_id}/visualization")
+async def get_cluster_visualization(
+    cluster_id: str,
+    method: str = Query('pca', description="降维方法: pca, tsne, umap"),
+    include_edges: bool = Query(True, description="是否包含边信息"),
+    min_edge_weight: float = Query(0.5, ge=0.0, le=1.0, description="最小边权重阈值"),
+    normalize: bool = Query(True, description="是否归一化坐标"),
+    db: Session = Depends(get_db),
+    cur_user: dict = Depends(get_current_user),
+):
+    """
+    获取聚类的2D可视化数据
+
+    返回降维后的节点坐标和可选的边信息，用于前端渲染散点图或网络图。
+    支持多种降维方法：
+    - pca: 主成分分析，快速稳定
+    - tsne: t-SNE，高质量但较慢
+    - umap: UMAP，平衡性能和质量
+    """
+    try:
+        # 验证聚类是否存在
+        cluster = db.query(TagCluster).filter(TagCluster.id == cluster_id).first()
+        if not cluster:
+            return error_response(404, "聚类不存在")
+
+        # 计算可视化布局
+        layout_data = compute_2d_layout(
+            cluster_id=cluster_id,
+            db=db,
+            method=method,
+            include_edges=include_edges,
+            min_edge_weight=min_edge_weight
+        )
+
+        # 归一化坐标（可选）
+        if normalize and layout_data.get("nodes"):
+            layout_data["nodes"] = normalize_coordinates(layout_data["nodes"])
+
+        # 添加聚类元数据
+        layout_data["metadata"]["cluster_name"] = cluster.name
+        layout_data["metadata"]["cluster_description"] = cluster.description
+        layout_data["metadata"]["centroid_tag_id"] = cluster.centroid_tag_id
+        layout_data["metadata"]["cluster_size"] = cluster.size
+
+        return success_response(data=layout_data)
+
+    except ValueError as e:
+        return error_response(400, f"不支持的降维方法: {str(e)}")
+    except ImportError as e:
+        return error_response(500, f"缺少必要的依赖库: {str(e)}")
+    except Exception as e:
+        return error_response(500, f"生成可视化数据失败: {str(e)}")
+
+
+@router.get("/{cluster_id}/network")
+async def get_cluster_network(
+    cluster_id: str,
+    min_similarity: float = Query(0.7, ge=0.0, le=1.0, description="最小相似度阈值"),
+    layout_type: str = Query('force', description="布局类型: force, circular, hierarchical"),
+    max_nodes: int = Query(100, ge=10, le=500, description="最大节点数量"),
+    db: Session = Depends(get_db),
+    cur_user: dict = Depends(get_current_user),
+):
+    """
+    获取聚类的网络图数据
+
+    返回用于渲染力导向网络图的节点和边数据。
+    """
+    try:
+        # 验证聚类是否存在
+        cluster = db.query(TagCluster).filter(TagCluster.id == cluster_id).first()
+        if not cluster:
+            return error_response(404, "聚类不存在")
+
+        # 获取聚类成员（限制数量以避免前端性能问题）
+        member_rows = (
+            db.query(TagClusterMember, TagsModel)
+            .join(TagsModel, TagsModel.id == TagClusterMember.tag_id)
+            .filter(TagClusterMember.cluster_id == cluster_id)
+            .order_by(TagClusterMember.member_score.desc())
+            .limit(max_nodes)
+            .all()
+        )
+
+        if not member_rows:
+            return success_response(data={
+                "nodes": [],
+                "edges": [],
+                "metadata": {
+                    "cluster_id": cluster_id,
+                    "layout_type": layout_type,
+                    "node_count": 0,
+                    "edge_count": 0
+                }
+            })
+
+        # 创建节点数据
+        nodes = []
+        tag_ids = []
+        for member, tag in member_rows:
+            tag_ids.append(member.tag_id)
+            nodes.append({
+                "id": member.tag_id,
+                "name": tag.name or member.tag_id,
+                "score": member.member_score / 10000.0,  # 归一化到0-1
+                "cluster": cluster_id,
+                "size": max(5, min(20, 5 + (member.member_score / 10000.0) * 15))  # 节点大小5-20
+            })
+
+        # 获取相似度数据作为边
+        edges = []
+        similarity_rows = (
+            db.query(TagSimilarity)
+            .filter(
+                TagSimilarity.tag_id.in_(tag_ids),
+                TagSimilarity.similar_tag_id.in_(tag_ids)
+            )
+            .all()
+        )
+
+        for row in similarity_rows:
+            weight = row.score / 10000.0 if row.score else 0
+            if weight >= min_similarity:
+                edges.append({
+                    "source": row.tag_id,
+                    "target": row.similar_tag_id,
+                    "weight": float(weight),
+                    "embedding_score": float(row.embedding_score / 10000.0) if row.embedding_score else 0,
+                    "cooccurrence_score": float(row.cooccurrence_score / 10000.0) if row.cooccurrence_score else 0,
+                    "lexical_score": float(row.lexical_score / 10000.0) if row.lexical_score else 0
+                })
+
+        return success_response(data={
+            "nodes": nodes,
+            "edges": edges,
+            "metadata": {
+                "cluster_id": cluster_id,
+                "cluster_name": cluster.name,
+                "layout_type": layout_type,
+                "node_count": len(nodes),
+                "edge_count": len(edges),
+                "min_similarity": min_similarity
+            }
+        })
+
+    except Exception as e:
+        return error_response(500, f"生成网络图数据失败: {str(e)}")
+
+
+@router.get("/overview/visualization")
+async def get_clusters_overview(
+    method: str = Query('pca', description="降维方法: pca, tsne, umap"),
+    limit: int = Query(10, ge=1, le=50, description="包含的聚类数量"),
+    db: Session = Depends(get_db),
+    cur_user: dict = Depends(get_current_user),
+):
+    """
+    获取多个聚类的概览可视化
+
+    用于在全局视图中展示所有聚类的关系。
+    """
+    try:
+        # 获取最大的几个聚类
+        clusters = (
+            db.query(TagCluster)
+            .order_by(TagCluster.size.desc())
+            .limit(limit)
+            .all()
+        )
+
+        if not clusters:
+            return success_response(data={
+                "nodes": [],
+                "edges": [],
+                "metadata": {
+                    "method": method,
+                    "cluster_count": 0,
+                    "node_count": 0,
+                    "edge_count": 0
+                }
+            })
+
+        cluster_ids = [cluster.id for cluster in clusters]
+
+        # 计算概览可视化
+        overview_data = compute_cluster_overview(
+            cluster_ids=cluster_ids,
+            db=db,
+            method=method
+        )
+
+        # 添加聚类名称到元数据
+        overview_data["metadata"]["clusters"] = [
+            {
+                "id": cluster.id,
+                "name": cluster.name,
+                "size": cluster.size,
+                "centroid_tag_id": cluster.centroid_tag_id
+            }
+            for cluster in clusters
+        ]
+
+        return success_response(data=overview_data)
+
+    except Exception as e:
+        return error_response(500, f"生成概览可视化失败: {str(e)}")
