@@ -92,7 +92,7 @@ const Navbar: React.FC = () => {
                 )}
                 <div className="flex flex-col gap-0.5 leading-none min-w-0">
                   <span className="font-semibold truncate">{appTitle}</span>
-                  <span className="text-xs text-muted-foreground">v1.0.0</span>
+                  <span className="text-xs text-muted-foreground">v1.1.2</span>
                 </div>
               </Link>
             </SidebarMenuButton>

@@ -179,8 +179,19 @@ async def rebuild_clusters(
     db: Session = Depends(get_db),
     cur_user: dict = Depends(get_current_user),
 ):
-    result = rebuild_tag_clusters(db)
-    return success_response(data=result, message="标签聚类重建完成")
+    try:
+        result = rebuild_tag_clusters(db)
+        return success_response(data=result, message="标签聚类重建完成")
+    except ValueError as e:
+        # 处理embedding provider配置错误
+        error_msg = str(e)
+        if "API_KEY 未配置" in error_msg or "未配置" in error_msg:
+            return error_response(400, f"Embedding API密钥未配置，无法重建标签聚类。"
+                            f"请在环境变量中配置 {error_msg.split()[0]}，"
+                            f"或者在.env文件中设置相应的API密钥。")
+        return error_response(500, f"重建聚类失败: {error_msg}")
+    except Exception as e:
+        return error_response(500, f"重建聚类失败: {str(e)}")
 
 
 @router.get("/{cluster_id}/visualization")
