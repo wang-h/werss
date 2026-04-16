@@ -100,6 +100,12 @@ services:
         condition: service_healthy
     networks:
       - werss_net
+    labels:
+      - traefik.enable=${WERSS_TRAEFIK_ENABLE:-false}
+      - traefik.http.routers.werss.rule=Host(`${WERSS_HOST:-localhost}`)
+      - traefik.http.routers.werss.entrypoints=${WERSS_ENTRYPOINTS:-websecure}
+      - traefik.http.routers.werss.tls.certresolver=${WERSS_TLS_RESOLVER:-letsencrypt}
+      - traefik.http.services.werss.loadbalancer.server.port=8001
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
       interval: 30s
