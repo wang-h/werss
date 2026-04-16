@@ -10,8 +10,6 @@
 ![GitHub Stars](https://img.shields.io/github/stars/wang-h/werss?style=social)
 ![GitHub Forks](https://img.shields.io/github/forks/wang-h/werss?style=social)
 
-[![Star History Chart](https://api.star-history.com/svg?repos=wang-h/werss&type=Date)](https://www.star-history.com/#wang-h/werss&Date)
-
 **一个功能强大的微信公众号热度分析系统，支持自动采集、标签管理、多格式导出、主题词提取与热度追踪等功能**
 
 [功能特性](#-功能特性) • [快速开始](#-快速开始) • [配置说明](#-配置说明) • [API文档](#-api文档) • [开发指南](#-开发指南) • [路线图与维护](#-路线图与维护)
@@ -1171,6 +1169,8 @@ chmod 755 data
 <div align="center">
 
 **⭐ 如果这个项目对你有帮助，请给个 Star ⭐**
+
+[![Star History Chart](https://api.star-history.com/svg?repos=wang-h/werss&type=Date)](https://www.star-history.com/#wang-h/werss&Date)
 
 Made with ❤️ by Hao 
 

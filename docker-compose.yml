@@ -74,7 +74,7 @@ services:
     container_name: ${WERSS_CONTAINER_NAME:-werss}
     restart: unless-stopped
     environment:
-      - DB=postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-werss_db}
+      - DB=${DB:-postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-werss_db}}
       - PORT=8001
       - DEBUG=${DEBUG:-False}
       - AUTO_RELOAD=${AUTO_RELOAD:-False}
