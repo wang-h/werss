@@ -18,7 +18,10 @@ from .tag_embeddings import TagEmbedding
 from .tag_similarities import TagSimilarity
 from .tag_clusters import TagCluster
 from .tag_cluster_members import TagClusterMember
+from .tag_cluster_aliases import TagClusterAlias
 # 导入 API Key 模型
 from .api_key import ApiKey, ApiKeyLog
+# 导入文章 AI 过滤结果模型
+from .article_ai_filter import ArticleAiFilter
 # 导入基础模型
 from .base import *

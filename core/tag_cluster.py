@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Tuple
 from sqlalchemy.orm import Session
 
 from core.embedding import get_embedding_provider
+from core.models.tag_cluster_aliases import TagClusterAlias
 from core.models.tag_cluster_members import TagClusterMember
 from core.models.tag_clusters import TagCluster
 from core.models.tag_embeddings import TagEmbedding
@@ -104,6 +105,57 @@ def _score_to_int(value: float) -> int:
     return max(0, min(10000, int(round(value * 10000))))
 
 
+def _build_cluster_aliases(
+    db: Session,
+    old_members: dict[str, set[str]],
+    new_members: dict[str, set[str]],
+    version: str,
+) -> int:
+    if not old_members or not new_members:
+        return 0
+
+    alias_rows = 0
+    now = datetime.now()
+    for old_cluster_id, old_tag_ids in old_members.items():
+        if not old_tag_ids:
+            continue
+
+        best_cluster_id = None
+        best_overlap = 0
+        best_score = 0.0
+
+        for new_cluster_id, new_tag_ids in new_members.items():
+            if not new_tag_ids:
+                continue
+
+            overlap = len(old_tag_ids & new_tag_ids)
+            if overlap <= 0:
+                continue
+
+            score = overlap / max(len(old_tag_ids), 1)
+            if score > best_score:
+                best_cluster_id = new_cluster_id
+                best_overlap = overlap
+                best_score = score
+
+        if not best_cluster_id:
+            continue
+
+        db.add(
+            TagClusterAlias(
+                id=str(uuid.uuid4()),
+                alias_cluster_id=old_cluster_id,
+                cluster_id=best_cluster_id,
+                overlap_score=_score_to_int(best_score),
+                cluster_version=version,
+                created_at=now,
+            )
+        )
+        alias_rows += 1
+
+    return alias_rows
+
+
 def build_tag_embeddings_for_names(db: Session, tags: List[Tags]) -> Dict[str, TagEmbedding]:
     """
     仅对标签名称本身进行 Embedding 向量化，抛弃文章上下文。
@@ -191,6 +243,13 @@ def rebuild_tag_clusters(db: Session) -> Dict[str, Any]:
 
     tag_ids = [t.id for t in tags]
     tag_names = {t.id: t.name for t in tags}
+
+    old_cluster_rows = db.query(TagCluster).all()
+    old_member_rows = db.query(TagClusterMember).all()
+    old_members: dict[str, set[str]] = defaultdict(set)
+    for row in old_member_rows:
+        if row.cluster_id and row.tag_id:
+            old_members[row.cluster_id].add(row.tag_id)
 
     # 1. 向量化标签名称
     provider = get_embedding_provider()
@@ -352,10 +411,22 @@ def rebuild_tag_clusters(db: Session) -> Dict[str, Any]:
             )
 
     db.commit()
+    db.commit()
+
+    new_member_rows = db.query(TagClusterMember).filter(TagClusterMember.cluster_version == version).all()
+    new_members: dict[str, set[str]] = defaultdict(set)
+    for row in new_member_rows:
+        if row.cluster_id and row.tag_id:
+            new_members[row.cluster_id].add(row.tag_id)
+
+    alias_rows = _build_cluster_aliases(db, old_members, new_members, version)
+    db.commit()
+
     return {
         "tag_count": len(tag_ids),
         "cluster_count": cluster_count,
         "similarity_count": similarity_rows,
+        "alias_count": alias_rows,
         "cluster_version": version,
         "provider": provider.provider_name,
     }

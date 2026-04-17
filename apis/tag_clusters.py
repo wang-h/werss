@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from core.auth import get_current_user
 from core.database import get_db
 from core.models.article_tags import ArticleTag
+from core.models.tag_cluster_aliases import TagClusterAlias
 from core.models.tag_cluster_members import TagClusterMember
 from core.models.tag_clusters import TagCluster
 from core.models.tag_similarities import TagSimilarity
@@ -18,6 +19,46 @@ from core.visualization import compute_2d_layout, normalize_coordinates, compute
 from .base import success_response, error_response
 
 router = APIRouter(prefix="/tag-clusters", tags=["标签聚类"])
+
+
+def _resolve_cluster(db: Session, cluster_identifier: str, max_depth: int = 8):
+    current_id = cluster_identifier
+    visited: set[str] = set()
+
+    for _ in range(max_depth):
+        cluster = db.query(TagCluster).filter(TagCluster.id == current_id).first()
+        if cluster:
+            return cluster
+
+        centroid_cluster = db.query(TagCluster).filter(TagCluster.centroid_tag_id == current_id).first()
+        if centroid_cluster:
+            return centroid_cluster
+
+        member_cluster = (
+            db.query(TagCluster)
+            .join(TagClusterMember, TagClusterMember.cluster_id == TagCluster.id)
+            .filter(TagClusterMember.tag_id == current_id)
+            .order_by(TagCluster.updated_at.desc())
+            .first()
+        )
+        if member_cluster:
+            return member_cluster
+
+        if current_id in visited:
+            break
+        visited.add(current_id)
+
+        alias = (
+            db.query(TagClusterAlias)
+            .filter(TagClusterAlias.alias_cluster_id == current_id)
+            .order_by(TagClusterAlias.created_at.desc())
+            .first()
+        )
+        if not alias:
+            break
+        current_id = alias.cluster_id
+
+    return None
 
 
 def _build_merge_suggestions(
@@ -56,14 +97,14 @@ def _build_merge_suggestions(
 
 
 def _get_tag_cluster_payload(db: Session, cluster_id: str):
-    cluster = db.query(TagCluster).filter(TagCluster.id == cluster_id).first()
+    cluster = _resolve_cluster(db, cluster_id)
     if not cluster:
         return None
 
     member_rows = (
         db.query(TagClusterMember, TagsModel)
         .join(TagsModel, TagsModel.id == TagClusterMember.tag_id)
-        .filter(TagClusterMember.cluster_id == cluster_id)
+        .filter(TagClusterMember.cluster_id == cluster.id)
         .order_by(TagClusterMember.member_score.desc())
         .all()
     )
@@ -290,13 +331,13 @@ async def get_cluster_visualization(
     """
     try:
         # 验证聚类是否存在
-        cluster = db.query(TagCluster).filter(TagCluster.id == cluster_id).first()
+        cluster = _resolve_cluster(db, cluster_id)
         if not cluster:
             return error_response(404, "聚类不存在")
 
         # 计算可视化布局
         layout_data = compute_2d_layout(
-            cluster_id=cluster_id,
+            cluster_id=cluster.id,
             db=db,
             method=method,
             include_edges=include_edges,
@@ -340,7 +381,7 @@ async def get_cluster_network(
     """
     try:
         # 验证聚类是否存在
-        cluster = db.query(TagCluster).filter(TagCluster.id == cluster_id).first()
+        cluster = _resolve_cluster(db, cluster_id)
         if not cluster:
             return error_response(404, "聚类不存在")
 
@@ -348,7 +389,7 @@ async def get_cluster_network(
         member_rows = (
             db.query(TagClusterMember, TagsModel)
             .join(TagsModel, TagsModel.id == TagClusterMember.tag_id)
-            .filter(TagClusterMember.cluster_id == cluster_id)
+            .filter(TagClusterMember.cluster_id == cluster.id)
             .order_by(TagClusterMember.member_score.desc())
             .limit(max_nodes)
             .all()
@@ -359,7 +400,7 @@ async def get_cluster_network(
                 "nodes": [],
                 "edges": [],
                 "metadata": {
-                    "cluster_id": cluster_id,
+                    "cluster_id": cluster.id,
                     "layout_type": layout_type,
                     "node_count": 0,
                     "edge_count": 0
@@ -376,7 +417,7 @@ async def get_cluster_network(
                 "id": member.tag_id,
                 "name": tag.name or member.tag_id,
                 "score": member.member_score / 10000.0,  # 归一化到0-1
-                "cluster": cluster_id,
+                "cluster": cluster.id,
                 "size": max(5, min(20, 5 + (member.member_score / 10000.0) * 15))  # 节点大小5-20
             })
 
@@ -426,7 +467,7 @@ async def get_cluster_network(
             "nodes": nodes,
             "edges": edges,
             "metadata": {
-                "cluster_id": cluster_id,
+                "cluster_id": cluster.id,
                 "cluster_name": cluster.name,
                 "layout_type": layout_type,
                 "node_count": len(nodes),
