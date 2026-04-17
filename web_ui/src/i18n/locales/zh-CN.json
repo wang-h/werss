@@ -20,6 +20,7 @@
     "previousPage": "上一页",
     "nextPage": "下一页",
     "page": "第 {{current}} / {{total}} 页，共 {{count}} 条",
+    "gotoPage": "跳转到",
     "selected": "已选择 {{count}} 项",
     "clear": "清除",
     "upload": "上传",
@@ -30,7 +31,9 @@
     "create": "创建",
     "enabled": "已启用",
     "disabled": "已禁用",
-    "neverUsed": "从未使用"
+    "neverUsed": "从未使用",
+    "all": "全部",
+    "refresh": "刷新"
   },
   "layout": {
     "home": "首页",
@@ -53,7 +56,8 @@
     "notAuthorized": "未授权，请扫码登录",
     "clickToScan": "点我扫码授权",
     "logoutFailed": "退出登录失败",
-    "getUserInfoFailed": "获取用户信息失败"
+    "getUserInfoFailed": "获取用户信息失败",
+    "admin": "管理员"
   },
   "language": {
     "disabled": "禁用",
@@ -207,11 +211,13 @@
     "form": {
       "name": "名称",
       "description": "描述",
-      "status": "状态"
+      "status": "状态",
+      "editDesc": "修改订阅的基本信息"
     }
   },
   "articles": {
     "title": "文章列表",
+    "subtitle": "管理和查看所有订阅文章",
     "refresh": "刷新",
     "refreshSettings": "刷新设置",
     "refreshSettingsDesc": "设置要刷新的文章页面范围",
@@ -224,6 +230,49 @@
     "clear": "清理",
     "clearDuplicates": "清理重复",
     "copyMpId": "复制 MP ID",
+    "aiFilter": {
+      "run": "AI 过滤当前页",
+      "resume": "继续 AI 过滤",
+      "pause": "暂停",
+      "stop": "中断",
+      "taskTitle": "AI 过滤任务",
+      "taskDesc": "按批次处理当前页面文章，支持暂停或中断后下次继续。",
+      "progress": "处理进度",
+      "runningHint": "正在处理当前批次，批次大小 {{count}} 篇。",
+      "pausedHint": "任务已暂停，剩余 {{count}} 篇待处理，可稍后继续。",
+      "stoppedHint": "任务已中断，剩余 {{count}} 篇待处理，可稍后继续。",
+      "completedHint": "任务已完成。",
+      "idleHint": "任务准备就绪。",
+      "hideLabel": "自动隐藏已过滤文章",
+      "hideDesc": "隐藏被判定为软广、招聘、活动推广等内容",
+      "selectFirst": "请先选择文章，或直接对当前页执行过滤",
+      "analyzeSuccess": "过滤完成，隐藏 {{hidden}} 篇，保留 {{keep}} 篇，待确认 {{maybe}} 篇",
+      "analyzeFailed": "AI 过滤失败",
+      "restoreSuccess": "已恢复显示",
+      "restoreFailed": "恢复失败",
+      "status": {
+        "keep": "保留",
+        "hide": "已过滤",
+        "maybe": "待确认"
+      }
+    },
+    "status": {
+      "enabled": "已启用",
+      "disabled": "已禁用"
+    },
+    "columns": {
+      "title": "标题",
+      "source": "来源",
+      "tags": "标签",
+      "publishTime": "采集时间",
+      "actions": "操作"
+    },
+    "reader": {
+      "viewOriginal": "查看原文",
+      "updatedAt": "更新时间",
+      "prevArticle": "上一篇",
+      "nextArticle": "下一篇"
+    },
     "messages": {
       "fetchFailed": "获取文章列表失败",
       "fetchDetailFailed": "获取文章详情失败",
@@ -293,6 +342,11 @@
       "fetchDetailFailed": "获取标签详情失败",
       "deleteSuccess": "删除成功",
       "deleteFailed": "删除失败",
+      "statusUpdateSuccess": "标签状态已更新",
+      "statusUpdateFailed": "更新标签状态失败",
+      "clickToEnable": "点击启用",
+      "clickToDisable": "点击禁用",
+      "statusBlockedDesc": "当前标签处于屏蔽状态，请在编辑页修改",
       "selectFirst": "请先选择要删除的标签",
       "batchDeleteSuccess": "成功删除 {{count}} 个标签",
       "batchDeleteFailed": "批量删除失败",
@@ -409,6 +463,102 @@
       "deleteFailed": "删除失败",
       "uploadSuccess": "上传成功",
       "uploadFailed": "上传失败"
+    }
+  },
+  "tagClusters": {
+    "title": "标签聚类",
+    "listTitle": "标签标准化聚类",
+    "listSubtitle": "基于标签字面与语义相似度的实体标准化聚类，用于收敛别名和变体",
+    "rebuild": "重建聚类",
+    "rebuildSuccess": "重建完成",
+    "rebuildFailed": "重建失败",
+    "filter": "筛选",
+    "filterDescription": "按名称或描述搜索聚类",
+    "searchPlaceholder": "搜索聚类名称、描述、中心标签...",
+    "clusterList": "聚类列表",
+    "totalDescription": "共 {{total}} 个聚类，筛选后剩余 {{filtered}} 个，当前页展示 {{current}} 个",
+    "centroidTag": "中心标签",
+    "memberCount": "成员数",
+    "version": "版本",
+    "noData": "暂无聚类数据",
+    "view": "查看",
+    "columns": {
+      "name": "名称",
+      "description": "描述",
+      "centroidTag": "中心标签",
+      "memberCount": "成员数",
+      "version": "版本",
+      "actions": "操作"
+    },
+    "messages": {
+      "fetchFailed": "获取标签聚类列表失败",
+      "rebuildSuccessDesc": "标签聚类已更新",
+      "rebuildFailed": "标签聚类重建失败"
+    },
+    "detail": {
+      "title": "标签聚类详情",
+      "subtitle": "查看同一实体的标签变体、归并候选和可视化分析",
+      "notFoundTitle": "聚类不存在",
+      "notFoundDesc": "当前聚类可能已被重建或删除，请返回列表重新选择。",
+      "backToList": "返回聚类列表",
+      "exportJson": "导出 JSON",
+      "exportSuccess": "导出完成",
+      "exportSuccessDesc": "聚类 JSON 已下载",
+      "exportFailed": "导出失败",
+      "back": "返回",
+      "tabs": {
+        "overview": "概览",
+        "scatter": "散点图",
+        "network": "网络图"
+      },
+      "overview": {
+        "clusterName": "聚类名称",
+        "memberCount": "成员数量",
+        "centroidTag": "中心标签",
+        "clusterInfo": "聚类信息",
+        "noDescription": "暂无描述",
+        "version": "版本",
+        "clusterId": "聚类 ID",
+        "updateTime": "更新时间",
+        "memberTags": "成员标签",
+        "memberTagsDesc": "按成员得分排序",
+        "tagName": "标签名",
+        "tagId": "标签 ID",
+        "memberScore": "成员得分",
+        "noMembers": "暂无成员",
+        "totalScore": "总分",
+        "mergeSuggestions": "簇外归并候选",
+        "mergeSuggestionsDesc": "仅展示当前簇外、但与中心标签高度相近的候选，供人工审核是否归并",
+        "sourceTag": "来源标签",
+        "candidateTarget": "候选目标",
+        "reason": "理由",
+        "noMergeSuggestions": "暂无簇外归并候选"
+      },
+      "network": {
+        "title": "关系视图",
+        "description": "这里的边仅表示标签在同一篇文章中的共同出现，不表示语义相似。",
+        "threshold": "最小共现强度",
+        "graphTitle": "文章共现网络",
+        "graphDescription": "用于查看该标准化簇内部标签在文章中的共同出现关系",
+        "noData": "暂无网络图数据",
+        "nodes": "个节点",
+        "edges": "条边",
+        "thresholdBadge": "最小共现强度",
+        "selected": "选中",
+        "hint": "提示：点击节点查看标签，边越粗表示共同出现越稳定。"
+      },
+      "messages": {
+        "fetchFailed": "获取聚类详情失败",
+        "exportFailed": "导出标签聚类失败"
+      },
+      "visualization": {
+        "loadFailed": "加载可视化失败",
+        "getDataFailed": "获取可视化数据失败",
+        "loadNetworkFailed": "加载网络图失败",
+        "getNetworkFailed": "获取网络图数据失败",
+        "nodeClick": "节点点击",
+        "selectedTag": "选中标签"
+      }
     }
   },
   "messages": {

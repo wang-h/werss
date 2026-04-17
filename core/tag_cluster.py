@@ -4,20 +4,19 @@ import os
 import uuid
 from collections import defaultdict
 from datetime import datetime
-from difflib import SequenceMatcher
 from typing import Any, Dict, List, Tuple
 
 from sqlalchemy.orm import Session
 
 from core.embedding import get_embedding_provider
-from core.models.article import Article
-from core.models.article_tags import ArticleTag
 from core.models.tag_cluster_members import TagClusterMember
 from core.models.tag_clusters import TagCluster
 from core.models.tag_embeddings import TagEmbedding
-from core.models.tag_profiles import TagProfile
 from core.models.tag_similarities import TagSimilarity
 from core.models.tags import Tags
+from core.log import logger
+
+PUNCTUATION_TO_REMOVE = " ·-_/()（）[]【】,，.。:："
 
 
 def _get_int(name: str, default: int) -> int:
@@ -34,8 +33,15 @@ def _get_float(name: str, default: float) -> float:
         return default
 
 
-def _profile_hash(text: str) -> str:
+def _text_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _clean_name(name: str) -> str:
+    cleaned = (name or "").strip().lower()
+    for char in PUNCTUATION_TO_REMOVE:
+        cleaned = cleaned.replace(char, "")
+    return cleaned
 
 
 def _cosine_similarity(v1: List[float], v2: List[float]) -> float:
@@ -49,160 +55,68 @@ def _cosine_similarity(v1: List[float], v2: List[float]) -> float:
     return dot / (norm1 * norm2)
 
 
-def _lexical_similarity(name1: str, name2: str) -> float:
-    if not name1 or not name2:
-        return 0.0
-    if name1 == name2:
-        return 1.0
-    ratio = SequenceMatcher(None, name1, name2).ratio()
-    if name1 in name2 or name2 in name1:
-        ratio = max(ratio, 0.9)
-    return ratio
+def _build_char_ngram_vector(text: str, min_n: int = 2, max_n: int = 4) -> Dict[str, float]:
+    cleaned = _clean_name(text)
+    if not cleaned:
+        return {}
+
+    grams: Dict[str, float] = defaultdict(float)
+    for n in range(min_n, max_n + 1):
+        if len(cleaned) < n:
+            continue
+        for idx in range(len(cleaned) - n + 1):
+            grams[cleaned[idx: idx + n]] += 1.0
+
+    if not grams:
+        grams[cleaned] = 1.0
+    return dict(grams)
 
 
-def _cooccurrence_similarity(article_ids_1: set[str], article_ids_2: set[str]) -> float:
-    if not article_ids_1 or not article_ids_2:
+def _sparse_cosine_similarity(v1: Dict[str, float], v2: Dict[str, float]) -> float:
+    if not v1 or not v2:
         return 0.0
-    union = article_ids_1 | article_ids_2
-    if not union:
+
+    common_keys = set(v1.keys()) & set(v2.keys())
+    if not common_keys:
         return 0.0
-    return len(article_ids_1 & article_ids_2) / len(union)
+
+    dot = sum(v1[key] * v2[key] for key in common_keys)
+    norm1 = math.sqrt(sum(value * value for value in v1.values()))
+    norm2 = math.sqrt(sum(value * value for value in v2.values()))
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+    return dot / (norm1 * norm2)
+
+
+def _combined_similarity(
+    embedding_score: float,
+    ngram_score: float,
+    embedding_weight: float,
+    ngram_weight: float,
+) -> float:
+    total_weight = embedding_weight + ngram_weight
+    if total_weight <= 0:
+        return 0.0
+    return (embedding_score * embedding_weight + ngram_score * ngram_weight) / total_weight
 
 
 def _score_to_int(value: float) -> int:
     return max(0, min(10000, int(round(value * 10000))))
 
 
-def build_tag_profiles(db: Session) -> Dict[str, Dict[str, Any]]:
-    min_article_count = _get_int("TAG_CLUSTER_MIN_ARTICLE_COUNT", 3)
-    sample_article_limit = _get_int("TAG_CLUSTER_SAMPLE_ARTICLE_LIMIT", 10)
-    co_tag_limit = _get_int("TAG_CLUSTER_CO_TAG_LIMIT", 8)
-
-    tags = db.query(Tags).all()
-    tag_map = {tag.id: tag for tag in tags}
-
-    article_tag_rows = db.query(ArticleTag.article_id, ArticleTag.tag_id).all()
-    tag_to_article_ids: dict[str, set[str]] = defaultdict(set)
-    article_to_tag_ids: dict[str, set[str]] = defaultdict(set)
-    for article_id, tag_id in article_tag_rows:
-        tag_to_article_ids[tag_id].add(article_id)
-        article_to_tag_ids[article_id].add(tag_id)
-
-    eligible_tag_ids = [
-        tag_id for tag_id, article_ids in tag_to_article_ids.items()
-        if len(article_ids) >= min_article_count and tag_id in tag_map
-    ]
-
-    all_article_ids = set()
-    for tag_id in eligible_tag_ids:
-        all_article_ids.update(tag_to_article_ids[tag_id])
-
-    article_rows = []
-    if all_article_ids:
-        article_rows = (
-            db.query(Article.id, Article.title, Article.description, Article.publish_time)
-            .filter(Article.id.in_(list(all_article_ids)))
-            .all()
-        )
-    article_map = {
-        article_id: {
-            "title": title or "",
-            "description": description or "",
-            "publish_time": publish_time or 0,
-        }
-        for article_id, title, description, publish_time in article_rows
-    }
-
-    existing_profiles = {
-        row.tag_id: row
-        for row in db.query(TagProfile).filter(TagProfile.tag_id.in_(eligible_tag_ids)).all()
-    } if eligible_tag_ids else {}
-
-    profile_payloads: Dict[str, Dict[str, Any]] = {}
-    now = datetime.now()
-    for tag_id in eligible_tag_ids:
-        tag = tag_map[tag_id]
-        article_ids = list(tag_to_article_ids[tag_id])
-        sorted_articles = sorted(
-            [article_map[aid] | {"id": aid} for aid in article_ids if aid in article_map],
-            key=lambda item: item.get("publish_time", 0),
-            reverse=True,
-        )[:sample_article_limit]
-
-        sample_titles = [item["title"] for item in sorted_articles if item.get("title")]
-        sample_descriptions = [item["description"][:180] for item in sorted_articles if item.get("description")]
-
-        co_tag_counter: dict[str, int] = defaultdict(int)
-        for article_id in article_ids:
-            for co_tag_id in article_to_tag_ids.get(article_id, set()):
-                if co_tag_id != tag_id and co_tag_id in tag_map:
-                    co_tag_counter[co_tag_id] += 1
-
-        co_tags = [
-            {
-                "tag_id": co_tag_id,
-                "name": tag_map[co_tag_id].name,
-                "count": count,
-            }
-            for co_tag_id, count in sorted(co_tag_counter.items(), key=lambda item: item[1], reverse=True)[:co_tag_limit]
-        ]
-
-        profile_parts = [
-            f"标签：{tag.name or ''}",
-            f"简介：{tag.intro or ''}",
-        ]
-        if sample_titles:
-            profile_parts.append("相关文章标题：\n- " + "\n- ".join(sample_titles))
-        if sample_descriptions:
-            profile_parts.append("相关文章摘要：\n- " + "\n- ".join(sample_descriptions))
-        if co_tags:
-            profile_parts.append("共现标签：\n- " + "\n- ".join(item["name"] for item in co_tags if item["name"]))
-
-        profile_text = "\n".join(part for part in profile_parts if part and part.strip())
-        profile_hash = _profile_hash(profile_text)
-
-        existing = existing_profiles.get(tag_id)
-        if existing:
-            existing.profile_text = profile_text
-            existing.profile_hash = profile_hash
-            existing.article_count = len(article_ids)
-            existing.sample_titles = sample_titles
-            existing.co_tags = co_tags
-            existing.updated_at = now
-        else:
-            db.add(
-                TagProfile(
-                    tag_id=tag_id,
-                    profile_text=profile_text,
-                    profile_hash=profile_hash,
-                    article_count=len(article_ids),
-                    sample_titles=sample_titles,
-                    co_tags=co_tags,
-                    updated_at=now,
-                )
-            )
-
-        profile_payloads[tag_id] = {
-            "tag": tag,
-            "article_ids": set(article_ids),
-            "profile_text": profile_text,
-            "profile_hash": profile_hash,
-            "sample_titles": sample_titles,
-            "co_tags": co_tags,
-        }
-
-    db.commit()
-    return profile_payloads
-
-
-def build_tag_embeddings(db: Session, profile_payloads: Dict[str, Dict[str, Any]]) -> Dict[str, TagEmbedding]:
-    if not profile_payloads:
+def build_tag_embeddings_for_names(db: Session, tags: List[Tags]) -> Dict[str, TagEmbedding]:
+    """
+    仅对标签名称本身进行 Embedding 向量化，抛弃文章上下文。
+    这才是真正的 Semantic Similarity。
+    """
+    if not tags:
         return {}
 
     provider = get_embedding_provider()
     now = datetime.now()
-    tag_ids = list(profile_payloads.keys())
 
+    # 获取已有的 Embeddings
+    tag_ids = [t.id for t in tags]
     existing_rows = db.query(TagEmbedding).filter(TagEmbedding.tag_id.in_(tag_ids)).all()
     existing_map = {
         row.tag_id: row
@@ -213,13 +127,19 @@ def build_tag_embeddings(db: Session, profile_payloads: Dict[str, Dict[str, Any]
     }
 
     result_map: Dict[str, TagEmbedding] = {}
-    pending: List[Tuple[str, str, str]] = []
-    for tag_id, payload in profile_payloads.items():
-        existing = existing_map.get(tag_id)
-        if existing and existing.profile_hash == payload["profile_hash"]:
-            result_map[tag_id] = existing
+    pending: List[Tuple[str, str, str]] = [] # tag_id, tag_name, text_hash
+    
+    for tag in tags:
+        if not tag.name:
+            continue
+        text_hash = _text_hash(tag.name)
+        existing = existing_map.get(tag.id)
+        
+        # 借用 profile_hash 字段存储 tag.name 的 hash
+        if existing and existing.profile_hash == text_hash:
+            result_map[tag.id] = existing
         else:
-            pending.append((tag_id, payload["profile_text"], payload["profile_hash"]))
+            pending.append((tag.id, tag.name, text_hash))
 
     batch_size = _get_int("TAG_CLUSTER_REBUILD_BATCH_SIZE", 100)
     for offset in range(0, len(pending), batch_size):
@@ -227,10 +147,11 @@ def build_tag_embeddings(db: Session, profile_payloads: Dict[str, Dict[str, Any]
         vectors = provider.embed_texts([item[1] for item in batch])
         if len(vectors) != len(batch):
             raise ValueError(f"embedding 返回数量异常: expected={len(batch)}, actual={len(vectors)}")
-        for (tag_id, _, profile_hash), vector in zip(batch, vectors):
+            
+        for (tag_id, tag_name, text_hash), vector in zip(batch, vectors):
             existing = existing_map.get(tag_id)
             if existing:
-                existing.profile_hash = profile_hash
+                existing.profile_hash = text_hash
                 existing.vector = vector
                 existing.updated_at = now
                 result_map[tag_id] = existing
@@ -241,7 +162,7 @@ def build_tag_embeddings(db: Session, profile_payloads: Dict[str, Dict[str, Any]
                     embedding_provider=provider.provider_name,
                     embedding_model=provider.model_name,
                     embedding_dimensions=provider.dimensions,
-                    profile_hash=profile_hash,
+                    profile_hash=text_hash,
                     vector=vector,
                     updated_at=now,
                 )
@@ -253,8 +174,14 @@ def build_tag_embeddings(db: Session, profile_payloads: Dict[str, Dict[str, Any]
 
 
 def rebuild_tag_clusters(db: Session) -> Dict[str, Any]:
-    profile_payloads = build_tag_profiles(db)
-    if not profile_payloads:
+    """
+    基于标签名相似图的标准化聚类逻辑。
+    仅使用标签名本身的 embedding 相似度与字符 n-gram 相似度建图，
+    再用 top-k 稀疏化后的连通分量生成标准化簇。
+    """
+    # 提取所有有效的标签
+    tags = db.query(Tags).filter(Tags.name.isnot(None), Tags.name != "").all()
+    if not tags:
         return {
             "tag_count": 0,
             "cluster_count": 0,
@@ -262,47 +189,84 @@ def rebuild_tag_clusters(db: Session) -> Dict[str, Any]:
             "message": "没有满足条件的标签",
         }
 
+    tag_ids = [t.id for t in tags]
+    tag_names = {t.id: t.name for t in tags}
+
+    # 1. 向量化标签名称
     provider = get_embedding_provider()
-    embedding_rows = build_tag_embeddings(db, profile_payloads)
-    tag_ids = list(profile_payloads.keys())
-    tag_names = {tag_id: payload["tag"].name or "" for tag_id, payload in profile_payloads.items()}
+    embedding_rows = build_tag_embeddings_for_names(db, tags)
     vectors = {tag_id: (embedding_rows[tag_id].vector if tag_id in embedding_rows else []) for tag_id in tag_ids}
+    ngram_vectors = {tag_id: _build_char_ngram_vector(tag_names[tag_id]) for tag_id in tag_ids}
 
     max_similar_tags = _get_int("TAG_CLUSTER_MAX_SIMILAR_TAGS", 10)
-    threshold = _get_float("TAG_CLUSTER_SIMILARITY_THRESHOLD", 0.72)
+    top_k = _get_int("TAG_CLUSTER_GRAPH_TOP_K", 8)
+    threshold = _get_float("TAG_CLUSTER_SIMILARITY_THRESHOLD", 0.78)
+    embedding_weight = _get_float("TAG_CLUSTER_EMBEDDING_WEIGHT", 0.6)
+    ngram_weight = _get_float("TAG_CLUSTER_NGRAM_WEIGHT", 0.4)
     version = datetime.now().strftime("%Y%m%d%H%M%S")
 
     similarities_by_tag: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    pair_candidates: list[dict[str, Any]] = []
+
+    logger.info(f"开始计算 {len(tag_ids)} 个标签的标准化相似图...")
+
     for i, tag_id in enumerate(tag_ids):
         for j in range(i + 1, len(tag_ids)):
             other_id = tag_ids[j]
-            embedding_score = _cosine_similarity(vectors.get(tag_id, []), vectors.get(other_id, []))
-            cooccurrence_score = _cooccurrence_similarity(
-                profile_payloads[tag_id]["article_ids"],
-                profile_payloads[other_id]["article_ids"],
+            semantic_score = _cosine_similarity(vectors.get(tag_id, []), vectors.get(other_id, []))
+            ngram_score = _sparse_cosine_similarity(ngram_vectors.get(tag_id, {}), ngram_vectors.get(other_id, {}))
+            final_score = _combined_similarity(
+                semantic_score,
+                ngram_score,
+                embedding_weight=embedding_weight,
+                ngram_weight=ngram_weight,
             )
-            lexical_score = _lexical_similarity(tag_names[tag_id], tag_names[other_id])
-            score = 0.6 * embedding_score + 0.25 * cooccurrence_score + 0.15 * lexical_score
-            if score < threshold:
+            if final_score < threshold:
                 continue
 
-            similarities_by_tag[tag_id].append({
-                "tag_id": tag_id,
-                "similar_tag_id": other_id,
-                "score": score,
-                "embedding_score": embedding_score,
-                "cooccurrence_score": cooccurrence_score,
-                "lexical_score": lexical_score,
-            })
-            similarities_by_tag[other_id].append({
-                "tag_id": other_id,
-                "similar_tag_id": tag_id,
-                "score": score,
-                "embedding_score": embedding_score,
-                "cooccurrence_score": cooccurrence_score,
-                "lexical_score": lexical_score,
+            pair_candidates.append({
+                "source_id": tag_id,
+                "target_id": other_id,
+                "score": final_score,
+                "embedding_score": semantic_score,
+                "cooccurrence_score": 0,
+                "lexical_score": ngram_score,
             })
 
+    # 图稀疏化：每个节点只保留 top-k 高权边
+    candidate_map_by_tag: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for pair in pair_candidates:
+        candidate_map_by_tag[pair["source_id"]].append(pair)
+        candidate_map_by_tag[pair["target_id"]].append(pair)
+
+    selected_edges: dict[tuple[str, str], dict[str, Any]] = {}
+    for tag_id, items in candidate_map_by_tag.items():
+        items.sort(key=lambda item: item["score"], reverse=True)
+        for item in items[:top_k]:
+            source_id, target_id = sorted((item["source_id"], item["target_id"]))
+            selected_edges[(source_id, target_id)] = item
+
+    for item in selected_edges.values():
+        tag_id = item["source_id"]
+        other_id = item["target_id"]
+        similarities_by_tag[tag_id].append({
+            "tag_id": tag_id,
+            "similar_tag_id": other_id,
+            "score": item["score"],
+            "embedding_score": item["embedding_score"],
+            "cooccurrence_score": item["cooccurrence_score"],
+            "lexical_score": item["lexical_score"],
+        })
+        similarities_by_tag[other_id].append({
+            "tag_id": other_id,
+            "similar_tag_id": tag_id,
+            "score": item["score"],
+            "embedding_score": item["embedding_score"],
+            "cooccurrence_score": item["cooccurrence_score"],
+            "lexical_score": item["lexical_score"],
+        })
+
+    # 清空旧数据
     db.query(TagSimilarity).delete()
     db.query(TagClusterMember).delete()
     db.query(TagCluster).delete()
@@ -311,7 +275,7 @@ def rebuild_tag_clusters(db: Session) -> Dict[str, Any]:
     similarity_rows = 0
     for tag_id, items in similarities_by_tag.items():
         items.sort(key=lambda item: item["score"], reverse=True)
-        for item in items[:max_similar_tags]:
+        for item in items[: min(max_similar_tags, top_k)]:
             db.add(
                 TagSimilarity(
                     id=str(uuid.uuid4()),
@@ -319,7 +283,7 @@ def rebuild_tag_clusters(db: Session) -> Dict[str, Any]:
                     similar_tag_id=item["similar_tag_id"],
                     score=_score_to_int(item["score"]),
                     embedding_score=_score_to_int(item["embedding_score"]),
-                    cooccurrence_score=_score_to_int(item["cooccurrence_score"]),
+                    cooccurrence_score=0,
                     lexical_score=_score_to_int(item["lexical_score"]),
                     cluster_version=version,
                     updated_at=datetime.now(),
@@ -348,6 +312,10 @@ def rebuild_tag_clusters(db: Session) -> Dict[str, Any]:
                     visited.add(neighbor)
                     stack.append(neighbor)
 
+        # 既然是归一化，如果一个词没有同义词（孤立节点），就没必要建一个单成员的 Cluster
+        if not component or len(component) < 2:
+            continue
+
         component_scores: dict[str, float] = {}
         for member in component:
             scores = [item["score"] for item in similarities_by_tag.get(member, []) if item["similar_tag_id"] in component]
@@ -361,7 +329,7 @@ def rebuild_tag_clusters(db: Session) -> Dict[str, Any]:
             TagCluster(
                 id=cluster_id,
                 name=cluster_name,
-                description=f"由 {cluster_name} 等 {len(component)} 个标签组成的语义簇",
+                description=f"实体标准化簇：基于标签名相似图收敛了 {cluster_name} 及其 {len(component)-1} 个近似实体标签",
                 centroid_tag_id=centroid_tag_id,
                 size=len(component),
                 cluster_version=version,

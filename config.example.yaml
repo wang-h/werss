@@ -3,8 +3,7 @@ server:
    #服务名称
    name: ${SERVER_NAME:-werss}
    #前端显示名称
-   web_name: ${WEB_NAME:-WeRSS微信公众号热度分析系统}
-   #过期是否发送授权二维通知 默认True
+   web_name: ${WEB_NAME:-微信公众号热度分析系统}   #过期是否发送授权二维通知 默认True
    send_code: ${SEND_CODE:-True}
    #二维通知标题
    code_title: ${CODE_TITLE:-WeRSS}
@@ -180,8 +179,11 @@ tag_cluster:
   min_article_count: ${TAG_CLUSTER_MIN_ARTICLE_COUNT:-3}
   sample_article_limit: ${TAG_CLUSTER_SAMPLE_ARTICLE_LIMIT:-10}
   co_tag_limit: ${TAG_CLUSTER_CO_TAG_LIMIT:-8}
-  similarity_threshold: ${TAG_CLUSTER_SIMILARITY_THRESHOLD:-0.72}
+  similarity_threshold: ${TAG_CLUSTER_SIMILARITY_THRESHOLD:-0.78}
   max_similar_tags: ${TAG_CLUSTER_MAX_SIMILAR_TAGS:-10}
+  graph_top_k: ${TAG_CLUSTER_GRAPH_TOP_K:-8}
+  embedding_weight: ${TAG_CLUSTER_EMBEDDING_WEIGHT:-0.6}
+  ngram_weight: ${TAG_CLUSTER_NGRAM_WEIGHT:-0.4}
   rebuild_batch_size: ${TAG_CLUSTER_REBUILD_BATCH_SIZE:-100}
   embedding:
     provider: ${TAG_CLUSTER_EMBEDDING_PROVIDER:-bigmodel}

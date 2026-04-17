@@ -20,6 +20,14 @@ export interface Article {
   status: number
   link: string
   created_at: string
+  tag_names?: string[]
+  tags?: Array<{ id: string; name: string }>
+  ai_filter_status?: 'keep' | 'hide' | 'maybe' | null
+  ai_filter_category?: string | null
+  ai_filter_confidence?: number | null
+  ai_filter_reason?: string | null
+  ai_filter_model?: string | null
+  ai_filter_updated_at?: string | null
 }
 
 /**
@@ -53,6 +61,7 @@ export interface ArticleListParams {
   /** any=任一标签；all=同时包含全部 */
   tag_match?: 'any' | 'all'
   has_content?: boolean
+  hide_ai_filtered?: boolean
 }
 
 /**
@@ -88,7 +97,8 @@ export const getArticles = (params: ArticleListParams) => {
     tag_id: params.tag_id,
     tag_ids: params.tag_ids,
     tag_match: params.tag_match,
-    has_content: params.has_content
+    has_content: params.has_content,
+    hide_ai_filtered: params.hide_ai_filtered
   }
   Object.keys(apiParams).forEach((k) => {
     if (apiParams[k] === undefined || apiParams[k] === '') {
@@ -181,6 +191,7 @@ export interface UpdateArticleParams {
   description?: string
   url?: string
   pic_url?: string
+  status?: number
 }
 
 /**
@@ -191,5 +202,36 @@ export interface UpdateArticleParams {
  */
 export const updateArticle = (id: number | string, params: UpdateArticleParams) => {
   return http.put<{code: number, message: string}>(`/wx/articles/${id}`, params)
+}
+
+export interface ArticleAiFilterAnalyzeResult {
+  items?: Array<{
+    article_id: string
+    title?: string
+    decision: 'keep' | 'hide' | 'maybe'
+    category: string
+    confidence: number
+    reason: string
+    model_name?: string
+    mp_name?: string
+    tags?: string[]
+  }>
+  summary?: {
+    hidden?: number
+    keep?: number
+    maybe?: number
+  }
+}
+
+export const analyzeArticleAiFilter = (article_ids: Array<string | number>) => {
+  return http.post<{ code: number; data: ArticleAiFilterAnalyzeResult; message?: string }>('/wx/articles/ai-filter/analyze', {
+    article_ids: article_ids.map((id) => String(id))
+  })
+}
+
+export const restoreArticleAiFilter = (article_ids: Array<string | number>) => {
+  return http.post<{ code: number; data: { restored?: number }; message?: string }>('/wx/articles/ai-filter/restore', {
+    article_ids: article_ids.map((id) => String(id))
+  })
 }
 

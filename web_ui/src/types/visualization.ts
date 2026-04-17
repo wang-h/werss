@@ -53,6 +53,7 @@ export interface VisualizationMetadata {
   edge_count: number
   dimensions?: number
   min_similarity?: number
+  min_cooccurrence_strength?: number
   warning?: string
   [key: string]: any
 }

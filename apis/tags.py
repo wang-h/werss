@@ -28,6 +28,10 @@ class ExtractTestRequest(BaseModel):
     topK: Optional[int] = 5
 
 
+class TagStatusUpdateRequest(BaseModel):
+    status: int
+
+
 @router.post("/test/extract",
     summary="测试关键词提取",
     description="测试 TextRank 或 AI 关键词提取功能"
@@ -329,7 +333,8 @@ async def update_tag(tag_id: str, tag_data: TagsCreate, db: Session = Depends(ge
         tag = db.query(TagsModel).filter(TagsModel.id == tag_id).first()
         if not tag:
             return error_response(code=404, message="Tag not found")
-        
+        previous_status = tag.status
+
         tag.name = tag_data.name
         tag.cover = tag_data.cover
         tag.intro = tag_data.intro
@@ -338,6 +343,9 @@ async def update_tag(tag_id: str, tag_data: TagsCreate, db: Session = Depends(ge
         old_is_custom = tag.is_custom
         tag.is_custom = tag_data.is_custom if hasattr(tag_data, 'is_custom') else False
         tag.updated_at = datetime.now()
+
+        if previous_status == 1 and tag.status != 1:
+            db.query(ArticleTag).filter(ArticleTag.tag_id == tag.id).delete(synchronize_session=False)
         
         db.commit()
         db.refresh(tag)
@@ -354,6 +362,41 @@ async def update_tag(tag_id: str, tag_data: TagsCreate, db: Session = Depends(ge
         
         return success_response(data=tag)
     except Exception as e:
+        return error_response(code=500, message=str(e))
+
+@router.patch("/{tag_id}/status",
+    summary="更新标签状态",
+    description="根据标签ID更新标签状态",
+)
+async def update_tag_status(
+    tag_id: str,
+    request: TagStatusUpdateRequest,
+    db: Session = Depends(get_db),
+    cur_user: dict = Depends(get_current_user)
+):
+    """
+    更新标签状态
+
+    参数:
+    - tag_id: 标签ID
+    - status: 标签状态（0-禁用，1-启用，2-屏蔽）
+    """
+    try:
+        tag = db.query(TagsModel).filter(TagsModel.id == tag_id).first()
+        if not tag:
+            return error_response(code=404, message="Tag not found")
+        previous_status = tag.status
+        tag.status = request.status
+        tag.updated_at = datetime.now()
+
+        if previous_status == 1 and tag.status != 1:
+            db.query(ArticleTag).filter(ArticleTag.tag_id == tag.id).delete(synchronize_session=False)
+
+        db.commit()
+        db.refresh(tag)
+        return success_response(data=tag, message="Tag status updated successfully")
+    except Exception as e:
+        db.rollback()
         return error_response(code=500, message=str(e))
 
 @router.delete("",

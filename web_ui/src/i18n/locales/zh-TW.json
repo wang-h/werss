@@ -30,7 +30,9 @@
     "create": "創建",
     "enabled": "已啟用",
     "disabled": "已禁用",
-    "neverUsed": "從未使用"
+    "neverUsed": "從未使用",
+    "all": "全部",
+    "refresh": "刷新"
   },
   "layout": {
     "home": "首頁",
@@ -213,6 +215,7 @@
   },
   "articles": {
     "title": "文章列表",
+    "subtitle": "管理和查看所有訂閱文章",
     "refresh": "刷新",
     "refreshSettings": "刷新設置",
     "refreshSettingsDesc": "設置要刷新的文章頁面範圍",
@@ -225,6 +228,45 @@
     "clear": "清理",
     "clearDuplicates": "清理重複",
     "copyMpId": "複製 MP ID",
+    "aiFilter": {
+      "run": "AI 過濾當前頁",
+      "resume": "繼續 AI 過濾",
+      "pause": "暫停",
+      "stop": "中斷",
+      "taskTitle": "AI 過濾任務",
+      "taskDesc": "按批次處理當前頁文章，支持暫停或中斷後下次繼續。",
+      "progress": "處理進度",
+      "runningHint": "正在處理當前批次，批次大小 {{count}} 篇。",
+      "pausedHint": "任務已暫停，剩餘 {{count}} 篇待處理，可稍後繼續。",
+      "stoppedHint": "任務已中斷，剩餘 {{count}} 篇待處理，可稍後繼續。",
+      "completedHint": "任務已完成。",
+      "idleHint": "任務準備就緒。",
+      "hideLabel": "自動隱藏已過濾文章",
+      "hideDesc": "隱藏被判定為軟廣、招聘、活動推廣等內容",
+      "selectFirst": "請先選擇文章，或直接對當前頁執行過濾",
+      "analyzeSuccess": "過濾完成，隱藏 {{hidden}} 篇，保留 {{keep}} 篇，待確認 {{maybe}} 篇",
+      "analyzeFailed": "AI 過濾失敗",
+      "restoreSuccess": "已恢復顯示",
+      "restoreFailed": "恢復失敗",
+      "status": {
+        "keep": "保留",
+        "hide": "已過濾",
+        "maybe": "待確認"
+      }
+    },
+    "columns": {
+      "title": "標題",
+      "source": "來源",
+      "tags": "標籤",
+      "publishTime": "採集時間",
+      "actions": "操作"
+    },
+    "reader": {
+      "viewOriginal": "查看原文",
+      "updatedAt": "更新時間",
+      "prevArticle": "上一篇",
+      "nextArticle": "下一篇"
+    },
     "messages": {
       "fetchFailed": "獲取文章列表失敗",
       "fetchDetailFailed": "獲取文章詳情失敗",
@@ -405,6 +447,99 @@
       "deleteFailed": "刪除失敗",
       "uploadSuccess": "上傳成功",
       "uploadFailed": "上傳失敗"
+    }
+  },
+  "tagClusters": {
+    "title": "標籤聚類",
+    "listTitle": "標籤標準化聚類",
+    "listSubtitle": "基於標籤字面與語義相似度的實體標準化聚類，用於收斂別名和變體",
+    "rebuild": "重建聚類",
+    "rebuildSuccess": "重建完成",
+    "rebuildFailed": "重建失敗",
+    "filter": "篩選",
+    "filterDescription": "按名稱或描述搜索聚類",
+    "searchPlaceholder": "搜索聚類名稱、描述、中心標籤...",
+    "clusterList": "聚類列表",
+    "totalDescription": "共 {{total}} 個聚類，篩選後剩餘 {{filtered}} 個，目前頁展示 {{current}} 個",
+    "centroidTag": "中心標籤",
+    "memberCount": "成員數",
+    "version": "版本",
+    "noData": "暫無聚類數據",
+    "view": "查看",
+    "columns": {
+      "name": "名稱",
+      "description": "描述",
+      "centroidTag": "中心標籤",
+      "memberCount": "成員數",
+      "version": "版本",
+      "actions": "操作"
+    },
+    "messages": {
+      "fetchFailed": "獲取標籤聚類列表失敗",
+      "rebuildSuccessDesc": "標籤聚類已更新",
+      "rebuildFailed": "標籤聚類重建失敗"
+    },
+    "detail": {
+      "title": "標籤聚類詳情",
+      "subtitle": "查看同一實體的標籤變體、歸併候選和可視化分析",
+      "exportJson": "導出 JSON",
+      "exportSuccess": "導出完成",
+      "exportSuccessDesc": "聚類 JSON 已下載",
+      "exportFailed": "導出失敗",
+      "back": "返回",
+      "tabs": {
+        "overview": "概覽",
+        "scatter": "散點圖",
+        "network": "網絡圖"
+      },
+      "overview": {
+        "clusterName": "聚類名稱",
+        "memberCount": "成員數量",
+        "centroidTag": "中心標籤",
+        "clusterInfo": "聚類信息",
+        "noDescription": "暫無描述",
+        "version": "版本",
+        "clusterId": "聚類 ID",
+        "updateTime": "更新時間",
+        "memberTags": "成員標籤",
+        "memberTagsDesc": "按成員得分排序",
+        "tagName": "標籤名",
+        "tagId": "標籤 ID",
+        "memberScore": "成員得分",
+        "noMembers": "暫無成員",
+        "totalScore": "總分",
+        "mergeSuggestions": "簇外歸併候選",
+        "mergeSuggestionsDesc": "僅展示當前簇外、但與中心標籤高度相近的候選，供人工審核是否歸併",
+        "sourceTag": "來源標籤",
+        "candidateTarget": "候選目標",
+        "reason": "理由",
+        "noMergeSuggestions": "暫無簇外歸併候選"
+      },
+      "network": {
+        "title": "關係視圖",
+        "description": "這裡的邊僅表示標籤在同一篇文章中的共同出現，不表示語義相似。",
+        "threshold": "最小共現強度",
+        "graphTitle": "文章共現網絡",
+        "graphDescription": "用於查看該標準化簇內部標籤在文章中的共同出現關係",
+        "noData": "暫無網絡圖數據",
+        "nodes": "個節點",
+        "edges": "條邊",
+        "thresholdBadge": "最小共現強度",
+        "selected": "選中",
+        "hint": "提示：點擊節點查看標籤，邊越粗表示共同出現越穩定。"
+      },
+      "messages": {
+        "fetchFailed": "獲取聚類詳情失敗",
+        "exportFailed": "導出標籤聚類失敗"
+      },
+      "visualization": {
+        "loadFailed": "加載可視化失敗",
+        "getDataFailed": "獲取可視化數據失敗",
+        "loadNetworkFailed": "加載網絡圖失敗",
+        "getNetworkFailed": "獲取網絡圖數據失敗",
+        "nodeClick": "節點點擊",
+        "selectedTag": "選中標籤"
+      }
     }
   },
   "messages": {

@@ -20,6 +20,7 @@
     "previousPage": "Previous",
     "nextPage": "Next",
     "page": "Page {{current}} / {{total}}, Total {{count}} items",
+    "gotoPage": "Go to",
     "selected": "{{count}} items selected",
     "clear": "Clear",
     "upload": "Upload",
@@ -30,7 +31,9 @@
     "create": "Create",
     "enabled": "Enabled",
     "disabled": "Disabled",
-    "neverUsed": "Never used"
+    "neverUsed": "Never used",
+    "all": "All",
+    "refresh": "Refresh"
   },
   "layout": {
     "home": "Home",
@@ -53,7 +56,8 @@
     "notAuthorized": "Not authorized, please scan QR code to login",
     "clickToScan": "Click to scan QR code",
     "logoutFailed": "Logout failed",
-    "getUserInfoFailed": "Failed to get user info"
+    "getUserInfoFailed": "Failed to get user info",
+    "admin": "Administrator"
   },
   "language": {
     "disabled": "Disabled",
@@ -213,6 +217,7 @@
   },
   "articles": {
     "title": "Article List",
+    "subtitle": "Manage and view all subscribed articles",
     "refresh": "Refresh",
     "refreshSettings": "Refresh Settings",
     "refreshSettingsDesc": "Set the page range to refresh",
@@ -225,6 +230,49 @@
     "clear": "Clear",
     "clearDuplicates": "Clear Duplicates",
     "copyMpId": "Copy MP ID",
+    "aiFilter": {
+      "run": "AI filter current page",
+      "resume": "Resume AI filter",
+      "pause": "Pause",
+      "stop": "Interrupt",
+      "taskTitle": "AI filter task",
+      "taskDesc": "Process current page articles in batches. You can pause or interrupt and continue later.",
+      "progress": "Progress",
+      "runningHint": "Current batch is in progress, batch size {{count}}.",
+      "pausedHint": "Task paused. {{count}} articles remain and can be resumed later.",
+      "stoppedHint": "Task interrupted. {{count}} articles remain and can be resumed later.",
+      "completedHint": "Task completed.",
+      "idleHint": "Task is ready.",
+      "hideLabel": "Auto-hide filtered articles",
+      "hideDesc": "Hide items classified as soft ads, hiring posts, or promotions",
+      "selectFirst": "Please select articles first, or run filtering on the current page",
+      "analyzeSuccess": "Filtering complete: {{hidden}} hidden, {{keep}} kept, {{maybe}} pending",
+      "analyzeFailed": "AI filtering failed",
+      "restoreSuccess": "Restored",
+      "restoreFailed": "Restore failed",
+      "status": {
+        "keep": "Kept",
+        "hide": "Filtered",
+        "maybe": "Review"
+      }
+    },
+    "status": {
+      "enabled": "Enabled",
+      "disabled": "Disabled"
+    },
+    "columns": {
+      "title": "Title",
+      "source": "Source",
+      "tags": "Tags",
+      "publishTime": "Published",
+      "actions": "Actions"
+    },
+    "reader": {
+      "viewOriginal": "Open original",
+      "updatedAt": "Updated",
+      "prevArticle": "Previous",
+      "nextArticle": "Next"
+    },
     "messages": {
       "fetchFailed": "Failed to fetch article list",
       "fetchDetailFailed": "Failed to fetch article details",
@@ -289,6 +337,11 @@
       "fetchDetailFailed": "Failed to fetch tag details",
       "deleteSuccess": "Delete successful",
       "deleteFailed": "Delete failed",
+      "statusUpdateSuccess": "Tag status updated",
+      "statusUpdateFailed": "Failed to update tag status",
+      "clickToEnable": "Click to enable",
+      "clickToDisable": "Click to disable",
+      "statusBlockedDesc": "This tag is blocked. Please change it in the edit page.",
       "selectFirst": "Please select tags to delete first",
       "batchDeleteSuccess": "Successfully deleted {{count}} tags",
       "batchDeleteFailed": "Batch delete failed",
@@ -405,6 +458,102 @@
       "deleteFailed": "Delete failed",
       "uploadSuccess": "Upload successful",
       "uploadFailed": "Upload failed"
+    }
+  },
+  "tagClusters": {
+    "title": "Tag Clusters",
+    "listTitle": "Tag Normalization Clusters",
+    "listSubtitle": "Entity normalization clusters based on lexical and semantic similarity to collapse aliases and variants",
+    "rebuild": "Rebuild Clusters",
+    "rebuildSuccess": "Rebuild Complete",
+    "rebuildFailed": "Rebuild Failed",
+    "filter": "Filter",
+    "filterDescription": "Search clusters by name or description",
+    "searchPlaceholder": "Search cluster name, description, centroid tag...",
+    "clusterList": "Cluster List",
+    "totalDescription": "{{total}} clusters total, {{filtered}} remaining after filter, {{current}} on current page",
+    "centroidTag": "Centroid Tag",
+    "memberCount": "Members",
+    "version": "Version",
+    "noData": "No cluster data",
+    "view": "View",
+    "columns": {
+      "name": "Name",
+      "description": "Description",
+      "centroidTag": "Centroid Tag",
+      "memberCount": "Members",
+      "version": "Version",
+      "actions": "Actions"
+    },
+    "messages": {
+      "fetchFailed": "Failed to fetch cluster list",
+      "rebuildSuccessDesc": "Tag clusters have been updated",
+      "rebuildFailed": "Tag cluster rebuild failed"
+    },
+    "detail": {
+      "title": "Tag Cluster Detail",
+      "subtitle": "View entity variants, merge candidates, and visualization analysis",
+      "notFoundTitle": "Cluster not found",
+      "notFoundDesc": "This cluster may have been rebuilt or deleted. Please return to the list and choose another one.",
+      "backToList": "Back to cluster list",
+      "exportJson": "Export JSON",
+      "exportSuccess": "Export Complete",
+      "exportSuccessDesc": "Cluster JSON has been downloaded",
+      "exportFailed": "Export Failed",
+      "back": "Back",
+      "tabs": {
+        "overview": "Overview",
+        "scatter": "Scatter Plot",
+        "network": "Network Graph"
+      },
+      "overview": {
+        "clusterName": "Cluster Name",
+        "memberCount": "Member Count",
+        "centroidTag": "Centroid Tag",
+        "clusterInfo": "Cluster Information",
+        "noDescription": "No description",
+        "version": "Version",
+        "clusterId": "Cluster ID",
+        "updateTime": "Update Time",
+        "memberTags": "Member Tags",
+        "memberTagsDesc": "Sorted by member score",
+        "tagName": "Tag Name",
+        "tagId": "Tag ID",
+        "memberScore": "Member Score",
+        "noMembers": "No members",
+        "totalScore": "Total Score",
+        "mergeSuggestions": "External Merge Candidates",
+        "mergeSuggestionsDesc": "Only tags outside the current cluster are shown here for manual normalization review",
+        "sourceTag": "Source Tag",
+        "candidateTarget": "Candidate Target",
+        "reason": "Reason",
+        "noMergeSuggestions": "No external merge candidates"
+      },
+      "network": {
+        "title": "Relation View",
+        "description": "Edges here represent article co-occurrence only. They do not indicate semantic similarity.",
+        "threshold": "Minimum Co-occurrence Strength",
+        "graphTitle": "Article Co-occurrence Network",
+        "graphDescription": "Shows how tags inside this normalization cluster appear together in the same articles",
+        "noData": "No network data",
+        "nodes": "nodes",
+        "edges": "edges",
+        "thresholdBadge": "Min co-occurrence",
+        "selected": "Selected",
+        "hint": "Tip: click a node to inspect it. Thicker edges mean stronger repeated co-occurrence."
+      },
+      "messages": {
+        "fetchFailed": "Failed to fetch cluster details",
+        "exportFailed": "Failed to export tag cluster"
+      },
+      "visualization": {
+        "loadFailed": "Failed to load visualization",
+        "getDataFailed": "Failed to get visualization data",
+        "loadNetworkFailed": "Failed to load network graph",
+        "getNetworkFailed": "Failed to get network graph data",
+        "nodeClick": "Node Click",
+        "selectedTag": "Selected Tag"
+      }
     }
   },
   "messages": {

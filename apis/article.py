@@ -13,7 +13,8 @@ from apis.base import format_search_kw
 from core.print import print_warning, print_info, print_error, print_success
 from core.log import logger
 from core.cache import get_cache, set_cache, get_cache_key, clear_cache_pattern
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Dict, Any
+from core.article_filter import get_article_filter_engine
 router = APIRouter(prefix=f"/articles", tags=["文章管理"])
 
 
@@ -91,6 +92,14 @@ class TagMatchMode(str, Enum):
     all = "all"
 
 
+class ArticleAiFilterAnalyzeRequest(BaseModel):
+    article_ids: List[str] = Field(..., min_length=1, description="需要分析的文章 ID 列表")
+
+
+class ArticleAiFilterRestoreRequest(BaseModel):
+    article_ids: List[str] = Field(..., min_length=1, description="需要恢复的文章 ID 列表")
+
+
     
 @router.delete("/clean", summary="清理无效文章(MP_ID不存在于Feeds表中的文章)")
 async def clean_orphan_articles(
@@ -146,6 +155,191 @@ async def clean_duplicate(
                 message="清理重复文章"
             )
         )
+
+
+def _serialize_ai_filter_row(row: Any) -> Dict[str, Any]:
+    if not row:
+        return {}
+    return {
+        "article_id": row.article_id,
+        "decision": row.decision,
+        "category": row.category,
+        "confidence": row.confidence,
+        "reason": row.reason,
+        "model_name": row.model_name,
+        "updated_at": row.updated_at,
+    }
+
+
+@router.post("/ai-filter-analyze", summary="AI 过滤文章")
+@router.post("/ai-filter/analyze", summary="AI 过滤文章")
+async def analyze_ai_filter(
+    payload: ArticleAiFilterAnalyzeRequest = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    from core.article_filter import get_article_filter_engine
+    from core.models.article_ai_filter import ArticleAiFilter
+    from core.models.article_tags import ArticleTag
+    from core.models.tags import Tags as TagsModel
+    from core.models.feed import Feed
+
+    article_ids = list(dict.fromkeys([str(item).strip() for item in payload.article_ids if str(item).strip()]))
+    if not article_ids:
+        raise HTTPException(
+            status_code=fast_status.HTTP_400_BAD_REQUEST,
+            detail=error_response(code=40001, message="文章 ID 不能为空"),
+        )
+
+    session = DB.get_session()
+    try:
+        articles = session.query(Article).filter(Article.id.in_(article_ids)).all()
+        article_map = {article.id: article for article in articles}
+        ordered_articles = [article_map[article_id] for article_id in article_ids if article_id in article_map]
+
+        if not ordered_articles:
+            return success_response({"items": [], "summary": {"hidden": 0, "keep": 0, "maybe": 0}})
+
+        article_tags = session.query(ArticleTag).filter(
+            ArticleTag.article_id.in_([a.id for a in ordered_articles])
+        ).all()
+        tags_by_article: Dict[str, List[str]] = {}
+        all_tag_ids = set()
+        for at in article_tags:
+            tags_by_article.setdefault(at.article_id, []).append(at.tag_id)
+            all_tag_ids.add(at.tag_id)
+
+        tags_dict = {}
+        if all_tag_ids:
+            tags = session.query(TagsModel).filter(
+                TagsModel.id.in_(list(all_tag_ids)),
+                TagsModel.status == 1
+            ).all()
+            tags_dict = {t.id: t for t in tags}
+
+        mp_ids = list(set([a.mp_id for a in ordered_articles if a.mp_id]))
+        mp_info = {}
+        if mp_ids:
+            feeds = session.query(Feed).filter(Feed.id.in_(mp_ids)).all()
+            mp_info = {feed.id: {"mp_name": feed.mp_name, "mp_cover": feed.mp_cover} for feed in feeds}
+
+        engine = get_article_filter_engine()
+        items: List[Dict[str, Any]] = []
+        summary = {"hidden": 0, "keep": 0, "maybe": 0}
+
+        for article in ordered_articles:
+            tag_ids = tags_by_article.get(article.id, [])
+            tag_names = [
+                tags_dict[tag_id].name
+                for tag_id in tag_ids
+                if tag_id in tags_dict and tags_dict[tag_id].name
+            ]
+            mp_name = mp_info.get(article.mp_id, {}).get("mp_name", "未知公众号")
+            result = await engine.classify(
+                title=article.title or "",
+                tags=tag_names,
+                source=mp_name,
+                description=article.description or "",
+            )
+
+            row = session.query(ArticleAiFilter).filter(ArticleAiFilter.article_id == article.id).first()
+            if not row:
+                row = ArticleAiFilter(article_id=article.id)
+                session.add(row)
+
+            row.decision = result.decision
+            row.category = result.category
+            row.confidence = result.confidence
+            row.reason = result.reason
+            row.model_name = result.model_name or engine.model
+            row.source_title = article.title
+            row.source_tags = ",".join(tag_names)
+            row.updated_at = datetime.now()
+            if not row.created_at:
+                row.created_at = datetime.now()
+
+            if result.decision == "hide":
+                article.status = DATA_STATUS.INACTIVE
+
+            summary_key = result.decision if result.decision in summary else "keep"
+            summary[summary_key] += 1
+            items.append(
+                {
+                    "article_id": article.id,
+                    "title": article.title,
+                    "decision": result.decision,
+                    "category": result.category,
+                    "confidence": result.confidence,
+                    "reason": result.reason,
+                    "model_name": result.model_name,
+                    "mp_name": mp_name,
+                    "tags": tag_names,
+                }
+            )
+
+        session.commit()
+        clear_cache_pattern("articles:")
+
+        return success_response({"items": items, "summary": summary})
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        session.rollback()
+        print_error(f"AI 过滤文章失败: {str(e)}")
+        raise HTTPException(
+            status_code=fast_status.HTTP_406_NOT_ACCEPTABLE,
+            detail=error_response(code=50001, message=f"AI 过滤文章失败: {str(e)}"),
+        )
+    finally:
+        session.close()
+
+
+@router.post("/ai-filter-restore", summary="恢复 AI 过滤文章")
+@router.post("/ai-filter/restore", summary="恢复 AI 过滤文章")
+async def restore_ai_filter(
+    payload: ArticleAiFilterRestoreRequest = Body(...),
+    current_user: dict = Depends(get_current_user),
+):
+    from core.models.article_ai_filter import ArticleAiFilter
+
+    article_ids = list(dict.fromkeys([str(item).strip() for item in payload.article_ids if str(item).strip()]))
+    if not article_ids:
+        raise HTTPException(
+            status_code=fast_status.HTTP_400_BAD_REQUEST,
+            detail=error_response(code=40001, message="文章 ID 不能为空"),
+        )
+
+    session = DB.get_session()
+    try:
+        rows = session.query(ArticleAiFilter).filter(ArticleAiFilter.article_id.in_(article_ids)).all()
+        if not rows:
+            return success_response({"restored": 0})
+
+        for row in rows:
+            row.decision = "keep"
+            row.category = "manual_restore"
+            row.confidence = 1.0
+            row.reason = "用户手动恢复"
+            row.model_name = "manual"
+            row.updated_at = datetime.now()
+
+        articles = session.query(Article).filter(Article.id.in_(article_ids)).all()
+        for article in articles:
+            article.status = DATA_STATUS.ACTIVE
+
+        session.commit()
+        clear_cache_pattern("articles:")
+        return success_response({"restored": len(rows)})
+    except HTTPException as e:
+        raise e
+    except Exception as e:
+        session.rollback()
+        print_error(f"恢复 AI 过滤失败: {str(e)}")
+        raise HTTPException(
+            status_code=fast_status.HTTP_406_NOT_ACCEPTABLE,
+            detail=error_response(code=50001, message=f"恢复 AI 过滤失败: {str(e)}"),
+        )
+    finally:
+        session.close()
 
 
 @router.api_route(
@@ -289,6 +483,7 @@ async def get_articles(
         # 批量查询优化：一次性获取所有需要的数据
         from core.models.feed import Feed
         from core.models.tags import Tags as TagsModel
+        from core.models.article_ai_filter import ArticleAiFilter
         
         # 1. 批量查询公众号信息
         article_ids = [a.id for a in articles]
@@ -316,10 +511,19 @@ async def get_articles(
         # 4. 批量查询所有标签信息
         tags_dict = {}
         if all_tag_ids:
-            tags = session.query(TagsModel).filter(TagsModel.id.in_(list(all_tag_ids))).all()
+            tags = session.query(TagsModel).filter(
+                TagsModel.id.in_(list(all_tag_ids)),
+                TagsModel.status == 1
+            ).all()
             tags_dict = {t.id: t for t in tags}
         
-        # 5. 在内存中组装数据
+        # 5. 批量查询 AI 过滤结果
+        ai_filter_rows = session.query(ArticleAiFilter).filter(
+            ArticleAiFilter.article_id.in_(article_ids)
+        ).all()
+        ai_filter_map = {row.article_id: row for row in ai_filter_rows}
+
+        # 6. 在内存中组装数据
         article_list = []
         for article in articles:
             article_dict = article.__dict__.copy()
@@ -337,6 +541,21 @@ async def get_articles(
             # topics 应该独立于 tags，不应该被 tag 覆盖
             article_dict["topics"] = []
             article_dict["topic_names"] = []
+            ai_row = ai_filter_map.get(article.id)
+            if ai_row:
+                article_dict["ai_filter_status"] = ai_row.decision
+                article_dict["ai_filter_category"] = ai_row.category
+                article_dict["ai_filter_confidence"] = ai_row.confidence
+                article_dict["ai_filter_reason"] = ai_row.reason
+                article_dict["ai_filter_model"] = ai_row.model_name
+                article_dict["ai_filter_updated_at"] = ai_row.updated_at
+            else:
+                article_dict["ai_filter_status"] = None
+                article_dict["ai_filter_category"] = None
+                article_dict["ai_filter_confidence"] = None
+                article_dict["ai_filter_reason"] = None
+                article_dict["ai_filter_model"] = None
+                article_dict["ai_filter_updated_at"] = None
             
             article_list.append(article_dict)
         
@@ -398,7 +617,10 @@ async def get_article_detail(
             ArticleTag.article_id == article.id
         ).all()
         tag_ids = [at.tag_id for at in article_tags]
-        tags = session.query(TagsModel).filter(TagsModel.id.in_(tag_ids)).all() if tag_ids else []
+        tags = session.query(TagsModel).filter(
+            TagsModel.id.in_(tag_ids),
+            TagsModel.status == 1
+        ).all() if tag_ids else []
         article_dict["tags"] = [{"id": t.id, "name": t.name} for t in tags]
         article_dict["tag_names"] = [t.name for t in tags]
         # topics 应该独立于 tags，不应该被 tag 覆盖
@@ -426,6 +648,7 @@ class ArticleUpdateRequest(BaseModel):
     description: Optional[str] = Field(None, description="文章描述")
     url: Optional[str] = Field(None, description="文章链接")
     pic_url: Optional[str] = Field(None, description="文章封面图链接")
+    status: Optional[int] = Field(None, description="文章状态：1=启用，2=禁用")
     
     class Config:
         json_schema_extra = {
@@ -433,7 +656,8 @@ class ArticleUpdateRequest(BaseModel):
                 "title": "文章标题",
                 "description": "文章描述",
                 "url": "https://mp.weixin.qq.com/s/xxx",
-                "pic_url": "https://example.com/image.jpg"
+                "pic_url": "https://example.com/image.jpg",
+                "status": 1
             }
         }
 

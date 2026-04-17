@@ -22,6 +22,17 @@ export const updateTag = (id: string, data: TagCreate) => {
   return http.put(`/wx/tags/${id}`, data)
 }
 
+export const updateTagStatus = (tag: Tag, status: number) => {
+  return updateTag(tag.id, {
+    name: tag.name,
+    cover: tag.cover || '',
+    intro: tag.intro || '',
+    mps_id: tag.mps_id || '[]',
+    is_custom: tag.is_custom || false,
+    status
+  })
+}
+
 export const deleteTag = (id: string) => {
   return http.delete(`/wx/tags/${id}`)
 }

@@ -3,13 +3,13 @@
  * 使用VChart展示标签在2D空间中的分布
  */
 
-import React, {Suspense, useEffect, useRef, useState} from 'react'
+import React, {Suspense, useRef, useState} from 'react'
 import {useTheme} from '@/store'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Badge} from '@/components/ui/badge'
-import {Loader2, Download, Maximize2, RefreshCw} from 'lucide-react'
-import type {VisualizationData, ScatterPlotProps} from '@/types/visualization'
+import {Loader2, Download, RefreshCw} from 'lucide-react'
+import type {VisualizationData, ScatterPlotProps, VisualizationNode} from '@/types/visualization'
 
 // 懒加载VChart组件
 const VChart = React.lazy(() =>
@@ -33,6 +33,11 @@ export const EmbeddingScatterPlot: React.FC<ScatterPlotProps> = ({
   const [hoveredNode, setHoveredNode] = useState<any>(null)
   const chartRef = useRef<any>(null)
 
+  const extractNodeFromEvent = (event: any): VisualizationNode | null => {
+    const raw = event?.datum ?? event?.data?.datum ?? event?.data ?? null
+    return raw && typeof raw === 'object' ? raw : null
+  }
+
   // 生成VChart配置
   const generateSpec = () => {
     if (!data?.nodes || data.nodes.length === 0) {
@@ -41,165 +46,101 @@ export const EmbeddingScatterPlot: React.FC<ScatterPlotProps> = ({
 
     const isDark = theme === 'dark'
     const primaryColor = isDark ? '#60a5fa' : '#3b82f6'
-    const hoverColor = isDark ? '#f472b6' : '#ec4899'
     const textColor = isDark ? '#e5e7eb' : '#374151'
     const gridColor = isDark ? '#374151' : '#e5e7eb'
 
-    // 准备数据
-    const plotData = data.nodes.map(node => ({
+    const plotData = data.nodes
+      .filter(node => Number.isFinite(node.x) && Number.isFinite(node.y))
+      .map(node => ({
       ...node,
       _x: node.x,
       _y: node.y,
+      _name: node.name || node.id,
       _size: node.size || (node.score ? 5 + node.score * 15 : 8),
-      _cluster: node.cluster
+      _cluster: node.cluster || data.metadata.cluster_name || 'default'
     }))
 
+    if (plotData.length === 0) {
+      return null
+    }
+
     return {
-      type: 'chart',
-      data: plotData,
-      // 主题配置
-      theme: {
-        color: isDark ? 'dark' : 'light'
+      type: 'scatter',
+      background: 'transparent',
+      data: {
+        values: plotData
       },
-      // 标题配置
-      title: {
-        visible: false
+      xField: '_x',
+      yField: '_y',
+      seriesField: '_cluster',
+      sizeField: '_size',
+      size: {
+        type: 'linear',
+        range: [8, 20]
       },
-      // 图例配置
-      legend: {
-        visible: false
-      },
-      // X轴配置
-      xAxis: {
+      point: {
         visible: true,
-        title: {
-          visible: false
-        },
-        label: {
-          visible: false
-        },
-        grid: {
-          visible: false
-        },
-        line: {
-          visible: false
+        style: {
+          fillOpacity: interactive ? 0.7 : 0.6,
+          stroke: primaryColor,
+          strokeWidth: 1.5
         }
       },
-      // Y轴配置
-      yAxis: {
-        visible: true,
-        title: {
-          visible: false
-        },
-        label: {
-          visible: false
-        },
-        grid: {
-          visible: false
-        },
-        line: {
-          visible: false
-        }
-      },
-      // 散点图系列
-      series: [
+      axes: [
         {
-          type: 'scatter',
-          xField: '_x',
-          yField: '_y',
-          sizeField: '_size',
-          colorField: '_cluster',
-          size: [8, 20],
-          color: [primaryColor],
-          shape: 'circle',
-          // 点的样式
-          point: {
-            style: {
-              fill: primaryColor,
-              fillOpacity: 0.6,
-              stroke: primaryColor,
-              strokeWidth: 1
-            },
-            state: {
-              hover: {
-                fill: hoverColor,
-                fillOpacity: 0.8,
-                stroke: hoverColor,
-                strokeWidth: 2,
-                larger: true
-              },
-              selected: {
-                fill: hoverColor,
-                fillOpacity: 1,
-                stroke: hoverColor,
-                strokeWidth: 2,
-                larger: true
-              }
-            }
-          },
-          // 交互配置
-          interactive: true,
-          // 标签配置
-          label: {
+          orient: 'bottom',
+          type: 'linear',
+          visible: false,
+          grid: {
             visible: false,
-            field: 'name',
             style: {
-              fill: textColor,
-              fontSize: 11
+              stroke: gridColor
+            }
+          }
+        },
+        {
+          orient: 'left',
+          type: 'linear',
+          visible: false,
+          grid: {
+            visible: false,
+            style: {
+              stroke: gridColor
             }
           }
         }
       ],
-      // 交互配置
-      interactions: interactive ? [
-        {
-          type: 'tooltip',
-          enable: showTooltip
-        },
-        {
-          type: 'hover-highlight'
-        },
-        {
-          type: 'select',
-          enable: true
-        }
-      ] : [],
-      // Tooltip配置
+      legends: {
+        visible: false
+      },
       tooltip: {
-        show: showTooltip,
+        visible: showTooltip,
         trigger: 'hover',
-        showContent: true,
         renderMode: 'html',
-        domStyles: {
-          'plot-tooltip': {
-            'background-color': isDark ? '#1f2937' : '#ffffff',
-            'color': textColor,
-            'border-color': gridColor,
-            'border-width': '1px',
-            'border-radius': '4px',
-            'padding': '8px',
-            'box-shadow': '0 2px 8px rgba(0,0,0,0.1)'
-          }
-        },
-        customContent: (datum: any) => {
-          return `
-            <div style="padding: 8px; min-width: 150px;">
-              <div style="font-weight: bold; margin-bottom: 4px; color: ${hoverColor};">
-                ${datum.name || datum.id}
-              </div>
-              <div style="font-size: 12px; color: ${textColor};">
-                <div>ID: ${datum.id}</div>
-                ${datum.score ? `<div>得分: ${(datum.score * 100).toFixed(1)}%</div>` : ''}
-                <div>位置: (${datum._x.toFixed(2)}, ${datum._y.toFixed(2)})</div>
-              </div>
-            </div>
-          `
+        mark: {
+          content: [
+            { key: () => '标签', value: (datum: any) => datum?._name || datum?.id || '-' },
+            { key: () => 'ID', value: (datum: any) => datum?.id || '-' },
+            {
+              key: () => '得分',
+              value: (datum: any) => (
+                typeof datum?.score === 'number' ? `${(datum.score * 100).toFixed(1)}%` : '-'
+              )
+            },
+            {
+              key: () => '位置',
+              value: (datum: any) => {
+                const x = typeof datum?._x === 'number' ? datum._x.toFixed(2) : '-'
+                const y = typeof datum?._y === 'number' ? datum._y.toFixed(2) : '-'
+                return `(${x}, ${y})`
+              }
+            }
+          ]
         }
       },
-      // 动画配置
       animation: true,
       animationAppear: {
-        duration: 1000
+        duration: 600
       }
     }
   }
@@ -208,19 +149,22 @@ export const EmbeddingScatterPlot: React.FC<ScatterPlotProps> = ({
 
   // 处理图表点击事件
   const handleChartClick = (datum: any) => {
-    if (datum && datum.datum && onNodeClick) {
-      const nodeData = datum.datum
+    const nodeData = extractNodeFromEvent(datum)
+    if (nodeData) {
       setSelectedNode(nodeData)
-      onNodeClick(nodeData)
+      if (onNodeClick) {
+        onNodeClick(nodeData)
+      }
     }
   }
 
   // 处理图表悬停事件
   const handleChartHover = (datum: any) => {
-    if (datum && datum.datum) {
-      setHoveredNode(datum.datum)
+    const nodeData = extractNodeFromEvent(datum)
+    if (nodeData) {
+      setHoveredNode(nodeData)
       if (onNodeHover) {
-        onNodeHover(datum.datum)
+        onNodeHover(nodeData)
       }
     } else {
       setHoveredNode(null)
@@ -304,7 +248,8 @@ export const EmbeddingScatterPlot: React.FC<ScatterPlotProps> = ({
                 ref={chartRef}
                 spec={spec}
                 onClick={handleChartClick}
-                onHover={handleChartHover}
+                onMouseOver={handleChartHover}
+                onMouseLeave={() => handleChartHover(null)}
                 style={{width: '100%', height: '100%'}}
               />
             </div>

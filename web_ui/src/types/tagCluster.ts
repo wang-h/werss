@@ -3,6 +3,7 @@ export interface TagClusterListItem {
   name: string
   description?: string | null
   centroid_tag_id?: string | null
+  centroid_tag_name?: string | null
   size: number
   cluster_version: string
   updated_at?: string | null

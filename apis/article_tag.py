@@ -43,7 +43,7 @@ async def get_article_tags(
         tags = []
         for article_tag in article_tags:
             tag = db.query(TagsModel).filter(TagsModel.id == article_tag.tag_id).first()
-            if tag:
+            if tag and tag.status == 1:
                 tags.append({
                     "id": tag.id,
                     "name": tag.name,
@@ -95,6 +95,8 @@ async def add_article_tag(
         tag = db.query(TagsModel).filter(TagsModel.id == tag_id).first()
         if not tag:
             return error_response(code=404, message="Tag not found")
+        if tag.status != 1:
+            return error_response(code=400, message="Tag is disabled")
         
         # 检查是否已存在关联
         existing = db.query(ArticleTag).filter(

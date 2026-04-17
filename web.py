@@ -22,6 +22,7 @@ from apis.github_update import router as github_router
 from apis.dashboard import router as dashboard_router
 from apis.api_key import router as api_key_router
 from apis.tag_clusters import router as tag_cluster_router
+from apis.mcp import router as mcp_router
 import apis
 import os
 from core.config import cfg,VERSION,API_BASE
@@ -108,7 +109,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="WeRSS API",
     description=_WERSS_OPENAPI_DESCRIPTION.strip(),
-    version="1.0.0",
+    version=VERSION,
     docs_url="/api/docs",  # 指定文档路径
     redoc_url="/api/redoc",  # 指定Redoc路径
     # 指定OpenAPI schema路径
@@ -165,7 +166,7 @@ app.openapi = custom_openapi  # type: ignore[method-assign]
 # CORS配置
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5174", "http://127.0.0.1:5174", "http://localhost:3000", "http://127.0.0.1:3000", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -192,13 +193,13 @@ async def add_custom_header(request: Request, call_next):
             response.headers["Expires"] = "0"
             # 添加 CSP 响应头，允许 Monaco Editor 从 CDN 加载资源
             # 允许 'self'、'unsafe-inline'、'unsafe-eval'、百度统计、jsdelivr CDN 和微信公众号图片
-            # connect-src 需要包含开发环境的 API 地址（localhost:8001 和 127.0.0.1:8001）
+            # connect-src 需要包含开发环境的 API 地址
             csp_policy = (
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://hm.baidu.com https://cdn.jsdelivr.net; "
                 "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
                 "font-src 'self' data: https://cdn.jsdelivr.net; "
                 "img-src 'self' data: https://hm.baidu.com https://cdn.jsdelivr.net https://mmbiz.qpic.cn https://mmbiz.qlogo.cn; "
-                "connect-src 'self' http://localhost:8001 http://127.0.0.1:8001 https://hm.baidu.com https://cdn.jsdelivr.net; "
+                "connect-src 'self' http://localhost:8001 http://127.0.0.1:8001 http://localhost:5174 http://127.0.0.1:5174 https://hm.baidu.com https://cdn.jsdelivr.net; "
                 "worker-src 'self' blob: https://cdn.jsdelivr.net; "
                 "child-src 'self' blob: https://cdn.jsdelivr.net"
             )
@@ -262,6 +263,7 @@ feeds_router.include_router(rss_router)
 feeds_router.include_router(feed_router)
 # 注册API路由分组
 app.include_router(api_router)
+app.include_router(mcp_router)
 app.include_router(resource_router)  # 处理 /static/res/logo/ 路径
 app.include_router(feeds_router)
 

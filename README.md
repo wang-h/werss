@@ -4,7 +4,7 @@
 
 # WeRSS - 微信公众号热度分析系统
 
-![Version](https://img.shields.io/badge/version-1.1.2-blue.svg)
+![Version](https://img.shields.io/badge/version-1.1.3-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.11+-green.svg)
 ![License](https://img.shields.io/badge/license-MIT-orange.svg)
 ![GitHub Stars](https://img.shields.io/github/stars/wang-h/werss?style=social)
@@ -1133,6 +1133,16 @@ chmod 755 data
 ---
 
 ## 📋 更新日志
+
+### v1.1.3（2026-04-17）
+
+**标签聚类与文章管理修复**
+- 标签聚类改为图聚类主导，基于 `embedding + char ngram` 进行标准化聚类
+- 聚类详情页重构为“标准化审查 + 关系视图”，修复中心标签名、簇外归并候选和文章共现网络语义
+- 修复标签聚类散点图与网络图的运行时问题，改正图表配置与文案错位
+- 修复文章页 `cn is not defined` 崩溃与启用/禁用无即时反馈的问题
+- 修复 AI 过滤路由冲突，并为“AI 过滤当前页”增加可暂停、可中断、可恢复的进度弹窗
+- 修复标签启用/禁用接口与后端实际生效链路，禁用标签时自动清理文章关联
 
 ### v1.1.2（2026-04-16）
 

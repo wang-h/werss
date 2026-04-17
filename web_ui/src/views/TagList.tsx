@@ -7,10 +7,11 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
+import { cn } from '@/lib/utils'
 import { ExportTags, ImportTags } from '@/api/export'
-import { listTags, deleteTag, batchDeleteTags } from '@/api/tagManagement'
+import { listTags, deleteTag, batchDeleteTags, updateTagStatus } from '@/api/tagManagement'
 import type { Tag as TagType } from '@/types/tagManagement'
-import { Download, Upload, Plus, Edit, Trash2, Loader2, Rss, Search } from 'lucide-react'
+import { Download, Upload, Plus, Edit, Trash2, Loader2, Rss, Search, CheckCircle2, Ban } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { formatDateTime } from '@/utils/date'
 import { useTranslation } from 'react-i18next'
@@ -31,6 +32,8 @@ const TagList: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
   const [batchDeleteDialogOpen, setBatchDeleteDialogOpen] = useState(false)
+  const [jumpPageInput, setJumpPageInput] = useState('1')
+  const [statusUpdatingIds, setStatusUpdatingIds] = useState<string[]>([])
   const { toast } = useToast()
 
   const fetchTags = async () => {
@@ -82,6 +85,10 @@ const TagList: React.FC = () => {
     fetchTags()
   }, [pagination.current, pagination.pageSize, searchText])
 
+  useEffect(() => {
+    setJumpPageInput(String(pagination.current))
+  }, [pagination.current])
+
   const handleSearch = () => {
     // 搜索按钮点击，确保重置到第一页（如果不在第一页）
     if (pagination.current !== 1) {
@@ -95,6 +102,39 @@ const TagList: React.FC = () => {
   const handleDelete = (id: string) => {
     setDeleteTargetId(id)
     setDeleteDialogOpen(true)
+  }
+
+  const handleToggleStatus = async (tag: TagType) => {
+    if (tag.status === 2) {
+      toast({
+        variant: "destructive",
+        title: t('tags.messages.statusBlocked'),
+        description: t('tags.messages.statusBlockedDesc')
+      })
+      return
+    }
+
+    const nextStatus = tag.status === 1 ? 0 : 1
+    try {
+      setStatusUpdatingIds(prev => [...prev, tag.id])
+      setTags(prev => prev.map(item => item.id === tag.id ? { ...item, status: nextStatus } : item))
+      setAllTags(prev => prev.map(item => item.id === tag.id ? { ...item, status: nextStatus } : item))
+      await updateTagStatus(tag, nextStatus)
+      toast({
+        title: t('tags.messages.statusUpdateSuccess'),
+        description: nextStatus === 1 ? t('common.enabled') : t('common.disabled')
+      })
+    } catch (error) {
+      setTags(prev => prev.map(item => item.id === tag.id ? { ...item, status: tag.status } : item))
+      setAllTags(prev => prev.map(item => item.id === tag.id ? { ...item, status: tag.status } : item))
+      toast({
+        variant: "destructive",
+        title: t('tags.messages.statusUpdateFailed'),
+        description: t('tags.messages.statusUpdateFailed')
+      })
+    } finally {
+      setStatusUpdatingIds(prev => prev.filter(id => id !== tag.id))
+    }
   }
 
   const confirmDelete = async () => {
@@ -249,6 +289,18 @@ const TagList: React.FC = () => {
 
   const totalPages = Math.ceil(pagination.total / pagination.pageSize)
 
+  const handleJumpPage = () => {
+    const targetPage = Number.parseInt(jumpPageInput, 10)
+    if (Number.isNaN(targetPage)) {
+      setJumpPageInput(String(pagination.current))
+      return
+    }
+
+    const nextPage = Math.min(Math.max(targetPage, 1), Math.max(1, totalPages))
+    setPagination(prev => ({ ...prev, current: nextPage }))
+    setJumpPageInput(String(nextPage))
+  }
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -364,13 +416,39 @@ const TagList: React.FC = () => {
                       </TableCell>
                       <TableCell className="font-medium">{tag.name}</TableCell>
                       <TableCell>
-                        {tag.status === 1 ? (
-                          <Badge className="bg-green-500">启用</Badge>
-                        ) : tag.status === 2 ? (
-                          <Badge variant="destructive">屏蔽</Badge>
-                        ) : (
-                          <Badge variant="outline">禁用</Badge>
-                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleToggleStatus(tag)}
+                          disabled={statusUpdatingIds.includes(tag.id)}
+                          className={cn(
+                            'inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors',
+                            tag.status === 1
+                              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                              : tag.status === 0
+                                ? 'bg-slate-200 text-slate-700 hover:bg-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700'
+                                : 'bg-red-600 text-white cursor-not-allowed'
+                          )}
+                          title={
+                            tag.status === 2
+                              ? t('tags.messages.statusBlockedDesc')
+                              : tag.status === 1
+                                ? t('tags.messages.clickToDisable')
+                                : t('tags.messages.clickToEnable')
+                          }
+                        >
+                          {statusUpdatingIds.includes(tag.id) ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : tag.status === 1 ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <Ban className="h-3.5 w-3.5" />
+                          )}
+                          {tag.status === 1
+                            ? t('common.enabled')
+                            : tag.status === 2
+                              ? t('tags.statusBlocked')
+                              : t('common.disabled')}
+                        </button>
                       </TableCell>
                       <TableCell>
                         <Badge variant="secondary" className="font-mono">
@@ -409,6 +487,24 @@ const TagList: React.FC = () => {
                 共 {pagination.total} 条{searchText ? `（搜索: "${searchText}"）` : ''}，第 {pagination.current} / {totalPages} 页
               </div>
               <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>跳转到</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={totalPages}
+                    value={jumpPageInput}
+                    onChange={(e) => setJumpPageInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleJumpPage()
+                      }
+                    }}
+                    onBlur={handleJumpPage}
+                    className="h-8 w-20"
+                  />
+                  <span>页</span>
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
