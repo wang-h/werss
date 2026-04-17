@@ -1,9 +1,10 @@
 # ==================== WeRSS 完整独立栈 ====================
-# 包含 PostgreSQL + MinIO + WeRSS，新用户一键启动：
+# 包含 MinIO + WeRSS，数据库默认使用 SQLite；
+# 如需 PostgreSQL，可通过 DB 环境变量显式切换：
 #   cp .env.example .env   # 按需修改密码和 API Key
 #   docker compose up -d
 #
-# 如果你已有外部数据库和 MinIO，请改用 docker-compose.app-only.yml。
+# 如果你已有外部数据库和 MinIO，或想仅接入现有基础设施，请改用 docker-compose.app-only.yml。
 # 详细说明见 docs/DEPLOYMENT.md
 
 services:
@@ -74,7 +75,7 @@ services:
     container_name: ${WERSS_CONTAINER_NAME:-werss}
     restart: unless-stopped
     environment:
-      - DB=${DB:-postgresql://${POSTGRES_USER:-admin}:${POSTGRES_PASSWORD:-admin123}@postgres:5432/${POSTGRES_DB:-werss_db}}
+      - DB=${DB:-sqlite:///data/db.db}
       - PORT=8001
       - DEBUG=${DEBUG:-False}
       - AUTO_RELOAD=${AUTO_RELOAD:-False}
