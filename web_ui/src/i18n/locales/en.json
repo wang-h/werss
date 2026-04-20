@@ -2,6 +2,7 @@
   "common": {
     "confirm": "Confirm",
     "cancel": "Cancel",
+    "done": "Done",
     "back": "Back",
     "delete": "Delete",
     "edit": "Edit",

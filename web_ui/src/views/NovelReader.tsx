@@ -75,17 +75,17 @@ const NovelReader: React.FC = () => {
       {/* 阅读页面 */}
       {isReading && (
         <div className="relative">
-          <div className="p-5 bg-white rounded cursor-pointer" onClick={toggleMenu}>
+          <div className="p-5 bg-card text-card-foreground rounded cursor-pointer" onClick={toggleMenu}>
             {currentContent}
           </div>
 
           {/* 左侧滑出目录 */}
-          <div className={`fixed top-0 -left-[300px] w-[300px] h-full bg-white transition-[left] duration-300 z-[1000] ${isDrawerOpen ? 'left-0' : ''}`}>
+          <div className={`fixed top-0 -left-[300px] w-[300px] h-full bg-card border-r border-border transition-[left] duration-300 z-[1000] ${isDrawerOpen ? 'left-0' : ''}`}>
             <div className="p-5">
-              <h3>目录</h3>
-              <ul>
+              <h3 className="text-foreground">目录</h3>
+              <ul className="text-muted-foreground">
                 {chapters.map((chapter) => (
-                  <li key={chapter.id}>{chapter.title}</li>
+                  <li key={chapter.id} className="hover:text-primary py-2 cursor-pointer transition-colors">{chapter.title}</li>
                 ))}
               </ul>
             </div>
@@ -93,10 +93,10 @@ const NovelReader: React.FC = () => {
 
           {/* 菜单和设置 */}
           {isMenuOpen && (
-            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 flex bg-black/70 p-2.5 rounded">
-              <button className="mx-[5px] py-[5px] px-2.5 bg-[#007bff] text-white border-none rounded cursor-pointer" onClick={prevPage}>上一页</button>
-              <button className="mx-[5px] py-[5px] px-2.5 bg-[#007bff] text-white border-none rounded cursor-pointer" onClick={nextPage}>下一页</button>
-              <button className="mx-[5px] py-[5px] px-2.5 bg-[#007bff] text-white border-none rounded cursor-pointer" onClick={toggleDrawer}>目录</button>
+            <div className="fixed bottom-5 left-1/2 -translate-x-1/2 flex bg-black/80 backdrop-blur-sm p-2.5 rounded-xl shadow-2xl z-[1001]">
+              <button className="mx-[5px] py-2 px-4 bg-primary text-primary-foreground border-none rounded-lg cursor-pointer hover:opacity-90 transition-all font-medium" onClick={prevPage}>上一页</button>
+              <button className="mx-[5px] py-2 px-4 bg-primary text-primary-foreground border-none rounded-lg cursor-pointer hover:opacity-90 transition-all font-medium" onClick={nextPage}>下一页</button>
+              <button className="mx-[5px] py-2 px-4 bg-primary text-primary-foreground border-none rounded-lg cursor-pointer hover:opacity-90 transition-all font-medium" onClick={toggleDrawer}>目录</button>
             </div>
           )}
         </div>
@@ -104,9 +104,9 @@ const NovelReader: React.FC = () => {
 
       {/* 出错界面 */}
       {hasError && (
-        <div className="text-center p-5 bg-[#f8d7da] rounded">
-          <p>网络错误，请重试！</p>
-          <button className="p-2.5 bg-[#dc3545] text-white border-none rounded cursor-pointer" onClick={retry}>重试</button>
+        <div className="text-center p-5 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl">
+          <p className="font-medium mb-3">网络错误，请重试！</p>
+          <button className="px-5 py-2 bg-destructive text-destructive-foreground border-none rounded-lg cursor-pointer hover:opacity-90 transition-all font-bold" onClick={retry}>重试</button>
         </div>
       )}
     </div>

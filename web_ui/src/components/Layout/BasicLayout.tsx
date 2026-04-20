@@ -24,7 +24,7 @@ import { initBrowserNotification } from '@/utils/browserNotification'
 import { setCurrentLanguage } from '@/utils/translate'
 import { getSettings, type AppSettings } from '@/utils/settings'
 import { ModeToggle } from '@/components/mode-toggle'
-import { User, Lock, QrCode, Settings, LogOut } from 'lucide-react'
+import { User, Lock, QrCode, Settings, LogOut, Bell, Search, Globe, LogOut as LogoutIcon, UserCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AppContextType {
@@ -53,7 +53,6 @@ const BasicLayout: React.FC = () => {
     localStorage.getItem('language') || 'chinese_simplified'
   )
   
-  // 确保空字符串被正确处理（用于禁用翻译）
   useEffect(() => {
     const savedLanguage = localStorage.getItem('language')
     if (savedLanguage === '') {
@@ -71,11 +70,9 @@ const BasicLayout: React.FC = () => {
   }, [location.pathname])
 
   const appTitle = useMemo(
-    () => import.meta.env.VITE_APP_TITLE || 'WeRSS 公众号订阅平台',
+    () => import.meta.env.VITE_APP_TITLE || '微信公众号热度分析系统',
     []
   )
-  // 开发环境使用 public 目录下的文件，生产环境使用后端静态文件服务
-  const logo = import.meta.env.DEV ? '/logo.svg' : '/static/logo.svg'
 
   const fetchUserInfo = async () => {
     try {
@@ -100,7 +97,6 @@ const BasicLayout: React.FC = () => {
   }
 
   const handleLanguageChange = (language: string) => {
-    // 将 "__disabled__" 转换为空字符串以保持与现有逻辑的兼容性
     const actualLanguage = language === '__disabled__' ? '' : language
     setCurrentLanguageState(actualLanguage)
     setCurrentLanguage(actualLanguage)
@@ -120,37 +116,21 @@ const BasicLayout: React.FC = () => {
     }
   }
 
-  const goToEditUser = () => {
-    navigate('/edit-user')
-  }
-
-  const goToChangePassword = () => {
-    navigate('/change-password')
-  }
-
-  const goToSettings = () => {
-    navigate('/settings')
-  }
-
   useEffect(() => {
     if (isAuthenticated) {
       fetchUserInfo()
     }
     initBrowserNotification()
-    // 初始化语言设置（不再需要 translatePage，i18n 会自动处理）
     const savedLanguage = localStorage.getItem('language')
     if (savedLanguage) {
       setCurrentLanguage(savedLanguage)
     }
     fetchSysInfo()
     
-    // 监听设置变更
     const handleSettingsChange = (e: CustomEvent<AppSettings>) => {
       setSettings(e.detail)
     }
-    
     window.addEventListener('settingsChanged', handleSettingsChange as EventListener)
-    
     return () => {
       window.removeEventListener('settingsChanged', handleSettingsChange as EventListener)
     }
@@ -170,7 +150,6 @@ const BasicLayout: React.FC = () => {
     { value: 'english', label: t('language.english') },
   ]
 
-  // 路由名称映射
   const routeNameMap: Record<string, string> = {
     '/': t('layout.home'),
     '/dashboard': t('layout.dashboard'),
@@ -188,11 +167,7 @@ const BasicLayout: React.FC = () => {
   const getBreadcrumbItems = (): Array<{ label: string; path: string }> => {
     const pathSegments = location.pathname.split('/').filter(Boolean)
     const items: Array<{ label: string; path: string }> = []
-    
-    if (pathSegments.length === 0) {
-      return [{ label: t('layout.home'), path: '/' }]
-    }
-
+    if (pathSegments.length === 0) return [{ label: t('layout.home'), path: '/' }]
     let currentPath = ''
     pathSegments.forEach((segment) => {
       currentPath += `/${segment}`
@@ -202,130 +177,136 @@ const BasicLayout: React.FC = () => {
       }
       items.push({ label, path: currentPath })
     })
-
     return items
   }
 
   const breadcrumbItems = getBreadcrumbItems()
 
   const layoutContent = location.pathname === '/login' ? (
-    <div className="min-h-screen flex flex-col" id="main">
-      <main className="flex-1 min-h-screen p-6">
+    <div className="min-h-screen flex flex-col bg-background" id="main">
+      <main className="flex-1 min-h-screen">
         <Outlet />
       </main>
     </div>
   ) : (
     <SidebarProvider>
       <Navbar />
-      <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-          <div className="flex items-center gap-2 px-4 flex-1">
-            <SidebarTrigger className="-ml-1" />
-            <Separator
-              orientation="vertical"
-              className="mr-2 data-[orientation=vertical]:h-4"
-            />
-            <Breadcrumb>
-              <BreadcrumbList>
-                {breadcrumbItems.map((item, index) => (
-                  <React.Fragment key={item.path}>
-                    {index > 0 && <BreadcrumbSeparator />}
-                    <BreadcrumbItem className={index === breadcrumbItems.length - 1 ? '' : 'hidden md:block'}>
-                      {index === breadcrumbItems.length - 1 ? (
-                        <BreadcrumbPage>{item.label}</BreadcrumbPage>
-                      ) : (
-                        <BreadcrumbLink asChild>
-                          <Link to={item.path} className="text-muted-foreground hover:text-foreground">{item.label}</Link>
-                        </BreadcrumbLink>
-                      )}
-                    </BreadcrumbItem>
-                  </React.Fragment>
-                ))}
-              </BreadcrumbList>
-            </Breadcrumb>
-          </div>
-          {hasLogined && (
-            <div className="flex items-center gap-4 px-4">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      onClick={showAuthQrcode}
-                      className={cn(
-                        "cursor-pointer text-lg transition-colors",
-                        !haswxLogined ? 'text-red-500 hover:text-red-600 dark:text-red-500 dark:hover:text-red-400' : 'text-black hover:text-gray-700 dark:text-white dark:hover:text-gray-300'
-                      )}
-                    >
-                      <QrCode className="h-5 w-5" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {!haswxLogined ? t('layout.notAuthorized') : t('layout.clickToScan')}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <ModeToggle />
-              <Select 
-                value={currentLanguage || '__disabled__'} 
-                onValueChange={handleLanguageChange}
-              >
-                <SelectTrigger className="w-[150px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {languageOptions.map(opt => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </SelectItem>
+      <SidebarInset className="bg-background min-w-0">
+        <header className="sticky top-0 z-40 h-16 shrink-0 flex items-center gap-2 transition-all border-b border-border bg-background/80 backdrop-blur-md px-4 md:px-6 justify-between overflow-hidden">
+          <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+            <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-primary transition-colors flex-shrink-0" />
+            <Separator orientation="vertical" className="h-4 bg-border flex-shrink-0" />
+            
+            {/* Search - Using themed bg */}
+            <div className="hidden sm:flex lg:flex items-center bg-muted/50 rounded-full px-4 py-1.5 w-40 lg:w-64 border border-border focus-within:w-48 lg:focus-within:w-80 focus-within:border-primary/30 transition-all duration-300 flex-shrink-0">
+              <Search className="h-4 w-4 text-muted-foreground mr-2 flex-shrink-0" />
+              <input 
+                type="text" 
+                placeholder="搜索..." 
+                className="bg-transparent border-none focus:ring-0 text-xs w-full placeholder:text-muted-foreground truncate"
+              />
+            </div>
+
+            <div className="flex ml-1 sm:ml-4 overflow-hidden">
+              <Breadcrumb>
+                <BreadcrumbList className="flex-nowrap">
+                  {breadcrumbItems.slice(-2).map((item, index, arr) => (
+                    <React.Fragment key={item.path}>
+                      {index > 0 && <BreadcrumbSeparator className="opacity-50" />}
+                      <BreadcrumbItem className={index === 0 && arr.length > 1 ? "hidden sm:block" : ""}>
+                        {index === arr.length - 1 ? (
+                          <BreadcrumbPage className="font-semibold text-foreground truncate max-w-[80px] sm:max-w-[150px]">{item.label}</BreadcrumbPage>
+                        ) : (
+                          <BreadcrumbLink asChild>
+                            <Link to={item.path} className="text-muted-foreground hover:text-primary transition-colors truncate max-w-[60px] sm:max-w-[120px]">{item.label}</Link>
+                          </BreadcrumbLink>
+                        )}
+                      </BreadcrumbItem>
+                    </React.Fragment>
                   ))}
-                </SelectContent>
-              </Select>
-              <a 
-                href="/api/docs" 
-                target="_blank" 
-                className="text-foreground hover:text-foreground/80 no-underline text-sm"
-              >
-                Docs
-              </a>
+                </BreadcrumbList>
+              </Breadcrumb>
+            </div>
+          </div>
+
+          {hasLogined && (
+            <div className="flex items-center gap-1 sm:gap-4 flex-shrink-0 ml-2">
+              <div className="flex items-center gap-0.5 sm:gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={showAuthQrcode}
+                        className={cn(
+                          "p-2 rounded-lg transition-all relative",
+                          !haswxLogined 
+                            ? "bg-destructive/10 text-destructive hover:bg-destructive/20" 
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        )}
+                      >
+                        <QrCode className="h-5 w-5" />
+                        {!haswxLogined && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-destructive rounded-full border-2 border-background"></span>}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {!haswxLogined ? t('layout.notAuthorized') : t('layout.clickToScan')}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+
+                <button className="hidden xs:flex p-2 text-muted-foreground hover:bg-muted hover:text-foreground rounded-lg transition-all relative">
+                   <Bell className="h-5 w-5" />
+                   <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full border-2 border-background"></span>
+                </button>
+                
+                <div className="scale-90 sm:scale-100">
+                  <ModeToggle />
+                </div>
+              </div>
+
+              <div className="h-8 w-px bg-border mx-1 hidden xs:block"></div>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="flex items-center cursor-pointer gap-2">
-                    <Avatar className="h-9 w-9 border-2 border-border">
-                      {userInfo.avatar ? (
-                        <AvatarImage src={userInfo.avatar} alt="avatar" />
-                      ) : (
-                        <AvatarFallback>
-                          <User className="h-4 w-4" />
-                        </AvatarFallback>
-                      )}
-                    </Avatar>
-                    <span className="text-foreground font-medium text-sm hidden md:inline">{userInfo.username}</span>
+                  <button className="flex items-center cursor-pointer gap-2 p-1 rounded-full hover:bg-muted transition-all outline-none">
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="h-8 w-8 sm:h-9 sm:w-9 border-2 border-background shadow-sm transition-transform active:scale-95">
+                        {userInfo.avatar ? (
+                          <AvatarImage src={userInfo.avatar} alt="avatar" />
+                        ) : (
+                          <AvatarFallback className="bg-primary/5 text-primary">
+                            <User className="h-5 w-5" />
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background"></div>
+                    </div>
+                    <div className="hidden lg:block text-left mr-1">
+                      <p className="text-sm font-bold text-foreground leading-tight truncate max-w-[80px]">{userInfo.username}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 font-medium uppercase tracking-tight">{t('layout.admin')}</p>
+                    </div>
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem onClick={goToEditUser}>
-                    <User className="h-4 w-4 mr-2" />
+                <DropdownMenuContent align="end" className="w-56 mt-2 border-border shadow-xl rounded-xl p-2">
+                  <div className="px-2 py-2 mb-2">
+                     <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{t('layout.personalCenter')}</p>
+                  </div>
+                  <DropdownMenuItem onClick={() => navigate('/edit-user')} className="rounded-lg py-2 cursor-pointer focus:bg-primary/10 focus:text-primary">
+                    <UserCircle className="h-4 w-4 mr-2 opacity-70" />
                     {t('layout.personalCenter')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={goToChangePassword}>
-                    <Lock className="h-4 w-4 mr-2" />
+                  <DropdownMenuItem onClick={() => navigate('/change-password')} className="rounded-lg py-2 cursor-pointer focus:bg-primary/10 focus:text-primary">
+                    <Lock className="h-4 w-4 mr-2 opacity-70" />
                     {t('layout.changePassword')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={goToSettings}>
-                    <Settings className="h-4 w-4 mr-2" />
+                  <DropdownMenuItem onClick={() => navigate('/settings')} className="rounded-lg py-2 cursor-pointer focus:bg-primary/10 focus:text-primary">
+                    <Settings className="h-4 w-4 mr-2 opacity-70" />
                     {t('layout.settings')}
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={showAuthQrcode}>
-                    <QrCode className={cn(
-                      "h-4 w-4 mr-2",
-                      !haswxLogined ? 'text-red-500 dark:text-red-500' : 'text-foreground'
-                    )} />
-                    {t('layout.scanAuth')}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                    <LogOut className="h-4 w-4 mr-2" />
+                  
+                  <DropdownMenuSeparator className="my-2 bg-border" />
+                  <DropdownMenuItem onClick={handleLogout} className="rounded-lg py-2 cursor-pointer text-destructive focus:bg-destructive/10 focus:text-destructive">
+                    <LogoutIcon className="h-4 w-4 mr-2" />
                     {t('layout.logout')}
                   </DropdownMenuItem>
                 </DropdownMenuContent>
@@ -334,48 +315,24 @@ const BasicLayout: React.FC = () => {
             </div>
           )}
         </header>
-        <div className="flex flex-1 flex-col gap-4 p-4 pt-0" id="main">
-          <Outlet />
-        </div>
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 min-w-0 overflow-x-hidden">
+          <div className="max-w-[1600px] mx-auto w-full">
+            <Outlet />
+          </div>
+        </main>
       </SidebarInset>
     </SidebarProvider>
   )
 
-  // 水印功能：显示版权水印信息
   const renderWatermark = () => {
     if (!settings.watermarkEnabled) return null
-
     const watermarkText = `${appTitle} · ${new Date().getFullYear()}`
-
     return (
-      <div
-        className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden"
-        aria-hidden="true"
-      >
-        {/* 对角线水印文字矩阵 */}
-        {Array.from({ length: 15 }).map((_, rowIndex) => (
-          <div
-            key={rowIndex}
-            className="flex"
-            style={{
-              marginTop: rowIndex === 0 ? '-80px' : '160px',
-            }}
-          >
-            {Array.from({ length: 20 }).map((_, colIndex) => (
-              <div
-                key={colIndex}
-                className="select-none dark:text-white/[0.03] text-black/[0.04]"
-                style={{
-                  width: '250px',
-                  marginLeft: colIndex === 0 ? (rowIndex % 2 === 0 ? '-50px' : '0') : '0',
-                  transform: 'rotate(-25deg)',
-                  transformOrigin: 'left center',
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  whiteSpace: 'nowrap',
-                  padding: '20px 0',
-                }}
-              >
+      <div className="pointer-events-none fixed inset-0 z-[9999] overflow-hidden" aria-hidden="true">
+        {Array.from({ length: 10 }).map((_, rowIndex) => (
+          <div key={rowIndex} className="flex" style={{ marginTop: rowIndex === 0 ? '-80px' : '200px' }}>
+            {Array.from({ length: 15 }).map((_, colIndex) => (
+              <div key={colIndex} className="select-none dark:text-white/[0.02] text-black/[0.03]" style={{ width: '300px', marginLeft: colIndex === 0 ? (rowIndex % 2 === 0 ? '-50px' : '0') : '0', transform: 'rotate(-25deg)', transformOrigin: 'left center', fontSize: '12px', fontWeight: 500, whiteSpace: 'nowrap', padding: '30px 0' }}>
                 {watermarkText}
               </div>
             ))}

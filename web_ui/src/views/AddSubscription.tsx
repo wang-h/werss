@@ -116,6 +116,7 @@ const AddSubscription: React.FC = () => {
       })
 
       toast({
+        variant: "success",
         title: t('common.success'),
         description: t('subscriptions.messages.addSuccess')
       })
@@ -160,6 +161,7 @@ const AddSubscription: React.FC = () => {
       window.URL.revokeObjectURL(url)
       document.body.removeChild(a)
       toast({
+        variant: "success",
         title: t('common.success'),
         description: t('subscriptions.messages.exportSuccess')
       })
@@ -194,11 +196,13 @@ const AddSubscription: React.FC = () => {
           
           if (stats) {
             toast({
+              variant: "success",
               title: t('common.success'),
               description: `${message}，新增: ${stats.imported}，更新: ${stats.updated}，跳过: ${stats.skipped}`
             })
           } else {
             toast({
+              variant: "success",
               title: t('common.success'),
               description: message
             })

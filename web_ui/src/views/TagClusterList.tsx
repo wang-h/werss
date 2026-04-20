@@ -9,8 +9,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { rebuildTagClusters, listTagClusters } from '@/api/tagClusters'
 import type { TagClusterListItem } from '@/types/tagCluster'
 import { ArrowRight, Layers3, Loader2, RefreshCw, Search } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const TagClusterList: React.FC = () => {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { toast } = useToast()
   const [loading, setLoading] = useState(false)
@@ -18,6 +20,7 @@ const TagClusterList: React.FC = () => {
   const [clusters, setClusters] = useState<TagClusterListItem[]>([])
   const [searchText, setSearchText] = useState('')
   const [page, setPage] = useState({ offset: 0, limit: 20, total: 0 })
+  const [jumpPageInput, setJumpPageInput] = useState('1')
 
   const filteredClusters = useMemo(() => {
     if (!searchText.trim()) return clusters
@@ -46,8 +49,8 @@ const TagClusterList: React.FC = () => {
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: '加载失败',
-        description: error?.message || '获取标签聚类失败',
+        title: t('common.error'),
+        description: error?.message || t('tagClusters.messages.fetchFailed'),
       })
     } finally {
       setLoading(false)
@@ -67,15 +70,15 @@ const TagClusterList: React.FC = () => {
     try {
       const res = await rebuildTagClusters() as any
       toast({
-        title: '重建完成',
-        description: res?.data?.message || '标签聚类已更新',
+        title: t('tagClusters.rebuildSuccess'),
+        description: res?.data?.message || t('tagClusters.messages.rebuildSuccessDesc'),
       })
       await loadClusters()
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: '重建失败',
-        description: error?.response?.data?.message || error?.message || '标签聚类重建失败',
+        title: t('tagClusters.rebuildFailed'),
+        description: error?.response?.data?.message || error?.message || t('tagClusters.messages.rebuildFailed'),
       })
     } finally {
       setRebuilding(false)
@@ -86,49 +89,64 @@ const TagClusterList: React.FC = () => {
   const currentPage = Math.floor(page.offset / page.limit) + 1
   const paginatedClusters = filteredClusters.slice(page.offset, page.offset + page.limit)
 
+  useEffect(() => {
+    setJumpPageInput(String(currentPage))
+  }, [currentPage])
+
+  const handleJumpPage = () => {
+    const targetPage = Number.parseInt(jumpPageInput, 10)
+    if (Number.isNaN(targetPage)) {
+      setJumpPageInput(String(currentPage))
+      return
+    }
+
+    const nextPage = Math.min(Math.max(targetPage, 1), totalPages)
+    setPage((prev) => ({ ...prev, offset: (nextPage - 1) * prev.limit }))
+    setJumpPageInput(String(nextPage))
+  }
+
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <Layers3 className="h-6 w-6 text-primary" />
-            <h1 className="text-3xl font-bold">标签语义聚类</h1>
+            <h1 className="text-3xl font-bold">{t('tagClusters.listTitle')}</h1>
           </div>
           <p className="mt-2 text-sm text-muted-foreground">
-            基于标签 profile、文章共现和 embedding 的标签主题簇
+            {t('tagClusters.listSubtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={loadClusters} disabled={loading || rebuilding}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
-            刷新
+            {t('common.refresh')}
           </Button>
           <Button onClick={rebuild} disabled={loading || rebuilding}>
             {rebuilding ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-            重建聚类
+            {t('tagClusters.rebuild')}
           </Button>
         </div>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>筛选</CardTitle>
-          <CardDescription>按名称或描述搜索聚类</CardDescription>
+          <CardTitle>{t('tagClusters.filter')}</CardTitle>
+          <CardDescription>{t('tagClusters.filterDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Input
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="搜索聚类名称、描述、中心标签..."
+            placeholder={t('tagClusters.searchPlaceholder')}
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>聚类列表</CardTitle>
+          <CardTitle>{t('tagClusters.clusterList')}</CardTitle>
           <CardDescription>
-            共 {page.total} 个聚类，筛选后剩余 {filteredClusters.length} 个，当前页展示 {paginatedClusters.length} 个
+            {t('tagClusters.totalDescription', { total: page.total, filtered: filteredClusters.length, current: paginatedClusters.length })}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -136,19 +154,19 @@ const TagClusterList: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>名称</TableHead>
-                  <TableHead>描述</TableHead>
-                  <TableHead>中心标签</TableHead>
-                  <TableHead>成员数</TableHead>
-                  <TableHead>版本</TableHead>
-                  <TableHead className="text-right">操作</TableHead>
+                  <TableHead>{t('tagClusters.columns.name')}</TableHead>
+                  <TableHead>{t('tagClusters.columns.description')}</TableHead>
+                  <TableHead>{t('tagClusters.columns.centroidTag')}</TableHead>
+                  <TableHead>{t('tagClusters.columns.memberCount')}</TableHead>
+                  <TableHead>{t('tagClusters.columns.version')}</TableHead>
+                  <TableHead className="text-right">{t('tagClusters.columns.actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginatedClusters.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
-                      {loading ? '加载中...' : '暂无聚类数据'}
+                      {loading ? t('common.loading') : t('tagClusters.noData')}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -167,7 +185,7 @@ const TagClusterList: React.FC = () => {
                       <TableCell className="text-muted-foreground">{item.cluster_version}</TableCell>
                       <TableCell className="text-right">
                         <Button variant="ghost" size="sm" onClick={() => navigate(`/tag-clusters/${item.id}`)}>
-                          查看
+                          {t('tagClusters.view')}
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -180,22 +198,39 @@ const TagClusterList: React.FC = () => {
 
           <div className="mt-4 flex items-center justify-between gap-4">
             <div className="text-sm text-muted-foreground">
-              第 {currentPage} / {totalPages} 页
+              {t('common.page', { current: currentPage, total: totalPages, count: filteredClusters.length })}
             </div>
             <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>{t('common.gotoPage')}</span>
+                <Input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  value={jumpPageInput}
+                  onChange={(e) => setJumpPageInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleJumpPage()
+                    }
+                  }}
+                  onBlur={handleJumpPage}
+                  className="h-8 w-20"
+                />
+              </div>
               <Button
                 variant="outline"
                 disabled={page.offset <= 0}
                 onClick={() => setPage((prev) => ({ ...prev, offset: Math.max(0, prev.offset - prev.limit) }))}
               >
-                上一页
+                {t('common.previousPage')}
               </Button>
               <Button
                 variant="outline"
                 disabled={page.offset + page.limit >= filteredClusters.length}
                 onClick={() => setPage((prev) => ({ ...prev, offset: prev.offset + prev.limit }))}
               >
-                下一页
+                {t('common.nextPage')}
               </Button>
             </div>
           </div>

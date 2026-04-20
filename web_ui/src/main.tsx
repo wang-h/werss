@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import router from './router'
 import { RouterProvider } from 'react-router-dom'
 import { initSettings } from './utils/settings'
-import { Toaster } from '@/components/ui/toaster'
+import { Toaster } from '@/components/ui/sonner'
 import { ThemeProvider } from '@/components/theme-provider'
 
 // 导入 i18n 配置（必须在其他导入之前初始化）
@@ -20,6 +20,10 @@ ReactDOM.createRoot(document.getElementById('app')!).render(
     <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
       <RouterProvider 
         router={router}
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
         fallbackElement={
           <div className="flex items-center justify-center h-screen">
             <div className="text-center">
@@ -32,4 +36,3 @@ ReactDOM.createRoot(document.getElementById('app')!).render(
     </ThemeProvider>
   </React.StrictMode>
 )
-

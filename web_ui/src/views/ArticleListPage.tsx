@@ -750,7 +750,7 @@ const ArticleListPage: React.FC = () => {
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-6 py-4 border-t">
               <div className="text-sm text-muted-foreground">
-                {t('common.page', { current: pagination.current, total: totalPages })}
+                {t('common.page', { current: pagination.current, total: totalPages, count: pagination.total })}
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -921,7 +921,7 @@ const ArticleListPage: React.FC = () => {
           ) : null}
           <DialogFooter>
             <Button variant="outline" onClick={() => setAiFilterDialogOpen(false)} disabled={aiFiltering}>
-              {t('common.cancel')}
+              {aiFilterTask?.status === 'completed' ? t('common.done') : t('common.cancel')}
             </Button>
             {aiFiltering ? (
               <>

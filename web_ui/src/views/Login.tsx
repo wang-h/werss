@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast'
 import { login } from '@/api/auth'
 import { useForm } from 'react-hook-form'
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { User, Lock, CheckCircle } from 'lucide-react'
+import { User, Lock, Zap, Shield, Globe, CheckCircle, Activity } from 'lucide-react'
 
 interface LoginFormData {
   username: string
@@ -27,7 +27,12 @@ const Login: React.FC = () => {
   })
 
   const appTitle = useMemo(
-    () => import.meta.env.VITE_APP_TITLE || 'WeRSS 公众号订阅平台',
+    () => import.meta.env.VITE_APP_TITLE || 'WeRSS 微信公众文章热度分析系统',
+    []
+  )
+
+  const logo = useMemo(
+    () => import.meta.env.DEV ? '/logo.svg' : '/static/logo.svg',
     []
   )
 
@@ -40,19 +45,16 @@ const Login: React.FC = () => {
       }) as any
 
       if (res?.access_token) {
-        // 存储token和过期时间
         localStorage.setItem('token', res.access_token)
-        const expiresIn = res.expires_in || 3600 // 默认1小时
-        localStorage.setItem('token_expire', Date.now() + (expiresIn * 1000).toString())
+        const expiresIn = res.expires_in || 3600
+        localStorage.setItem('token_expire', (Date.now() + (expiresIn * 1000)).toString())
 
-        console.log('Token stored:', localStorage.getItem('token'))
-
-        // 处理重定向
         const redirect = searchParams.get('redirect')
         navigate(redirect || '/')
         toast({
+          variant: "success",
           title: "登录成功",
-          description: "欢迎回来！"
+          description: `欢迎进入控制台`
         })
       } else {
         throw new Error('无效的响应格式')
@@ -74,66 +76,110 @@ const Login: React.FC = () => {
   }
 
   return (
-    <div className="h-screen p-0 m-0 bg-gray-50">
+    <div className="h-screen p-0 m-0 bg-background overflow-hidden font-sans">
       <div className="flex flex-col lg:flex-row h-full transition-all duration-300">
-        {/* 左侧紫色渐变介绍区域 */}
-        <div className="hidden lg:flex flex-[0_0_55%] p-20 text-white flex-col justify-center bg-gradient-to-br from-purple-600 via-purple-500 to-violet-600 relative overflow-hidden">
-          {/* 渐变装饰 */}
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-700/50 via-transparent to-violet-700/50"></div>
-          <div className="absolute top-0 right-0 w-96 h-96 bg-purple-400/20 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-96 h-96 bg-violet-400/20 rounded-full blur-3xl"></div>
+        {/* 左侧背景区域 */}
+        <div className="hidden lg:flex flex-[0_0_60%] p-20 text-white flex-col justify-center bg-emerald-600 relative overflow-hidden">
+          {/* 背景装饰光晕 */}
+          <div className="absolute inset-0 bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-800"></div>
+          <div className="absolute -top-24 -right-24 w-[500px] h-[500px] bg-white/10 rounded-full blur-[100px] animate-pulse"></div>
+          <div className="absolute -bottom-24 -left-24 w-[500px] h-[500px] bg-teal-400/20 rounded-full blur-[100px]"></div>
           
-          <div className="relative z-10 max-w-[600px] mb-15">
-            <h1 className="text-5xl mb-6 font-semibold drop-shadow-md animate-[fadeInUp_0.8s_ease-out_both]">{appTitle}</h1>
-            <p className="text-lg leading-relaxed mb-8 opacity-90 drop-shadow-sm animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
-              让微信公众号内容以RSS形式订阅，轻松管理你关注的所有公众号
+          <div className="relative z-10 max-w-[640px]">
+            <div className="flex items-center gap-3 mb-8 animate-in fade-in slide-in-from-left-8 duration-700">
+               <div className="bg-white/20 p-2.5 rounded-2xl backdrop-blur-md shadow-xl border border-white/30 flex items-center justify-center">
+                  <img src={logo} alt="Logo" className="h-8 w-8 object-contain" />
+               </div>
+               <div className="h-8 w-px bg-white/30 mx-2"></div>
+               <span className="text-xl font-medium tracking-[0.2em] opacity-90 uppercase">WeRSS Dashboard</span>
+            </div>
+
+            <h1 className="text-6xl mb-6 font-bold leading-tight drop-shadow-lg animate-in fade-in slide-in-from-left-12 duration-1000 delay-100">
+               WeRSS 微信公众号热度分析系统
+            </h1>
+            
+            <p className="text-xl leading-relaxed mb-12 opacity-80 max-w-[500px] animate-in fade-in slide-in-from-left-16 duration-1000 delay-300">
+              专注于微信公众文章的自动采集、热度追踪、标签管理与多格式导出。
             </p>
-            <div className="flex flex-col gap-4">
-              <div className="opacity-0 flex items-center gap-3 text-base drop-shadow-sm animate-[fadeInUp_0.6s_ease-out_forwards] [animation-delay:0.4s]">
-                <CheckCircle className="h-5 w-5" />
-                <span>智能内容采集与解析</span>
+
+            <div className="grid grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-500">
+              <div className="flex flex-col gap-3 group">
+                <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-all">
+                  <Zap className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg">自动采集</h4>
+                  <p className="text-sm opacity-60">自动抓取全网微信公众号文章</p>
+                </div>
               </div>
-              <div className="opacity-0 flex items-center gap-3 text-base drop-shadow-sm animate-[fadeInUp_0.6s_ease-out_forwards] [animation-delay:0.5s]">
-                <CheckCircle className="h-5 w-5" />
-                <span>一键生成RSS订阅源</span>
+
+              <div className="flex flex-col gap-3 group">
+                <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-all">
+                  <Globe className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg">热点分析</h4>
+                  <p className="text-sm opacity-60">多维度追踪文章传播热度</p>
+                </div>
               </div>
-              <div className="opacity-0 flex items-center gap-3 text-base drop-shadow-sm animate-[fadeInUp_0.6s_ease-out_forwards] [animation-delay:0.6s]">
-                <CheckCircle className="h-5 w-5" />
-                <span>实时同步最新文章</span>
+
+              <div className="flex flex-col gap-3 group">
+                <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-all">
+                  <Shield className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg">标签系统</h4>
+                  <p className="text-sm opacity-60">基于语义的内容分类与聚合</p>
+                </div>
               </div>
-              <div className="opacity-0 flex items-center gap-3 text-base drop-shadow-sm animate-[fadeInUp_0.6s_ease-out_forwards] [animation-delay:0.7s]">
-                <CheckCircle className="h-5 w-5" />
-                <span>智能监测与消息推送</span>
+
+              <div className="flex flex-col gap-3 group">
+                <div className="h-10 w-10 bg-white/10 rounded-xl flex items-center justify-center border border-white/20 group-hover:bg-white/20 transition-all">
+                  <CheckCircle className="h-5 w-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg">标准输出</h4>
+                  <p className="text-sm opacity-60">提供 RSS、Markdown、PDF</p>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* 移动端顶部紫色渐变条 */}
-        <div className="lg:hidden h-32 bg-gradient-to-r from-purple-600 via-purple-500 to-violet-600 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-700/50 via-transparent to-violet-700/50"></div>
-          <div className="relative z-10 flex items-center justify-center h-full px-6">
-            <h1 className="text-2xl font-semibold text-white drop-shadow-md">{appTitle}</h1>
+        {/* 移动端顶部背景 */}
+        <div className="lg:hidden h-48 bg-gradient-to-br from-emerald-600 to-teal-800 relative overflow-hidden flex items-center justify-center px-6">
+          <div className="relative z-10 text-center">
+            <h1 className="text-3xl font-bold text-white drop-shadow-md">{appTitle}</h1>
+            <p className="text-white/60 text-sm mt-2 tracking-widest uppercase">WeRSS Heat Analysis</p>
           </div>
         </div>
 
         {/* 右侧登录区域 */}
-        <div className="flex-1 lg:flex-[0_0_45%] flex justify-center items-center p-6 lg:p-15 bg-white">
-          <Card className="w-full max-w-[400px] p-8 lg:p-10 bg-white rounded-xl shadow-xl border border-gray-100 transition-all duration-300 hover:shadow-2xl">
+        <div className="flex-1 flex justify-center items-center p-6 lg:p-20 bg-background relative">
+          <div className="absolute top-10 right-10 text-muted-foreground text-sm hidden lg:block">
+             Version 1.1.2
+          </div>
+          
+          <Card className="w-full max-w-[460px] p-10 lg:p-12 bg-card rounded-[2rem] shadow-2xl shadow-primary/5 border-none animate-in zoom-in-95 duration-700">
+            <div className="mb-10">
+               <h2 className="text-3xl font-bold text-foreground">欢迎回来</h2>
+               <p className="text-muted-foreground mt-2">请输入您的凭据以访问控制台</p>
+            </div>
+
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
                 <FormField
                   control={form.control}
                   name="username"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>帐号</FormLabel>
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">管理员账号</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <div className="relative group">
+                          <User className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
                           <Input
-                            placeholder="请输入帐号"
-                            className="pl-9"
+                            placeholder="Account username"
+                            className="pl-12 h-14 bg-muted border-border rounded-2xl focus:bg-card focus:ring-emerald-500/20 transition-all text-base"
                             autoComplete="username"
                             {...field}
                           />
@@ -148,15 +194,15 @@ const Login: React.FC = () => {
                   control={form.control}
                   name="password"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>密码</FormLabel>
+                    <FormItem className="space-y-1">
+                      <FormLabel className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">访问密码</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <div className="relative group">
+                          <Lock className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-300 group-focus-within:text-emerald-500 transition-colors" />
                           <Input
                             type="password"
-                            placeholder="请输入密码"
-                            className="pl-9"
+                            placeholder="Password"
+                            className="pl-12 h-14 bg-muted border-border rounded-2xl focus:bg-card focus:ring-emerald-500/20 transition-all text-base"
                             autoComplete="current-password"
                             {...field}
                           />
@@ -167,11 +213,26 @@ const Login: React.FC = () => {
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? '登录中...' : '登录'}
+                <Button 
+                  type="submit" 
+                  className="w-full h-14 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-lg font-bold shadow-lg shadow-emerald-200 transition-all hover:scale-[1.02] active:scale-[0.98]" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <div className="flex items-center gap-2">
+                       <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                       <span>验证中...</span>
+                    </div>
+                  ) : '进入系统'}
                 </Button>
               </form>
             </Form>
+            
+            <div className="mt-12 pt-8 border-t border-border text-center">
+               <p className="text-xs text-slate-300 font-medium">
+                  © {new Date().getFullYear()} WeRSS. 版权所有.
+               </p>
+            </div>
           </Card>
         </div>
       </div>

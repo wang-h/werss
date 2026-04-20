@@ -1,7 +1,7 @@
 """API Key 使用日志记录中间件"""
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Callable
+from typing import Callable, Optional
 import uuid
 from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
@@ -76,7 +76,7 @@ class ApiKeyLoggingMiddleware(BaseHTTPMiddleware):
         
         return response
     
-    def _extract_api_key(self, request: Request) -> str | None:
+    def _extract_api_key(self, request: Request) -> Optional[str]:
         """从请求头中提取 API Key"""
         # 方式1: 从 X-API-Key 头获取
         api_key = request.headers.get("X-API-Key")
@@ -93,7 +93,7 @@ class ApiKeyLoggingMiddleware(BaseHTTPMiddleware):
         
         return None
     
-    async def _get_api_key_id(self, api_key: str) -> str | None:
+    async def _get_api_key_id(self, api_key: str) -> Optional[str]:
         """获取 API Key ID（如果有效）"""
         if not api_key:
             return None

@@ -164,6 +164,7 @@ const Settings: React.FC = () => {
       }
       setCollectStartDate(tempCollectStartDate)
       toast({
+        variant: "success",
         title: "成功",
         description: "采集起始时间已保存"
       })
@@ -185,6 +186,7 @@ const Settings: React.FC = () => {
     setSettings(newSettings)
     saveSettings(newSettings)
     toast({
+      variant: "success",
       title: "成功",
       description: enabled ? '已启用水印' : '已关闭水印'
     })
@@ -197,6 +199,7 @@ const Settings: React.FC = () => {
     // 使用新的 theme provider
     setTheme(enabled ? 'dark' : 'light')
     toast({
+      variant: "success",
       title: "成功",
       description: enabled ? '已切换到暗色模式' : '已切换到亮色模式'
     })

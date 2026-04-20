@@ -31,8 +31,9 @@ def _load_env_before_config():
             from dotenv import load_dotenv
             # 获取当前文件所在目录，然后找到 .env
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            env_path = '.env'  # .env
-            
+            # .env 文件在项目根目录，不在 core 目录下
+            env_path = os.path.join(os.path.dirname(current_dir), '.env')
+
             if os.path.exists(env_path):
                 # 先检查环境变量是否已存在
                 api_key_before = os.getenv("OPENAI_API_KEY")

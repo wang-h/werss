@@ -1,6 +1,6 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import {
   Sidebar,
   SidebarContent,
@@ -9,15 +9,33 @@ import {
   SidebarMenuItem,
   SidebarMenuButton,
   SidebarRail,
+  SidebarGroup,
+  SidebarGroupLabel,
 } from '@/components/ui/sidebar'
-import { FileText, Rss, Tag, Bell, Settings, Info, LayoutDashboard, GalleryVerticalEnd, Key, Layers3 } from 'lucide-react'
-import { NavMain } from '@/components/nav-main'
+import { 
+  FileText, 
+  Rss, 
+  Tag, 
+  Bell, 
+  Settings, 
+  Info, 
+  LayoutDashboard, 
+  GalleryVerticalEnd, 
+  Key, 
+  Layers3, 
+  Search, 
+  ChevronRight,
+  Zap
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 const Navbar: React.FC = () => {
   const { t } = useTranslation()
+  const location = useLocation()
+  
   // 开发环境使用 public 目录下的文件，生产环境使用后端静态文件服务
   const logo = import.meta.env.DEV ? '/logo.svg' : '/static/logo.svg'
-  const appTitle = import.meta.env.VITE_APP_TITLE || '微信公众号热度分析系统'
+  const appTitle = import.meta.env.VITE_APP_TITLE || 'WeRSS 微信公众文章热度分析系统'
 
   const menuItems = [
     {
@@ -73,35 +91,80 @@ const Navbar: React.FC = () => {
   ]
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar shadow-sm">
+      <SidebarHeader className="h-16 flex items-center px-4 border-b border-sidebar-border bg-sidebar">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent active:bg-transparent">
               <Link to="/" className="flex items-center gap-3">
-                {logo ? (
-                  <img 
-                    src={logo} 
-                    alt={appTitle} 
-                    className="h-8 w-8 rounded-md object-contain flex-shrink-0" 
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-md bg-sidebar-primary flex items-center justify-center flex-shrink-0">
-                    <GalleryVerticalEnd className="h-4 w-4 text-sidebar-primary-foreground" />
-                  </div>
-                )}
+                <div className="flex-shrink-0 bg-primary h-8 w-8 rounded-lg flex items-center justify-center shadow-lg shadow-primary/20 transition-transform group-hover:scale-105">
+                  {logo ? (
+                    <img 
+                      src={logo} 
+                      alt={appTitle} 
+                      className="h-5 w-5 object-contain" 
+                    />
+                  ) : (
+                    <Zap className="h-5 w-5 text-white" />
+                  )}
+                </div>
                 <div className="flex flex-col gap-0.5 leading-none min-w-0">
-                  <span className="font-semibold truncate">{appTitle}</span>
-                  <span className="text-xs text-muted-foreground">v1.1.2</span>
+                  <span className="font-bold text-sidebar-foreground tracking-tight whitespace-nowrap overflow-hidden group-data-[collapsible=icon]:hidden">
+                    {appTitle.split(' ')[0]}
+                  </span>
+                  <span className="text-[10px] font-medium text-primary/70 uppercase tracking-widest group-data-[collapsible=icon]:hidden">
+                    Heat Analysis v1.1
+                  </span>
                 </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        <NavMain items={menuItems} />
+      
+      <SidebarContent className="px-2 py-4 bg-sidebar">
+        <SidebarGroup>
+          <SidebarGroupLabel className="px-2 text-[11px] font-bold text-sidebar-foreground/50 uppercase tracking-[0.15em] mb-2">
+            主控中心
+          </SidebarGroupLabel>
+          <SidebarMenu className="gap-1">
+            {menuItems.map((item) => {
+              const Icon = item.icon
+              const isActive = location.pathname === item.url || (item.url !== '/' && location.pathname.startsWith(item.url))
+              
+              return (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton 
+                    asChild 
+                    tooltip={item.title} 
+                    className={cn(
+                      "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200",
+                      isActive 
+                        ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm font-semibold" 
+                        : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                    )}
+                  >
+                    <Link to={item.url}>
+                      <Icon className={cn(
+                        "h-5 w-5 transition-colors",
+                        isActive ? "text-primary" : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70"
+                      )} />
+                      <span className="flex-grow group-data-[collapsible=icon]:hidden">{item.title}</span>
+                      {isActive && (
+                        <>
+                          <ChevronRight className="h-3.5 w-3.5 opacity-50 ml-auto group-data-[collapsible=icon]:hidden" />
+                          <div className="absolute left-0 w-1 h-6 bg-primary rounded-r-full" />
+                        </>
+                      )}
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )
+            })}
+          </SidebarMenu>
+        </SidebarGroup>
       </SidebarContent>
+      
       <SidebarRail />
     </Sidebar>
   )

@@ -78,24 +78,47 @@ async def re_extract_tags(
                     # 重新提取标签
                     content = article.content if hasattr(article, 'content') and article.content else ""
                     description = article.description if article.description else ""
-                    DB._assign_tags_by_extraction(
-                        session=session,
-                        article_id=article_id,
-                        title=article.title,
-                        description=description,
-                        content=content
-                    )
-                    session.commit()
+                    
+                    # 尝试重新提取
+                    try:
+                        DB._assign_tags_by_extraction(
+                            session=session,
+                            article_id=article_id,
+                            title=article.title,
+                            description=description,
+                            content=content
+                        )
+                        # 显式 Commit 确保入库
+                        session.commit()
+                    except Exception as ext_e:
+                        session.rollback()
+                        print_error(f"提取过程报错: {ext_e}")
+                        # 强制回退到 TextRank 提取 (同步调用)
+                        from core.tag_extractor import get_tag_extractor
+                        extractor = get_tag_extractor()
+                        topics = extractor.extract(article.title, description, content, method="textrank")
+                        if topics:
+                            # 手动插入标签逻辑 (简化版)
+                            from core.models.tags import Tags
+                            from core.models.article_tags import ArticleTag
+                            import uuid
+                            for t_name in topics:
+                                tag_obj = session.query(Tags).filter(Tags.name == t_name).first()
+                                if not tag_obj:
+                                    tag_obj = Tags(id=str(uuid.uuid4()), name=t_name, status=1)
+                                    session.add(tag_obj)
+                                    session.flush()
+                                art_tag = ArticleTag(id=str(uuid.uuid4()), article_id=article_id, tag_id=tag_obj.id)
+                                session.add(art_tag)
+                            session.commit()
 
-                    # 获取新标签
-                    new_article_tags = session.query(ArticleTag).filter(
-                        ArticleTag.article_id == article_id
-                    ).all()
+                    # 获取新标签名称用于返回
                     tag_names = []
+                    new_article_tags = session.query(ArticleTag).filter(ArticleTag.article_id == article_id).all()
                     if new_article_tags:
-                        tag_ids = [at.tag_id for at in new_article_tags]
-                        new_tags = session.query(Tags).filter(Tags.id.in_(tag_ids)).all()
-                        tag_names = [tag.name for tag in new_tags]
+                        t_ids = [at.tag_id for at in new_article_tags]
+                        tags_objs = session.query(Tags).filter(Tags.id.in_(t_ids)).all()
+                        tag_names = [t.name for t in tags_objs]
 
                     success_count += 1
                     results.append({

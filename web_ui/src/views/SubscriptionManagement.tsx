@@ -46,6 +46,7 @@ const SubscriptionManagement: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
+  const [jumpPageInput, setJumpPageInput] = useState('1')
 
   const form = useForm({
     defaultValues: {
@@ -94,6 +95,10 @@ const SubscriptionManagement: React.FC = () => {
   useEffect(() => {
     loadSubscriptions()
   }, [pagination.current, pagination.pageSize, searchText])
+
+  useEffect(() => {
+    setJumpPageInput(String(pagination.current))
+  }, [pagination.current])
 
   // 选择订阅
   const handleSelectSubscription = (subscription: Subscription) => {
@@ -235,7 +240,7 @@ const SubscriptionManagement: React.FC = () => {
       align: 'center',
       render: (status: number) => (
         <Badge variant={status === 1 ? 'default' : 'destructive'} className="rounded px-1.5 py-0.5 text-[10px]">
-          <span className="dark:text-dark">{status === 1 ? t('common.enabled') : t('common.disabled')}</span>
+          <span className="dark:text-dark whitespace-nowrap">{status === 1 ? t('common.enabled') : t('common.disabled')}</span>
         </Badge>
       )
     }
@@ -243,9 +248,38 @@ const SubscriptionManagement: React.FC = () => {
 
   const renderPagination = () => {
     const totalPages = Math.ceil(pagination.total / pagination.pageSize)
+    const handleJumpPage = () => {
+      const targetPage = Number.parseInt(jumpPageInput, 10)
+      if (Number.isNaN(targetPage)) {
+        setJumpPageInput(String(pagination.current))
+        return
+      }
+
+      const nextPage = Math.min(Math.max(targetPage, 1), Math.max(1, totalPages))
+      setPagination(prev => ({ ...prev, current: nextPage }))
+      setJumpPageInput(String(nextPage))
+    }
+
     return (
       <div className="flex items-center justify-center mt-4 pb-2">
         <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span>{t('common.gotoPage')}</span>
+            <Input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={jumpPageInput}
+              onChange={(e) => setJumpPageInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleJumpPage()
+                }
+              }}
+              onBlur={handleJumpPage}
+              className="h-8 w-20"
+            />
+          </div>
           <Button
             variant="outline"
             size="sm"
@@ -387,7 +421,7 @@ const SubscriptionManagement: React.FC = () => {
               <CardHeader className="flex-shrink-0 pb-4 pt-6 px-6 border-b">
                 <div className="flex md:flex-row flex-col items-center gap-4 flex-1 min-w-0 w-full">
                   <div className="flex items-center gap-4 flex-1 min-w-0 w-full">
-                    <Avatar className="h-14 w-14 rounded-lg flex-shrink-0 border">
+                    <Avatar className="h-14 w-14 rounded-full flex-shrink-0 border">
                       {(selectedSubscription as any).mp_cover || (selectedSubscription as any).avatar ? (
                         <AvatarImage 
                           src={AvatarUtil((selectedSubscription as any).mp_cover || (selectedSubscription as any).avatar)} 
@@ -456,7 +490,7 @@ const SubscriptionManagement: React.FC = () => {
                         variant={selectedSubscription.status === 1 ? 'default' : 'destructive'}
                         className="text-sm px-3 py-1 rounded-md font-medium"
                       >
-                        <span className="dark:text-foreground">{selectedSubscription.status === 1 ? t('common.enabled') : t('common.disabled')}</span>
+                        <span className="dark:text-foreground whitespace-nowrap">{selectedSubscription.status === 1 ? t('common.enabled') : t('common.disabled')}</span>
                       </Badge>
                     </div>
                   </div>
